@@ -30,6 +30,16 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   };
 });
 
+/**
+ * ¿Ya se aplicaron las migraciones? PGRST205 = la tabla no existe en la API.
+ * Permite mostrar un aviso útil en vez de un error cuando la base está vacía.
+ */
+export const isDatabaseReady = cache(async (): Promise<boolean> => {
+  const supabase = await createClient();
+  const { error } = await supabase.from("programs").select("id").limit(1);
+  return error?.code !== "PGRST205";
+});
+
 export async function requireUser(): Promise<SessionUser> {
   const user = await getSessionUser();
   if (!user) redirect("/login");

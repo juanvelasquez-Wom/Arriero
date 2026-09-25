@@ -7,7 +7,7 @@ import { DemoBadge } from "@/components/app/status-badge";
 import { Button } from "@/components/ui/button";
 import { ROLE_LABEL } from "@/domain/labels";
 import { formatDateRange } from "@/domain/format";
-import { requireUser } from "@/server/auth";
+import { isDatabaseReady, requireUser } from "@/server/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { findDemoProgramId } from "@/server/demo/loader";
 import { listDeletedPrograms, listMyPrograms } from "@/server/queries/programs";
@@ -24,6 +24,8 @@ export const metadata: Metadata = { title: "Mis programas" };
 
 export default async function ProgramsPage() {
   const user = await requireUser();
+  // El layout ya muestra el aviso; aquí solo evitamos consultar tablas inexistentes.
+  if (!(await isDatabaseReady())) return null;
   const [programs, deleted, demo] = await Promise.all([
     listMyPrograms(user.id),
     listDeletedPrograms(),

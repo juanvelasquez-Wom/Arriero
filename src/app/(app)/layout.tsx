@@ -1,9 +1,11 @@
-import { requireUser } from "@/server/auth";
+import { DatabaseNotReady } from "@/components/app/database-not-ready";
+import { isDatabaseReady, requireUser } from "@/server/auth";
 
 // Todas las vistas de la app dependen de la sesión: se renderizan por petición.
 export const dynamic = "force-dynamic";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   await requireUser();
+  if (!(await isDatabaseReady())) return <DatabaseNotReady />;
   return <div className="flex min-h-screen flex-1 flex-col bg-wash">{children}</div>;
 }
