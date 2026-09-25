@@ -1,4 +1,4 @@
-import { LogOut, ShieldCheck } from "lucide-react";
+import { LogOut, ShieldCheck, Users } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -54,6 +54,16 @@ export function AppHeader({ user, children }: { user: SessionUser; children?: Re
               ) : null}
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
+            {user.isAdmin ? (
+              <>
+                <DropdownMenuItem asChild>
+                  <Link href="/admin/usuarios">
+                    <Users className="size-4" aria-hidden /> Usuarios
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+              </>
+            ) : null}
             <form action={signOut}>
               <DropdownMenuItem asChild>
                 <button type="submit" className="w-full">

@@ -85,6 +85,8 @@ src/
     auth/confirm              recibe enlaces de invitación y recuperación (token_hash, code o fragmento)
     (app)/programas           Mis programas · ejemplo · programas en la papelera
     (app)/programas/nuevo     paso 1 del asistente para crear un programa
+    (app)/admin/usuarios      administración de usuarios (solo admin global): crear, admin sí/no,
+                              enlace de contraseña, bloquear
     (app)/programas/[programId]/
       page                    resumen + lista de primeros pasos
       configuracion?paso=1..5 asistente (datos/horizontes, líneas, calendario, miembros, puntaje)
@@ -100,6 +102,7 @@ src/
     dashboard-filters · gantt · metric-tree · onboarding · dates · format · labels · types
   server/
     auth.ts                   getSessionUser, requireUser, getProgramContext, getActionActor
+    users.ts                  provisionUser (crea la cuenta de Auth; nunca fija contraseñas) y passwordLink
     queries/                  lecturas para server components (programs, structure, experiments, wizard)
     actions/                  server actions: zod → dominio → Supabase (auth, programs, members, problems,
                               experiments, metrics, stages, metric-values, delete, trash, demo)
@@ -178,6 +181,7 @@ Decisiones tomadas donde la especificación no era explícita:
 - La **etapa** también exige reasignar o borrar juntos sus problemas.
 - La papelera de **programas** borrados se ve en "Mis programas" (para owner/admin).
 - Las invitaciones intentan el correo de Supabase; si falla (sin SMTP propio), se genera un enlace para compartir a mano.
+- **Creación de usuarios:** solo el admin global, desde `/admin/usuarios` (o el script `create-admin` para el primero). Nadie fija contraseñas ajenas: la persona la crea desde un enlace de un solo uso. Siempre queda al menos un admin global; nadie se quita el admin ni se bloquea a sí mismo. Los cambios quedan en `activity_log` con `program_id` nulo. Bloquear usa el `ban` de Supabase Auth.
 
 ## 7. Matriz de permisos y RLS
 

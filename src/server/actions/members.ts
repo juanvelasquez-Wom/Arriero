@@ -3,13 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { fail, failFrom, fromZod, ok, type ActionResult } from "@/lib/action-result";
-import { publicEnv } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { inviteSchema, type InviteInput } from "@/lib/validation/programs";
 import { PROGRAM_ROLES } from "@/domain/types";
 import { can } from "@/domain/permissions";
 import { getActionActor } from "@/server/auth";
+import { provisionUser } from "@/server/users";
 
 export interface InviteResult {
   /** Se envió el correo de invitación. */
@@ -18,10 +18,6 @@ export interface InviteResult {
   existing: boolean;
   /** Enlace para compartir a mano cuando el correo no se pudo enviar. */
   link?: string;
-}
-
-function inviteRedirect() {
-  return `${publicEnv.siteUrl}/auth/confirm?next=${encodeURIComponent("/restablecer?invitacion=1")}`;
 }
 
 /**
@@ -36,44 +32,19 @@ export async function inviteMember(programId: string, input: InviteInput): Promi
   if (!parsed.success) return fromZod(parsed.error);
   const { email, name, role } = parsed.data;
 
-  const admin = createAdminClient();
-  const supabase = await createClient();
-
-  const { data: existingProfile } = await admin.from("profiles").select("id").eq("email", email).maybeSingle();
-  let userId = existingProfile?.id as string | undefined;
-  const result: InviteResult = { emailed: false, existing: !!userId };
-
-  if (!userId) {
-    const invited = await admin.auth.admin.inviteUserByEmail(email, {
-      data: { name: name || undefined },
-      redirectTo: inviteRedirect(),
-    });
-    if (!invited.error && invited.data.user) {
-      userId = invited.data.user.id;
-      result.emailed = true;
-    } else {
-      // Sin SMTP propio (o límite de envíos): generamos un enlace para compartir a mano.
-      console.warn("[invitación] No se pudo enviar el correo:", invited.error?.message);
-      let link = await admin.auth.admin.generateLink({
-        type: "invite",
-        email,
-        options: { data: { name: name || undefined }, redirectTo: inviteRedirect() },
-      });
-      if (link.error) {
-        link = await admin.auth.admin.generateLink({ type: "magiclink", email, options: { redirectTo: inviteRedirect() } });
-      }
-      if (link.error || !link.data.user) {
-        return fail("No se pudo crear la invitación. Revisa el correo e intenta de nuevo.");
-      }
-      userId = link.data.user.id;
-      const type = link.data.properties.verification_type ?? "invite";
-      result.link = `${publicEnv.siteUrl}/auth/confirm?token_hash=${link.data.properties.hashed_token}&type=${type}&next=${encodeURIComponent("/restablecer?invitacion=1")}`;
-    }
+  let provisioned;
+  try {
+    provisioned = await provisionUser(createAdminClient(), { email, name });
+  } catch (e) {
+    console.error("[invitación]", e);
+    return fail("No se pudo crear la invitación. Revisa el correo e intenta de nuevo.");
   }
+  const result: InviteResult = { emailed: provisioned.emailed, existing: provisioned.existing, link: provisioned.link };
 
+  const supabase = await createClient();
   const { error } = await supabase
     .from("program_members")
-    .upsert({ program_id: programId, user_id: userId, role }, { onConflict: "program_id,user_id" });
+    .upsert({ program_id: programId, user_id: provisioned.userId, role }, { onConflict: "program_id,user_id" });
   if (error) return failFrom(error);
   revalidatePath(`/programas/${programId}`, "layout");
   return ok(

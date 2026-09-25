@@ -70,6 +70,10 @@ El script crea el usuario (o lo promueve si ya existe), lo marca como **admin gl
 
 Luego entra a `http://localhost:3000`, crea el primer programa o usa **Cargar programa de ejemplo** (todos sus datos son inventados).
 
+### Crear más usuarios
+
+Como admin global, entra a **Usuarios** (menú de tu nombre o botón en "Mis programas"). **Crear usuario** pide nombre, correo, si es admin global y, opcionalmente, un programa y su rol. El acceso llega por correo (requiere SMTP propio) o como un enlace de un solo uso para compartir. Desde la lista también puedes dar o quitar el admin global, generar un nuevo enlace de contraseña y bloquear el acceso. Los owners de programa invitan a su equipo desde **Configuración → Miembros**.
+
 ## 5. Desarrollo
 
 ```bash

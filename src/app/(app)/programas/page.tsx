@@ -1,4 +1,4 @@
-import { CalendarRange, FolderKanban, Plus } from "lucide-react";
+import { CalendarRange, FolderKanban, Plus, Users } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AppHeader } from "@/components/app/app-header";
@@ -40,6 +40,11 @@ export default async function ProgramsPage() {
           actions={
             user.isAdmin ? (
               <>
+                <Button asChild variant="outline">
+                  <Link href="/admin/usuarios">
+                    <Users aria-hidden /> Usuarios
+                  </Link>
+                </Button>
                 <DemoControls demo={demo} />
                 <Button asChild>
                   <Link href="/programas/nuevo">
