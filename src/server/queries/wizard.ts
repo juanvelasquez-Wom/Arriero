@@ -1,5 +1,5 @@
 import "server-only";
-import type { WizardData } from "@/components/experiments/experiment-wizard";
+import type { WizardData } from "@/components/experiments/wizard-values";
 import { can } from "@/domain/permissions";
 import type { ProgramContext } from "@/server/auth";
 import { listCalendar, listLines, listMembers } from "./programs";
