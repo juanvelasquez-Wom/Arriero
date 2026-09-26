@@ -12,7 +12,8 @@ export function ThemeToggle() {
       variant="ghost"
       size="icon-sm"
       onClick={() => setTheme(dark ? "light" : "dark")}
-      aria-label={dark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
+      // Etiqueta neutra: el tema no se conoce en el servidor (evita diferencias de hidratación).
+      aria-label="Cambiar entre modo claro y oscuro"
     >
       <Sun className="hidden size-4 dark:block" aria-hidden />
       <Moon className="size-4 dark:hidden" aria-hidden />
