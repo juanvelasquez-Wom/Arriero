@@ -120,7 +120,7 @@ export default async function GanttPage({ params, searchParams }: PageProps<"/pr
           description="El Gantt agrupa los ejercicios por línea. Crea las líneas del programa en la configuración para empezar."
           action={
             <Button asChild variant="outline">
-              <Link href={`/programas/${programId}/configuracion?paso=2`}>Configurar líneas</Link>
+              <Link href={`/programas/${programId}/configuracion?paso=lineas`}>Configurar líneas</Link>
             </Button>
           }
         />

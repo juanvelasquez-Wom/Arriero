@@ -29,10 +29,10 @@ export default async function ProgramOverviewPage({ params }: PageProps<"/progra
   const showChecklist = !onboardingComplete(counts);
   const base = `/programas/${programId}`;
   const stepHref: Record<string, string> = {
-    lines: `${base}/configuracion?paso=2`,
-    north_star: lines[0] ? `${base}/lineas/${lines[0].id}?tab=norte` : `${base}/configuracion?paso=2`,
-    tree: lines[0] ? `${base}/lineas/${lines[0].id}?tab=arbol` : `${base}/configuracion?paso=2`,
-    funnel: lines[0] ? `${base}/lineas/${lines[0].id}?tab=embudo` : `${base}/configuracion?paso=2`,
+    lines: `${base}/configuracion?paso=lineas`,
+    north_star: lines[0] ? `${base}/lineas/${lines[0].id}?tab=norte` : `${base}/configuracion?paso=lineas`,
+    tree: lines[0] ? `${base}/lineas/${lines[0].id}?tab=arbol` : `${base}/configuracion?paso=lineas`,
+    funnel: lines[0] ? `${base}/lineas/${lines[0].id}?tab=embudo` : `${base}/configuracion?paso=lineas`,
     problem: `${base}/problemas/nuevo`,
     experiment: `${base}/ejercicios/nuevo`,
   };
@@ -176,7 +176,7 @@ export default async function ProgramOverviewPage({ params }: PageProps<"/progra
             <p className="text-sm text-soft">
               Sin eventos próximos.{" "}
               {can.editCalendar(ctx.actor) ? (
-                <Link href={`${base}/configuracion?paso=3`} className="underline underline-offset-4">
+                <Link href={`${base}/configuracion?paso=calendario`} className="underline underline-offset-4">
                   Configura el calendario
                 </Link>
               ) : null}

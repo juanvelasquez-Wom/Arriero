@@ -164,6 +164,9 @@ describe("carga semanal", () => {
     expect(parseDecimal("1.234,5")).toBe(1234.5);
     expect(parseDecimal("1,234.5")).toBe(1234.5);
     expect(parseDecimal("1.234.567")).toBe(1234567);
+    expect(parseDecimal("185.000")).toBe(185000);
+    expect(parseDecimal("9.800")).toBe(9800);
+    expect(parseDecimal("18.5")).toBe(18.5);
     expect(parseDecimal("-3,2")).toBe(-3.2);
     expect(parseDecimal("12 %")).toBe(12);
     expect(parseDecimal("$ 25.000,50")).toBe(25000.5);

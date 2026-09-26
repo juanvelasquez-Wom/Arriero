@@ -89,7 +89,7 @@ src/
                               enlace de contraseña, bloquear
     (app)/programas/[programId]/
       page                    resumen + lista de primeros pasos
-      configuracion?paso=1..5 asistente (datos/horizontes, líneas, calendario, miembros, puntaje)
+      configuracion?paso=…    asistente guiado (ver "Asistente de configuración" abajo)
       lineas/[lineId]?tab=norte|arbol|embudo
       carga?semana=           carga semanal en lote
       problemas, problemas/nuevo, problemas/[id]
@@ -123,6 +123,14 @@ tests/
   db/                         integración contra Supabase: rls, deletion, demo (crean y limpian sus datos)
   e2e/                        Playwright: smoke del flujo principal
 ```
+
+**Asistente de configuración del programa** (pensado para quien no conoce el modelo de growth)
+
+- `/programas/nuevo` muestra primero la bienvenida (el modelo en 5 ideas) y luego el paso "El programa".
+- `/programas/[id]/configuracion?paso=<clave>[&linea=<id>]` con las claves de `src/domain/setup-flow.ts`: `programa` → `calendario` (picos con congelamiento sugerido y punto de decisión) → `horizontes` (propuestos desde el punto de decisión) → `lineas` (plantillas telco) → por cada línea `linea-norte` → `linea-arbol` → `linea-embudo` → `equipo` → `puntaje` → `resumen`.
+- Se guarda al avanzar (`src/server/actions/setup.ts`). `programs.setup_step` guarda el último paso principal completado (1–4); el avance dentro de cada línea se deduce de los datos. `resumeStep` decide dónde retomar e `isReachable` impide saltar pasos.
+- Ayudas: panel "¿Qué es esto?" y textos en `src/components/setup/help-content.ts`; burbujas ⓘ (`InfoTip`) por campo; botones "Usar ejemplo". Plantillas y sugerencias en `src/domain/growth-templates.ts`.
+- Se mantiene el término de la metodología, **horizonte** (H1, H2), siempre explicado como "tramo del programa con su propia meta".
 
 **Acceso a Supabase**
 

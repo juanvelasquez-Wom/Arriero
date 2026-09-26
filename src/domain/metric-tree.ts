@@ -221,6 +221,9 @@ export function parseDecimal(raw: string | number | null | undefined): number | 
     s = (s.match(/,/g)?.length ?? 0) > 1 ? s.replace(/,/g, "") : s.replace(",", ".");
   } else if (hasDot && (s.match(/\./g)?.length ?? 0) > 1) {
     s = s.replace(/\./g, "");
+  } else if (hasDot && /^[-+]?\d{1,3}\.\d{3}$/.test(s)) {
+    // es-CO: "185.000" son 185 mil, no 185 con decimales.
+    s = s.replace(".", "");
   }
   if (!/^[-+]?(\d+\.?\d*|\.\d+)$/.test(s)) return Number.NaN;
   return Number(s);

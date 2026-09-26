@@ -70,7 +70,7 @@ export default async function WeeklyLoadPage({ params, searchParams }: PageProps
               ))
             ) : can.editStructure(ctx.actor) ? (
               <Button asChild>
-                <Link href={`/programas/${programId}/configuracion?paso=2`}>Crear líneas</Link>
+                <Link href={`/programas/${programId}/configuracion?paso=lineas`}>Crear líneas</Link>
               </Button>
             ) : null
           }

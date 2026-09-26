@@ -74,7 +74,7 @@ export default async function PortfolioPage({ params, searchParams }: PageProps<
           description="La matriz cruza las líneas con las etapas de su embudo. Crea las líneas y sus etapas para verla."
           action={
             <Button asChild variant="outline">
-              <Link href={`${base}/configuracion?paso=2`}>Configurar líneas</Link>
+              <Link href={`${base}/configuracion?paso=lineas`}>Configurar líneas</Link>
             </Button>
           }
         />

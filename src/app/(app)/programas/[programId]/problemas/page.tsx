@@ -71,7 +71,7 @@ export default async function ProblemsPage({ params, searchParams }: PageProps<"
               </Button>
             ) : (
               <Button asChild variant="outline">
-                <Link href={`${base}/configuracion?paso=2`}>Configurar líneas</Link>
+                <Link href={`${base}/configuracion?paso=lineas`}>Configurar líneas</Link>
               </Button>
             )
           }

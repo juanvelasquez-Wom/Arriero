@@ -17,7 +17,6 @@ import { ROLE_DESCRIPTION, ROLE_LABEL } from "@/domain/labels";
 import { PROGRAM_ROLES, type ProgramRole } from "@/domain/types";
 import { inviteSchema, type InviteInput } from "@/lib/validation/programs";
 import { changeMemberRole, inviteMember, removeMember } from "@/server/actions/members";
-import { advanceSetup } from "@/server/actions/programs";
 import type { Member } from "@/server/queries/programs";
 
 export function MembersStep({
@@ -25,13 +24,11 @@ export function MembersStep({
   members,
   currentUserId,
   canManage,
-  showNav = true,
 }: {
   programId: string;
   members: Member[];
   currentUserId: string;
   canManage: boolean;
-  showNav?: boolean;
 }) {
   const router = useRouter();
   const [error, setError] = useState<string>();
@@ -194,25 +191,6 @@ export function MembersStep({
       ) : (
         <p className="text-sm text-soft">Solo el owner o un admin puede invitar y cambiar roles.</p>
       )}
-
-      {showNav ? (
-        <div className="flex justify-between">
-          <Button variant="outline" onClick={() => router.push(`/programas/${programId}/configuracion?paso=3`)}>
-            Anterior
-          </Button>
-          <Button
-            disabled={pending}
-            onClick={() =>
-              startTransition(async () => {
-                await advanceSetup(programId, 4);
-                router.push(`/programas/${programId}/configuracion?paso=5`);
-              })
-            }
-          >
-            Siguiente
-          </Button>
-        </div>
-      ) : null}
     </div>
   );
 }
