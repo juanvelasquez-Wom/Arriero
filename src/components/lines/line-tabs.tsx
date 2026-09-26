@@ -30,7 +30,7 @@ export function LineTabs({ baseHref, active }: { baseHref: string; active: LineT
                 href={`${baseHref}?tab=${t.id}`}
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
-                  "relative inline-flex h-10 items-center gap-1.5 rounded-t-md px-3 text-sm font-medium text-soft hover:text-ink focus-visible:outline-2 focus-visible:outline-ink",
+                  "relative inline-flex h-10 items-center gap-1.5 rounded-t-md px-3 text-sm font-semibold text-soft hover:text-ink focus-visible:outline-2 focus-visible:outline-ink",
                   isActive && "text-ink",
                 )}
               >

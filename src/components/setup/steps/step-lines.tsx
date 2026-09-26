@@ -50,7 +50,7 @@ export function StepLines({
       return;
     }
     if (!existing.length && !toCreate.length) {
-      setError("Elige o escribe al menos una línea de negocio.");
+      setError("Elija o escriba al menos una línea de negocio. Sin línea no hay camino.");
       return;
     }
     setError(undefined);
@@ -67,8 +67,8 @@ export function StepLines({
   return (
     <div className="space-y-5">
       {existing.length ? (
-        <div className="rounded-xl border bg-paper p-5">
-          <h2 className="mb-3 font-semibold">Líneas del programa</h2>
+        <div className="rounded-2xl border bg-paper shadow-card p-5">
+          <h2 className="mb-3 text-lg font-bold">Líneas del programa</h2>
           <ul className="divide-y rounded-lg border">
             {existing.map((l) => (
               <li key={l.id} className="flex items-center gap-2 px-3 py-2 text-sm">
@@ -82,10 +82,10 @@ export function StepLines({
       ) : null}
 
       {!readOnly ? (
-        <div className="rounded-xl border bg-paper p-5">
-          <h2 className="font-semibold">{existing.length ? "Agregar más líneas" : "Elige tus líneas de negocio"}</h2>
+        <div className="rounded-2xl border bg-paper shadow-card p-5">
+          <h2 className="text-lg font-bold">{existing.length ? "Agregar más líneas" : "Elija sus líneas de negocio"}</h2>
           <p className="mt-1 text-sm text-soft">
-            Las plantillas de telecomunicaciones traen métrica norte, árbol y embudo sugeridos. En los siguientes pasos los revisas línea por
+            Las plantillas de telecomunicaciones traen métrica norte, árbol y embudo sugeridos. En los siguientes pasos los revisa línea por
             línea.
           </p>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -101,8 +101,8 @@ export function StepLines({
                   disabled={created}
                   onClick={() => toggle(t.name)}
                   className={cn(
-                    "flex gap-3 rounded-xl border p-4 text-left transition-colors hover:border-ink/40",
-                    on && "border-ink bg-wash",
+                    "lift flex gap-3 rounded-2xl border bg-paper p-4 text-left shadow-card transition-colors hover:border-ink/40",
+                    on && "border-ink bg-wash ring-1 ring-ink",
                     created && "cursor-default opacity-70",
                   )}
                 >
@@ -160,7 +160,7 @@ export function StepLines({
         prevHref={prevHref}
         pending={pending}
         onNext={next}
-        nextLabel={toCreate.length ? `Crear ${toCreate.length} línea(s) y seguir` : "Seguir"}
+        nextLabel={toCreate.length ? `Cree ${toCreate.length} línea(s) y siga` : "Siga"}
       />
     </div>
   );

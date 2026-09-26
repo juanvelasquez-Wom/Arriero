@@ -99,7 +99,7 @@ export default async function ProblemDetailPage({ params }: PageProps<"/programa
               <ul className="divide-y">
                 {linked.map((e) => (
                   <li key={e.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
-                    <Link href={`${base}/ejercicios/${e.id}`} className="font-medium hover:underline">
+                    <Link href={`${base}/ejercicios/${e.id}`} className="font-semibold hover:underline">
                       {e.title}
                     </Link>
                     <span className="flex items-center gap-3">
@@ -110,7 +110,7 @@ export default async function ProblemDetailPage({ params }: PageProps<"/programa
                 ))}
               </ul>
             ) : (
-              <p className="text-sm text-soft">Todavía no hay ejercicios para este problema.</p>
+              <p className="text-sm text-soft">Todavía no hay ejercicios para este problema. Probemos por ahí: cree el primero.</p>
             )}
           </Section>
         </div>

@@ -72,9 +72,9 @@ export function ExperimentWizard({
 
   function validateOrigin(): boolean {
     const e: Record<string, string> = {};
-    if (!v.problem_id) e.problem_id = "Todo ejercicio nace de un problema: elige uno.";
-    if (!v.metric_id) e.metric_id = "Elige la métrica del árbol que el ejercicio quiere mover.";
-    if (v.title.trim().length < 3) e.title = "Escribe un título de al menos 3 caracteres.";
+    if (!v.problem_id) e.problem_id = "Todo ejercicio nace de un problema: elija uno.";
+    if (!v.metric_id) e.metric_id = "Elija la métrica del árbol que el ejercicio quiere mover.";
+    if (v.title.trim().length < 3) e.title = "Escriba un título de al menos 3 caracteres.";
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -113,7 +113,7 @@ export function ExperimentWizard({
     setFormError(undefined);
     if (!validateOrigin()) {
       setStep(1);
-      setFormError("Para guardar necesitas al menos el problema, la métrica y el título.");
+      setFormError("Para guardar se necesita al menos el problema, la métrica y el título.");
       return;
     }
     if (v.variants.filter((x) => x.is_control).length > 1) {
@@ -137,7 +137,7 @@ export function ExperimentWizard({
       if (variantIds) {
         setV((prev) => ({ ...prev, variants: prev.variants.map((x, i) => ({ ...x, id: variantIds[i] ?? x.id })) }));
       }
-      toast.success(id ? "Borrador guardado" : "Borrador creado", { description: "Puedes retomarlo en cualquier momento." });
+      toast.success(id ? "Borrador guardado" : "Borrador creado", { description: "Sin afán: puede retomarlo cuando quiera." });
       if (then === "finish") {
         router.push(`/programas/${data.programId}/ejercicios/${newId}`);
         return;
@@ -168,7 +168,7 @@ export function ExperimentWizard({
                 onClick={() => goTo(s.n)}
                 aria-current={s.n === step ? "step" : undefined}
                 className={cn(
-                  "inline-flex items-center gap-2 rounded-full border bg-paper px-3 py-1.5 text-sm hover:border-ink/40",
+                  "inline-flex items-center gap-2 rounded-full border bg-paper px-3 py-1.5 text-sm transition-colors hover:border-ink/40",
                   s.n === step && "border-ink font-medium",
                 )}
               >
@@ -188,14 +188,14 @@ export function ExperimentWizard({
         </ol>
       </nav>
 
-      <div className="rounded-xl border bg-paper p-5">
+      <div className="rounded-2xl border bg-paper p-5 shadow-card">
         <FormError message={formError} className="mb-4" />
 
         {step === 1 ? (
           <div className="space-y-4">
             {problemsByLine.length === 0 ? (
               <Callout icon={TriangleAlert} title="No hay problemas disponibles">
-                Primero registra un problema con evidencia: los ejercicios no pueden existir sin uno.
+                Primero registre un problema con evidencia: no hay ejercicio sin problema.
               </Callout>
             ) : null}
             <FormField id="problem_id" label="Problema" required error={errors.problem_id} description="El ejercicio ataca este problema.">
@@ -211,7 +211,7 @@ export function ExperimentWizard({
                 }}
               >
                 <SelectTrigger id="problem_id" className="w-full" aria-invalid={!!errors.problem_id}>
-                  <SelectValue placeholder="Elige el problema" />
+                  <SelectValue placeholder="Elija el problema" />
                 </SelectTrigger>
                 <SelectContent>
                   {problemsByLine.map((g) => (
@@ -232,11 +232,11 @@ export function ExperimentWizard({
               label="Métrica del árbol"
               required
               error={errors.metric_id}
-              description={problem ? "Solo métricas de la misma línea del problema." : "Elige primero el problema."}
+              description={problem ? "Solo métricas de la misma línea del problema." : "Elija primero el problema."}
             >
               <Select value={v.metric_id || undefined} onValueChange={(mid) => set("metric_id", mid)} disabled={!problem || designLocked}>
                 <SelectTrigger id="metric_id" className="w-full" aria-invalid={!!errors.metric_id}>
-                  <SelectValue placeholder="Elige la métrica" />
+                  <SelectValue placeholder="Elija la métrica" />
                 </SelectTrigger>
                 <SelectContent>
                   {lineMetrics.map((m) => (
@@ -248,7 +248,7 @@ export function ExperimentWizard({
               </Select>
             </FormField>
             {problem && lineMetrics.length === 0 ? (
-              <Callout icon={TriangleAlert}>Esta línea todavía no tiene métricas en su árbol. Créalas en la vista de la línea.</Callout>
+              <Callout icon={TriangleAlert}>Esta línea todavía no tiene métricas en su árbol. Créelas en la vista de la línea.</Callout>
             ) : null}
             <FormField id="title" label="Título del ejercicio" required error={errors.title}>
               <Input id="title" value={v.title} onChange={(e) => set("title", e.target.value)} placeholder="Recordatorio de recarga con paquete sugerido por WhatsApp" />
@@ -259,7 +259,7 @@ export function ExperimentWizard({
         {step === 2 ? (
           <div className="space-y-4">
             <p className="text-sm text-soft">
-              Escribe la hipótesis en tres partes. Ejemplo: <em>SI</em> enviamos un recordatorio por WhatsApp a los 25 días de la primera
+              Escriba la hipótesis en tres partes. Ejemplo: <em>SI</em> enviamos un recordatorio por WhatsApp a los 25 días de la primera
               recarga, <em>ENTONCES</em> sube la segunda recarga a 30 días, <em>PORQUE</em> el cliente se acuerda a tiempo.
             </p>
             <FormField id="h-if" label="SI… (el cambio que haremos)">
@@ -292,7 +292,7 @@ export function ExperimentWizard({
                 <div key={k} className="space-y-2">
                   <div className="flex items-baseline justify-between">
                     <Label htmlFor={`s-${k}`}>{label}</Label>
-                    <span className="text-lg font-semibold tabular-nums">{v[k] ?? "—"}</span>
+                    <span className="font-heading text-lg font-extrabold tabular-nums">{v[k] ?? "—"}</span>
                   </div>
                   <Slider
                     id={`s-${k}`}
@@ -309,7 +309,7 @@ export function ExperimentWizard({
               ))}
             </div>
             <div className="grid gap-4 md:grid-cols-2">
-              <div className="flex items-start gap-3 rounded-lg border p-3">
+              <div className="flex items-start gap-3 rounded-xl border p-3">
                 <Switch
                   id="fits_calendar"
                   checked={v.fits_calendar}
@@ -337,14 +337,14 @@ export function ExperimentWizard({
                 </Select>
               </FormField>
             </div>
-            <div className="flex flex-wrap items-center gap-6 rounded-lg border-l-4 border-l-highlight bg-wash px-4 py-3" aria-live="polite">
+            <div className="flex flex-wrap items-center gap-6 rounded-xl border-l-4 border-l-highlight bg-wash px-4 py-3" aria-live="polite">
               <div>
                 <div className="text-xs text-soft">ICE</div>
-                <div className="text-xl font-semibold tabular-nums">{formatScore(ice)}</div>
+                <div className="font-heading text-xl font-extrabold tabular-nums">{formatScore(ice)}</div>
               </div>
               <div>
                 <div className="text-xs text-soft">Puntaje final</div>
-                <div className="text-2xl font-semibold tabular-nums">{formatScore(final)}</div>
+                <div className="font-heading text-2xl font-extrabold tabular-nums">{formatScore(final)}</div>
               </div>
               <p className="text-xs text-soft">
                 ICE {formatScore(ice)} {v.fits_calendar ? `+ ${formatScore(data.scoring.calendar_bonus)} calendario ` : ""}
@@ -375,7 +375,7 @@ export function ExperimentWizard({
                   disabled={!data.canScore}
                 >
                   <SelectTrigger id="owner_id" className="w-full">
-                    <SelectValue placeholder="Elige a una persona del programa" />
+                    <SelectValue placeholder="Elija a una persona del programa" />
                   </SelectTrigger>
                   <SelectContent>
                     {data.members
@@ -474,7 +474,7 @@ function DesignStep({
           desbloquearlo desde el detalle.
         </Callout>
       ) : (
-        <p className="text-sm text-soft">El diseño se fija antes de lanzar y no se reinterpreta después: al pasar a En prueba queda bloqueado.</p>
+        <p className="text-sm text-soft">El diseño se fija antes de lanzar y no se reinterpreta después. Al pasar a En prueba queda bloqueado.</p>
       )}
       <div>
         <div className="mb-2 text-sm font-medium">Tipo de prueba</div>
@@ -487,7 +487,7 @@ function DesignStep({
               aria-checked={v.test_type === t}
               onClick={() => set("test_type", t)}
               className={cn(
-                "rounded-lg border px-3 py-2 text-left text-sm hover:border-ink/40",
+                "rounded-xl border px-3 py-2 text-left text-sm transition-colors hover:border-ink/40",
                 v.test_type === t && "border-ink bg-wash font-medium",
               )}
             >
@@ -519,7 +519,7 @@ function DesignStep({
         </div>
         <ul className="space-y-2">
           {v.variants.map((x, i) => (
-            <li key={x.id ?? i} className="grid items-start gap-2 rounded-lg border p-3 sm:grid-cols-[1fr_2fr_auto_auto]">
+            <li key={x.id ?? i} className="grid items-start gap-2 rounded-xl border p-3 sm:grid-cols-[1fr_2fr_auto_auto]">
               <Input aria-label={`Nombre de la variante ${i + 1}`} value={x.name} onChange={(e) => updateVariant(i, { name: e.target.value })} />
               <Input
                 aria-label={`Descripción de la variante ${i + 1}`}
@@ -543,7 +543,7 @@ function DesignStep({
             </li>
           ))}
         </ul>
-        {!v.variants.some((x) => x.is_control) ? <p className="mt-2 text-sm">Marca una variante como control.</p> : null}
+        {!v.variants.some((x) => x.is_control) ? <p className="mt-2 text-sm">Marque una variante como control.</p> : null}
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -555,7 +555,7 @@ function DesignStep({
             onChange={(e) => set("primary_metric", e.target.value)}
           />
         </FormField>
-        <FormField id="min_duration_days" label="Duración mínima (días)" description={weeks ? `≈ ${formatScore(weeks)} semanas` : "Ej.: 28 días = 4 semanas."}>
+        <FormField id="min_duration_days" label="Duración mínima (días)" description={weeks ? `≈ ${formatScore(weeks)} semanas` : "Por ejemplo: 28 días = 4 semanas."}>
           <Input
             id="min_duration_days"
             type="number"

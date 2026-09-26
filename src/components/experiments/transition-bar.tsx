@@ -20,6 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { STATUS_LABEL } from "@/domain/labels";
 import { isForward } from "@/domain/lifecycle";
 import type { ExperimentStatus } from "@/domain/types";
+import { CELEBRATIONS, celebrate } from "@/components/brand/celebrate";
 import { transitionExperiment } from "@/server/actions/experiments";
 import { DecideDialog, type DecideDialogProps } from "./decide-dialog";
 
@@ -79,7 +80,9 @@ export function TransitionBar({
       }
       setForceFor(null);
       setJustification("");
-      toast.success(`Ahora está en ${STATUS_LABEL[to]}`);
+      if (to === "scaled") celebrate(...CELEBRATIONS.scaled);
+      else if (to === "in_test") toast.success("¡Hágale pues! Prueba lanzada", { description: "Probemos por ahí." });
+      else toast.success(`Listo pues: ahora está en ${STATUS_LABEL[to]}`);
       router.refresh();
     });
   }
@@ -87,7 +90,7 @@ export function TransitionBar({
   if (!options.length) {
     return (
       <p className="text-sm text-soft">
-        {status === "scaled" ? "Escalado a la operación normal. Fin del ciclo." : "Estado terminal: no tiene más transiciones."}
+        {status === "scaled" ? "Ya está en la operación normal. ¡Qué berraquera, llegamos!" : "Este ejercicio ya terminó su camino: no tiene más pasos."}
       </p>
     );
   }
@@ -136,8 +139,8 @@ export function TransitionBar({
       ) : null}
 
       {blocked.length ? (
-        <div className="rounded-lg border bg-wash px-3 py-2 text-sm">
-          <div className="font-medium">Qué falta</div>
+        <div className="rounded-xl border bg-wash px-3 py-2 text-sm">
+          <div className="font-medium">¿Qué falta?</div>
           <ul className="mt-1 space-y-1">
             {blocked.map((o) => (
               <li key={o.to} id={`why-${o.to}`}>
@@ -155,20 +158,21 @@ export function TransitionBar({
           <DialogHeader>
             <DialogTitle>Forzar el inicio dentro de un congelamiento</DialogTitle>
             <DialogDescription>
-              La fecha de inicio cae dentro de “{forceFor?.freezeName}”. En los picos la prioridad es vender: forzarlo queda registrado en la
-              actividad con tu justificación.
+              La fecha de inicio cae dentro de “{forceFor?.freezeName}”. En los picos la prioridad es vender. Si lo fuerza, queda registrado en
+              la actividad con su justificación.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-1.5">
-            <Label htmlFor="force-justification">Justificación</Label>
+            <Label htmlFor="force-justification">Justificación (obligatoria)</Label>
             <Textarea
               id="force-justification"
               rows={3}
+              placeholder="¿Por qué no puede esperar a que pase el congelamiento?"
               value={justification}
               onChange={(e) => setJustification(e.target.value)}
             />
           </div>
-          {error ? <Callout title="No se pudo">{error}</Callout> : null}
+          {error ? <Callout title="No se pudo forzar">{error}</Callout> : null}
           <DialogFooter>
             <Button variant="outline" onClick={() => setForceFor(null)}>
               Cancelar

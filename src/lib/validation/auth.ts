@@ -1,13 +1,13 @@
 import { z } from "zod";
 
 export const loginSchema = z.object({
-  email: z.string().trim().email("Escribe un correo válido."),
-  password: z.string().min(1, "Escribe tu contraseña."),
+  email: z.string().trim().email("Escriba un correo válido."),
+  password: z.string().min(1, "Escriba su contraseña."),
   next: z.string().optional(),
 });
 
 export const recoverSchema = z.object({
-  email: z.string().trim().email("Escribe un correo válido."),
+  email: z.string().trim().email("Escriba un correo válido."),
 });
 
 export const resetPasswordSchema = z

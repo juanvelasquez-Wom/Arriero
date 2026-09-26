@@ -52,7 +52,7 @@ export default async function BacklogPage({ params, searchParams }: PageProps<"/
     <div className="mx-auto max-w-7xl">
       <PageHeader
         title="Backlog de ejercicios"
-        description="Ordenado por puntaje final: ICE + bono de calendario − penalidad de control."
+        description="Del dato al camino: ordenado por puntaje final (ICE + bono de calendario − penalidad de control)."
         actions={
           can.createExperiment(ctx.actor) ? (
             <Button asChild>
@@ -66,8 +66,8 @@ export default async function BacklogPage({ params, searchParams }: PageProps<"/
       {experiments.length === 0 ? (
         <EmptyState
           icon={ListOrdered}
-          title="El backlog está vacío"
-          description="Los ejercicios nacen de problemas con evidencia. Crea uno desde un problema y priorízalo con ICE."
+          title="Los ejercicios son los atajos. Todavía no hay ninguno."
+          description="Cada ejercicio nace de un problema con evidencia. Cree uno desde un problema y priorícelo con ICE."
           action={
             <Button asChild variant="outline">
               <Link href={`${base}/problemas`}>Ir a los problemas</Link>
@@ -86,9 +86,9 @@ export default async function BacklogPage({ params, searchParams }: PageProps<"/
             ]}
           />
           {defaultOpen ? (
-            <p className="mb-2 text-xs text-soft">Mostrando ejercicios abiertos. Filtra por estado para ver decididos, escalados o descartados.</p>
+            <p className="mb-2 text-xs text-soft">Mostrando los ejercicios abiertos. Filtre por estado para ver los decididos, escalados o descartados.</p>
           ) : null}
-          <div className="overflow-x-auto rounded-xl border bg-paper">
+          <div className="overflow-x-auto rounded-2xl border bg-paper shadow-card">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -170,7 +170,7 @@ export default async function BacklogPage({ params, searchParams }: PageProps<"/
                 {filtered.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={10} className="py-8 text-center text-sm text-soft">
-                      Ningún ejercicio coincide con los filtros.
+                      Ningún ejercicio coincide con los filtros. Ese camino no era: pruebe con otros.
                     </TableCell>
                   </TableRow>
                 ) : null}

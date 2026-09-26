@@ -5,15 +5,16 @@
 @custom-variant dark (&:is(.dark *));
 
 /* =============================================================================
-   Sistema de diseño · ejecutivo y sobrio: grises + amarillo como único acento.
+   Sistema de diseño de ARRIERO · blanco y negro + amarillo como único acento.
+   Titulares en Bricolage Grotesque; texto en Inter.
    El amarillo solo marca lo que exige atención: navegación activa, acción
    primaria, punto de decisión, ganadores, "En prueba" y alertas.
    ========================================================================== */
 :root {
-  --ink: #1f1f1f;
-  --soft: #5c5c5c;
-  --line: #dcdcdc;
-  --wash: #f3f3f1;
+  --ink: #111111;
+  --soft: #595959;
+  --line: #e2e2df;
+  --wash: #f6f6f4;
   --paper: #ffffff;
   --accent-yellow: #f2c200;
   /* Escala de grises para estados (de claro a oscuro). */
@@ -47,7 +48,10 @@
   --chart-3: var(--gray-3);
   --chart-4: var(--gray-2);
   --chart-5: var(--accent-yellow);
-  --radius: 0.5rem;
+  --radius: 0.75rem;
+  /* Sombras suaves de la marca. */
+  --shadow-card: 0 1px 2px rgb(17 17 17 / 0.04), 0 1px 1px rgb(17 17 17 / 0.03);
+  --shadow-lift: 0 10px 24px -12px rgb(17 17 17 / 0.25), 0 2px 6px -2px rgb(17 17 17 / 0.08);
   --sidebar: var(--wash);
   --sidebar-foreground: var(--ink);
   --sidebar-primary: var(--accent-yellow);
@@ -59,18 +63,20 @@
 }
 
 .dark {
-  --ink: #ededed;
+  --ink: #f2f2f0;
   --soft: #a9a9a6;
-  --line: #3a3a3a;
-  --wash: #262626;
-  --paper: #1c1c1c;
+  --line: #333333;
+  --wash: #161616;
+  --paper: #1f1f1f;
   --accent-yellow: #f2c200;
   --gray-1: #2c2c2b;
   --gray-2: #3d3d3c;
   --gray-3: #5e5e5c;
   --gray-4: #9a9a97;
   --gray-5: #d0d0cc;
-  --destructive: #ededed;
+  --destructive: #f2f2f0;
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-lift: 0 12px 28px -12px rgb(0 0 0 / 0.7);
 }
 
 @theme inline {
@@ -78,7 +84,9 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
-  --font-heading: var(--font-sans);
+  --font-heading: var(--font-display);
+  --shadow-card: var(--shadow-card);
+  --shadow-lift: var(--shadow-lift);
   --color-ink: var(--ink);
   --color-soft: var(--soft);
   --color-line: var(--line);
@@ -138,6 +146,12 @@
   body {
     @apply bg-background text-foreground antialiased;
   }
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-heading), var(--font-sans), sans-serif;
+    letter-spacing: -0.02em;
+  }
   /* Foco visible y con contraste (el amarillo sobre blanco no llega a 3:1). */
   :focus-visible {
     outline: 2px solid var(--ink);
@@ -160,5 +174,96 @@
       color-mix(in oklab, var(--gray-3) 35%, transparent) 0 6px,
       transparent 6px 12px
     );
+  }
+  /* La mula y el logo son negros: en modo oscuro se invierten. */
+  .brand-ink {
+    filter: none;
+  }
+  .dark .brand-ink {
+    filter: invert(1);
+  }
+  /* Tarjeta que se eleva al pasar el mouse. */
+  .lift {
+    transition:
+      transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1),
+      box-shadow 180ms ease,
+      border-color 180ms ease;
+  }
+  .lift:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lift);
+    border-color: color-mix(in oklab, var(--ink) 25%, var(--line));
+  }
+  /* Entrada suave del contenido. */
+  .rise {
+    animation: rise 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+  .rise-delay-1 {
+    animation-delay: 60ms;
+  }
+  .rise-delay-2 {
+    animation-delay: 120ms;
+  }
+  .rise-delay-3 {
+    animation-delay: 180ms;
+  }
+  /* La mula camina (estados de carga). */
+  .mule-walk {
+    animation: mule-walk 900ms ease-in-out infinite;
+    transform-origin: 50% 90%;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes mule-walk {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-3px) rotate(-2deg);
+  }
+}
+
+/* Confeti de celebración (ganadores y escalados). */
+.confetti-piece {
+  position: fixed;
+  top: -12px;
+  z-index: 100;
+  width: 8px;
+  height: 12px;
+  border-radius: 2px;
+  pointer-events: none;
+  animation: confetti-fall var(--dur, 1800ms) cubic-bezier(0.25, 0.6, 0.4, 1) forwards;
+}
+
+@keyframes confetti-fall {
+  to {
+    transform: translate(var(--dx, 0), 105vh) rotate(var(--rot, 540deg));
+    opacity: 0.9;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lift,
+  .lift:hover,
+  .rise,
+  .mule-walk {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+  .confetti-piece {
+    display: none;
   }
 }

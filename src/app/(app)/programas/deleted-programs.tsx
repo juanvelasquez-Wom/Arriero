@@ -20,7 +20,7 @@ export function DeletedPrograms({ items }: { items: DeletedProgram[] }) {
       const r = await restoreTrashItem(item.trashId);
       if (!r.ok) toast.error(r.error);
       else {
-        toast.success(`Programa “${item.name}” restaurado`);
+        toast.success(`“${item.name}” volvió al camino`);
         router.refresh();
       }
     });
@@ -28,13 +28,13 @@ export function DeletedPrograms({ items }: { items: DeletedProgram[] }) {
 
   return (
     <section className="mt-10">
-      <h2 className="text-sm font-semibold">Programas en la papelera</h2>
+      <h2 className="text-base font-bold">Programas en la papelera</h2>
       <p className="mt-0.5 text-xs text-soft">Se eliminan de forma definitiva a los 30 días.</p>
-      <ul className="mt-3 divide-y rounded-xl border bg-paper">
+      <ul className="mt-3 divide-y rounded-2xl border bg-paper shadow-card">
         {items.map((item) => (
           <li key={item.trashId} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
             <div>
-              <div className="font-medium">{item.name}</div>
+              <div className="font-semibold">{item.name}</div>
               <div className="text-xs text-soft">
                 Borrado {formatDateTime(item.deleted_at)}
                 {item.deleted_by_name ? ` por ${item.deleted_by_name}` : ""} · quedan {daysLeftInTrash(item.deleted_at)} días
@@ -51,7 +51,7 @@ export function DeletedPrograms({ items }: { items: DeletedProgram[] }) {
                 onConfirm={async () => {
                   const r = await purgeTrashItem(item.trashId);
                   if (!r.ok) return r.error;
-                  toast.success("Programa eliminado definitivamente");
+                  toast.success("Programa eliminado definitivamente. Listo pues.");
                   router.refresh();
                 }}
               >

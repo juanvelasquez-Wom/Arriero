@@ -83,13 +83,13 @@ export function ResultsEditor({
         setError(r.error);
         return;
       }
-      toast.success("Resultados guardados");
+      toast.success("¡Eso! Resultados guardados", { description: "Ahora sí hay con qué decidir." });
       router.refresh();
     });
   }
 
   if (!variants.length) {
-    return <p className="text-sm text-soft">Define las variantes en el diseño de la prueba para poder cargar resultados.</p>;
+    return <p className="text-sm text-soft">Defina las variantes en el diseño de la prueba para poder cargar resultados.</p>;
   }
 
   return (
@@ -101,7 +101,7 @@ export function ResultsEditor({
               <TableHead>Variante</TableHead>
               <TableHead className="text-right">Muestra</TableHead>
               <TableHead className="text-right">Conversiones</TableHead>
-              <TableHead className="text-right">Valor métrica</TableHead>
+              <TableHead className="text-right">Valor de la métrica</TableHead>
               <TableHead className="text-right">Tasa</TableHead>
               <TableHead className="text-right">vs. control</TableHead>
               <TableHead className="min-w-52">Notas</TableHead>
@@ -153,7 +153,7 @@ export function ResultsEditor({
       </div>
       <p className="text-xs text-soft">
         Tasa = conversiones / muestra. La diferencia se calcula frente al control (sobre la tasa o, si no hay conversiones, sobre el valor de
-        la métrica). No hay cálculo de significancia: el veredicto lo emite una persona frente a la regla de decisión.
+        la métrica). No se calcula significancia: el veredicto lo da una persona frente a la regla de decisión.
       </p>
       {error ? <Callout title="No se pudieron guardar">{error}</Callout> : null}
       {canEdit ? (

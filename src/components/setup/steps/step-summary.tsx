@@ -4,10 +4,10 @@ import { CheckCircle2, CircleAlert, ClipboardList } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { toast } from "sonner";
 import { FormError } from "@/components/app/form";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { CELEBRATIONS, celebrate } from "@/components/brand/celebrate";
 import { finishSetup } from "@/server/actions/setup";
 
 export interface SummaryItem {
@@ -44,7 +44,7 @@ export function StepSummary({
           setError(r.error);
           return;
         }
-        toast.success("¡Programa listo!");
+        celebrate(...CELEBRATIONS.setupDone);
       }
       router.push(to);
     });
@@ -52,8 +52,8 @@ export function StepSummary({
 
   return (
     <div className="space-y-5">
-      <div className="rounded-xl border bg-paper p-5">
-        <h2 className="font-semibold">Lo que configuraste</h2>
+      <div className="rounded-2xl border bg-paper shadow-card p-5">
+        <h2 className="text-lg font-bold">¡Qué belleza! Esto es lo que dejó listo</h2>
         <ul className="mt-3 divide-y">
           {items.map((i) => (
             <li key={i.label} className="flex items-start gap-3 py-2.5 text-sm">
@@ -70,25 +70,25 @@ export function StepSummary({
         </ul>
         {pendingCount ? (
           <p className="mt-3 text-sm text-soft">
-            Hay {pendingCount} pendiente(s). Puedes terminar igual y completarlos después desde la vista de cada línea.
+            Hay {pendingCount} pendiente(s). Puede terminar igual y completarlos después desde la vista de cada línea, sin afán.
           </p>
         ) : null}
       </div>
 
-      <div className="rounded-xl border border-l-4 border-l-highlight bg-paper p-5">
-        <h2 className="flex items-center gap-2 font-semibold">
-          <ClipboardList className="size-4" aria-hidden /> Siguiente paso: tu primer problema
+      <div className="rounded-2xl border border-l-4 border-l-highlight bg-paper shadow-card p-5">
+        <h2 className="flex items-center gap-2 text-lg font-bold">
+          <ClipboardList className="size-4" aria-hidden /> Siguiente paso: su primer problema
         </h2>
         <p className="mt-1 text-sm">
           En este modelo no hay ideas sueltas: todo ejercicio nace de un <strong>problema con evidencia</strong>, ubicado en una línea y una
-          etapa del embudo. Registra dónde se está perdiendo valor hoy y con qué datos lo sabes.
+          etapa del embudo. Registre dónde se está perdiendo valor hoy y con qué datos lo sabe. Del dato al camino.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
           <Button onClick={() => finish(`/programas/${programId}/problemas/nuevo`)} disabled={pending}>
-            {pending ? <Spinner /> : null} Terminar y registrar el primer problema
+            {pending ? <Spinner /> : null} Termine y registre el primer problema
           </Button>
           <Button variant="outline" onClick={() => finish(`/programas/${programId}`)} disabled={pending}>
-            Terminar e ir al programa
+            Termine y vaya al programa
           </Button>
         </div>
       </div>

@@ -56,11 +56,11 @@ export default async function ProblemsPage({ params, searchParams }: PageProps<"
       {problems.length === 0 ? (
         <EmptyState
           icon={ClipboardList}
-          title="Aún no hay problemas"
+          title="¿Y por dónde es? Aún no hay problemas"
           description={
             lines.length
-              ? "Registra dónde se está perdiendo valor, con los datos que lo muestran. Después podrás crear ejercicios desde cada problema."
-              : "Primero configura al menos una línea de negocio con su embudo."
+              ? "Registre dónde se está perdiendo valor, con los datos que lo muestran. Después podrá crear ejercicios desde cada problema."
+              : "Primero configure al menos una línea de negocio con su embudo."
           }
           action={
             can.createProblem(ctx.actor) && lines.length ? (
@@ -88,7 +88,7 @@ export default async function ProblemsPage({ params, searchParams }: PageProps<"
               { param: "impacto", label: "Impacto", options: IMPACT_LEVELS.map((s) => ({ value: s, label: IMPACT_LABEL[s] })) },
             ]}
           />
-          <div className="overflow-x-auto rounded-xl border bg-paper">
+          <div className="overflow-x-auto rounded-2xl border bg-paper shadow-card">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -108,7 +108,7 @@ export default async function ProblemsPage({ params, searchParams }: PageProps<"
                 {filtered.map((p) => (
                   <TableRow key={p.id}>
                     <TableCell className="whitespace-normal">
-                      <Link href={`${base}/problemas/${p.id}`} className="font-medium hover:underline">
+                      <Link href={`${base}/problemas/${p.id}`} className="font-semibold hover:underline">
                         {p.title}
                       </Link>
                       <div className="line-clamp-1 text-xs text-soft">{p.evidence}</div>
@@ -155,7 +155,7 @@ export default async function ProblemsPage({ params, searchParams }: PageProps<"
                 {filtered.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={8} className="py-8 text-center text-sm text-soft">
-                      Ningún problema coincide con los filtros.
+                      Ningún problema coincide con los filtros. Pruebe con otros.
                     </TableCell>
                   </TableRow>
                 ) : null}

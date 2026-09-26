@@ -114,7 +114,7 @@ export function checkTransition(
     const reason =
       to === "decided" || to === "scaled"
         ? "Solo el owner o un admin puede decidir un ejercicio."
-        : "No tienes permiso para mover este ejercicio.";
+        : "No tiene permiso para mover este ejercicio.";
     return { ok: false, reasons: [reason], freeze: null, canForce: false };
   }
 

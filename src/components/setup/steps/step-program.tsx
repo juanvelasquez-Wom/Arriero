@@ -47,7 +47,7 @@ export function StepProgram({
   }
 
   return (
-    <div className="rounded-xl border bg-paper p-5">
+    <div className="rounded-2xl border bg-paper shadow-card p-5">
       <div className="mb-4 flex justify-end">
         {!readOnly ? (
           <UseExampleButton
@@ -98,12 +98,12 @@ export function StepProgram({
           {errors.end_date || errors.start_date ? <p className="mt-1 text-sm">{errors.end_date ?? errors.start_date}</p> : null}
           {days ? (
             <p className="mt-2 text-xs text-soft">
-              {Math.round(days / 7)} semanas. Un programa de 6 a 9 meses deja espacio para probar antes de los picos y escalar después.
+              {Math.round(days / 7)} semanas. Con 6 a 9 meses hay tiempo para probar antes de los picos y escalar después.
             </p>
           ) : null}
         </div>
       </fieldset>
-      <StepFooter prevHref={null} pending={pending} onNext={next} nextLabel={programId ? "Guardar y seguir" : "Crear programa y seguir"} />
+      <StepFooter prevHref={null} pending={pending} onNext={next} nextLabel={programId ? "Guarde y siga" : "Cree el programa y siga"} />
     </div>
   );
 }

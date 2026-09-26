@@ -24,8 +24,8 @@ export function DashboardNav({ programId, active, query }: { programId: string; 
                 href={`/programas/${programId}/tableros/${key}${query}`}
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
-                  "relative -mb-px flex items-center gap-1.5 border-b-2 border-transparent px-3 py-2 text-sm text-soft hover:text-ink",
-                  isActive && "border-highlight font-medium text-ink",
+                  "relative -mb-px flex items-center gap-1.5 border-b-2 border-transparent px-3 py-2 text-sm text-soft transition-colors hover:text-ink",
+                  isActive && "border-highlight font-semibold text-ink",
                 )}
               >
                 <Icon aria-hidden className="size-4" />

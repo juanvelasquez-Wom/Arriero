@@ -37,7 +37,7 @@ export function StatusBadge({ status, className }: { status: ExperimentStatus; c
   return (
     <span
       className={cn(
-        "inline-flex h-6 items-center gap-1 rounded-full border px-2 text-xs font-medium whitespace-nowrap",
+        "inline-flex h-6 items-center gap-1.5 rounded-full border px-2.5 text-xs font-semibold whitespace-nowrap",
         style,
         className,
       )}
@@ -58,7 +58,7 @@ export function VerdictBadge({ verdict, className }: { verdict: Verdict | null; 
   if (!verdict) return <span className="text-soft">—</span>;
   const { icon: Icon, className: style } = VERDICT_STYLE[verdict];
   return (
-    <span className={cn("inline-flex h-6 items-center gap-1 rounded-full border px-2 text-xs font-medium", style, className)}>
+    <span className={cn("inline-flex h-6 items-center gap-1.5 rounded-full border px-2.5 text-xs font-semibold", style, className)}>
       <Icon aria-hidden className="size-3.5" />
       {VERDICT_LABEL[verdict]}
     </span>
@@ -89,7 +89,7 @@ export function ProblemStatusBadge({ status }: { status: ProblemStatus }) {
   return (
     <span
       className={cn(
-        "inline-flex h-6 items-center gap-1 rounded-full border px-2 text-xs font-medium",
+        "inline-flex h-6 items-center gap-1.5 rounded-full border px-2.5 text-xs font-semibold",
         status === "validated" ? "border-ink/30 bg-gray-1 text-ink" : "border-line bg-paper text-soft",
       )}
     >
@@ -117,7 +117,7 @@ export function DemoBadge({ className }: { className?: string }) {
   return (
     <span
       className={cn(
-        "inline-flex h-5 items-center rounded border border-dashed border-gray-4 px-1.5 text-[11px] font-semibold uppercase tracking-wide text-soft",
+        "inline-flex h-5 items-center rounded-full border border-dashed border-gray-4 px-2 text-[11px] font-semibold uppercase tracking-wide text-soft",
         className,
       )}
     >

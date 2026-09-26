@@ -21,15 +21,15 @@ export default function LineError({
   }, [error]);
 
   return (
-    <div role="alert" className="mx-auto max-w-xl rounded-xl border bg-paper p-6">
-      <h2 className="text-base font-semibold">No pudimos cargar esta línea</h2>
+    <div role="alert" className="rise mx-auto max-w-xl rounded-2xl border bg-paper p-6 shadow-card">
+      <h2 className="text-lg font-extrabold">Ese camino no era: no pudimos cargar esta línea</h2>
       <p className="mt-1 text-sm text-soft">
-        Puede ser un problema de conexión o de permisos. Intenta de nuevo; si persiste, avísale a un admin
+        Puede ser la conexión o los permisos. Intente de nuevo; si sigue pasando, avísele a un admin
         {error.digest ? ` (código ${error.digest})` : ""}.
       </p>
       <div className="mt-4 flex flex-wrap gap-2">
         <Button variant="outline" onClick={() => (retry ?? reset)?.()}>
-          <RotateCcw aria-hidden /> Reintentar
+          <RotateCcw aria-hidden /> Intentar de nuevo
         </Button>
         {params?.programId ? (
           <Button asChild variant="ghost">

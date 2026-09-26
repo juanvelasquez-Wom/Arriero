@@ -77,10 +77,10 @@ export async function saveProgramStep(programId: string | null, input: ProgramSt
 // 2 · Calendario ----------------------------------------------------------------
 export async function saveCalendarStep(programId: string, input: CalendarStepInput): Promise<ActionResult> {
   const ctx = await getActionActor(programId);
-  if (!ctx || !can.editCalendar(ctx.actor)) return fail("No tienes permiso para editar el calendario.");
+  if (!ctx || !can.editCalendar(ctx.actor)) return fail("No tiene permiso para editar el calendario.");
   const parsed = calendarStepSchema.safeParse(input);
   if (!parsed.success) return fromZod(parsed.error);
-  if (parsed.data.events.filter((e) => e.type === "decision").length > 1) return fail("Define un solo punto de decisión.");
+  if (parsed.data.events.filter((e) => e.type === "decision").length > 1) return fail("Defina un solo punto de decisión.");
   const supabase = await createClient();
   for (const id of parsed.data.removedIds) {
     const { error } = await supabase.rpc("delete_calendar_event", { p_id: id });
@@ -106,7 +106,7 @@ export async function saveHorizonsStep(programId: string, input: HorizonsStepInp
   if (!parsed.success) return fromZod(parsed.error);
   const supabase = await createClient();
   const { data: program } = await supabase.from("programs").select("start_date, end_date").eq("id", programId).single();
-  if (!program?.start_date || !program?.end_date) return fail("Primero define las fechas del programa.");
+  if (!program?.start_date || !program?.end_date) return fail("Primero defina las fechas del programa.");
   const problems = horizonProblems({ start: program.start_date, end: program.end_date }, parsed.data.horizons);
   if (problems.length) return fail(problems.join(" "));
 
@@ -132,7 +132,7 @@ export async function saveHorizonsStep(programId: string, input: HorizonsStepInp
 // 4 · Líneas ----------------------------------------------------------------------
 export async function saveLinesStep(programId: string, input: { create: string[] }): Promise<ActionResult> {
   const ctx = await requireEditor(programId);
-  if (!ctx) return fail("No tienes permiso para editar las líneas.");
+  if (!ctx) return fail("No tiene permiso para editar las líneas.");
   const parsed = linesStepSchema.safeParse(input);
   if (!parsed.success) return fromZod(parsed.error);
   const supabase = await createClient();
@@ -145,7 +145,7 @@ export async function saveLinesStep(programId: string, input: { create: string[]
     if (error) return failFrom(error);
     names.add(name.toLowerCase());
   }
-  if (names.size === 0) return fail("Agrega al menos una línea de negocio.");
+  if (names.size === 0) return fail("Agregue al menos una línea de negocio.");
   if (can.editProgramSettings(ctx.actor)) await markStep(supabase, programId, 4);
   revalidate(programId);
   return ok(undefined);
@@ -192,7 +192,7 @@ async function saveTargets(supabase: Supabase, metricId: string, targets: Record
 }
 
 export async function saveNorthStarStep(programId: string, lineId: string, input: NorthStarStepInput): Promise<ActionResult> {
-  if (!(await requireEditor(programId))) return fail("No tienes permiso para editar las métricas.");
+  if (!(await requireEditor(programId))) return fail("No tiene permiso para editar las métricas.");
   const parsed = northStarStepSchema.safeParse(input);
   if (!parsed.success) return fromZod(parsed.error);
   const supabase = await createClient();
@@ -212,7 +212,7 @@ export async function saveNorthStarStep(programId: string, lineId: string, input
 
 // 5b · Árbol de métricas ------------------------------------------------------------
 export async function saveTreeStep(programId: string, lineId: string, input: TreeStepInput): Promise<ActionResult> {
-  if (!(await requireEditor(programId))) return fail("No tienes permiso para editar las métricas.");
+  if (!(await requireEditor(programId))) return fail("No tiene permiso para editar las métricas.");
   const parsed = treeStepSchema.safeParse(input);
   if (!parsed.success) return fromZod(parsed.error);
   const supabase = await createClient();
@@ -222,7 +222,7 @@ export async function saveTreeStep(programId: string, lineId: string, input: Tre
     .eq("line_id", lineId)
     .eq("type", "north_star")
     .maybeSingle();
-  if (!root) return fail("Primero define la métrica norte de esta línea.");
+  if (!root) return fail("Primero defina la métrica norte de esta línea.");
   for (const id of parsed.data.removedIds) {
     const { error } = await supabase.rpc("delete_metric", { p_id: id, p_strategy: null, p_target: null });
     if (error) return failFrom(error);
@@ -242,14 +242,14 @@ export async function saveTreeStep(programId: string, lineId: string, input: Tre
       : await supabase.from("metrics").insert({ ...row, line_id: lineId, type: "input", parent_id: root.id });
     if (error) return failFrom(error);
   }
-  if (!parsed.data.metrics.length) return fail("Agrega al menos una métrica de entrada: son las que los ejercicios pueden mover.");
+  if (!parsed.data.metrics.length) return fail("Agregue al menos una métrica de entrada: son las que los ejercicios pueden mover.");
   revalidate(programId);
   return ok(undefined);
 }
 
 // 5c · Embudo ------------------------------------------------------------------------
 export async function saveFunnelStep(programId: string, lineId: string, input: FunnelStepInput): Promise<ActionResult> {
-  if (!(await requireEditor(programId))) return fail("No tienes permiso para editar el embudo.");
+  if (!(await requireEditor(programId))) return fail("No tiene permiso para editar el embudo.");
   const parsed = funnelStepSchema.safeParse(input);
   if (!parsed.success) return fromZod(parsed.error);
   const supabase = await createClient();
@@ -276,5 +276,5 @@ export async function finishSetup(programId: string): Promise<ActionResult> {
     .eq("id", programId);
   if (error) return failFrom(error);
   revalidate(programId);
-  return ok(undefined, "Programa configurado.");
+  return ok(undefined, "¡Ave María, qué belleza! Programa configurado.");
 }

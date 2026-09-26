@@ -74,7 +74,7 @@ export function StepCalendar({
 
   function addPeak() {
     if (draft.name.trim().length < 2 || !draft.start || !draft.end || draft.end < draft.start) {
-      setError("Escribe el nombre del pico y sus fechas (el fin no puede ser antes del inicio).");
+      setError("Escriba el nombre del pico y sus fechas (el fin no puede ir antes del inicio). Ese camino no era.");
       return;
     }
     setError(undefined);
@@ -135,9 +135,9 @@ export function StepCalendar({
 
   return (
     <div className="space-y-5">
-      <div className="rounded-xl border bg-paper p-5">
+      <div className="rounded-2xl border bg-paper shadow-card p-5">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="flex items-center gap-2 font-semibold">
+          <h2 className="flex items-center gap-2 text-lg font-bold">
             <CalendarClock className="size-4" aria-hidden /> Picos comerciales
             <InfoTip label="Pico comercial">{FIELD_HELP.peak}</InfoTip>
           </h2>
@@ -208,7 +208,7 @@ export function StepCalendar({
             ))}
           </ul>
         ) : (
-          <p className="mb-4 text-sm text-soft">Aún no hay picos. Agrega las fechas en que más vendes: en ellas no se lanzan pruebas.</p>
+          <p className="mb-4 text-sm text-soft">Todavía no hay picos. Agregue las fechas en que más vende: en esos días no se lanzan pruebas, ahí es a vender.</p>
         )}
 
         {!readOnly ? (
@@ -272,8 +272,8 @@ export function StepCalendar({
         ) : null}
       </div>
 
-      <div className="rounded-xl border bg-paper p-5">
-        <h2 className="mb-3 flex items-center gap-2 font-semibold">
+      <div className="rounded-2xl border bg-paper shadow-card p-5">
+        <h2 className="mb-3 flex items-center gap-2 text-lg font-bold">
           <Flag className="size-4" aria-hidden /> Punto de decisión
         </h2>
         <div className="max-w-xs space-y-1.5">
@@ -284,16 +284,16 @@ export function StepCalendar({
         </div>
         {decision.date ? (
           <p className="mt-2 text-sm text-soft">
-            El {formatDate(decision.date)} se revisa qué funcionó. En el siguiente paso usaremos esta fecha para proponer los horizontes.
+            El {formatDate(decision.date)} se revisa qué funcionó. En el siguiente paso usamos esta fecha para proponerle los horizontes.
           </p>
         ) : (
           <Callout tone="neutral" className="mt-3">
-            Recomendado: sin punto de decisión, el programa tendrá un solo horizonte y no habrá un momento formal para decidir qué escalar.
+            Se lo recomendamos: sin punto de decisión, el programa tendrá un solo horizonte y no habrá un momento formal para decidir qué escalar.
           </Callout>
         )}
         {outside(decision.date) ? <p className="mt-2 text-sm">La fecha está fuera del periodo del programa.</p> : null}
         {decision.date && peaks.some((p) => decision.date >= p.start && decision.date <= addDays(p.end, 0)) ? (
-          <p className="mt-2 text-sm">Ojo: el punto de decisión cae dentro de un pico.</p>
+          <p className="mt-2 text-sm">¡Ave María! El punto de decisión cae dentro de un pico. Mejor páselo a una fecha más tranquila.</p>
         ) : null}
       </div>
 

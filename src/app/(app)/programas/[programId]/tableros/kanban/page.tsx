@@ -36,7 +36,7 @@ export default async function KanbanPage({ params, searchParams }: PageProps<"/p
       programId={programId}
       active="kanban"
       title="Kanban"
-      description="Una columna por estado. Arrastra una tarjeta para intentar la transición: si falta algo verás el motivo y la tarjeta no se mueve."
+      description="Una columna por estado. Arrastre una tarjeta para moverla: si falta algo, le decimos qué y la tarjeta se queda quieta, como mula terca."
       fields={data.globalFields}
       current={data.current}
       query={data.query}
@@ -44,8 +44,8 @@ export default async function KanbanPage({ params, searchParams }: PageProps<"/p
       {data.experiments.length === 0 ? (
         <EmptyState
           icon={Columns3}
-          title="Aún no hay ejercicios"
-          description="Cada ejercicio aparece como tarjeta en la columna de su estado. Crea el primero desde un problema con evidencia."
+          title="Los ejercicios son los atajos. Todavía no hay ninguno."
+          description="Cada ejercicio aparece como tarjeta en la columna de su estado. Cree el primero desde un problema con evidencia."
           action={
             <Button asChild variant="outline">
               <Link href={`/programas/${programId}/ejercicios`}>Ir al backlog</Link>
@@ -56,12 +56,12 @@ export default async function KanbanPage({ params, searchParams }: PageProps<"/p
         <div className="space-y-3">
           {readOnly ? (
             <Callout icon={Info} tone="neutral">
-              Tu rol es de solo lectura: puedes ver el tablero, pero no mover tarjetas.
+              Su rol es de solo lectura: puede ver el tablero, pero no mover tarjetas.
             </Callout>
           ) : (
             <p className="text-xs text-soft">
-              Arrastra con el mouse o, con teclado, enfoca el asa de la tarjeta y pulsa espacio. Pasar a Decidido exige veredicto,
-              decisión y aprendizaje: regístralos desde el detalle del ejercicio.
+              Arrastre con el mouse o, con teclado, enfoque el asa de la tarjeta y pulse espacio. Pasar a Decidido exige veredicto,
+              decisión y aprendizaje: regístrelos desde el detalle del ejercicio.
             </p>
           )}
           {cards.length === 0 ? (
@@ -70,7 +70,7 @@ export default async function KanbanPage({ params, searchParams }: PageProps<"/p
               title="Ningún ejercicio coincide"
               description={
                 <>
-                  No hay tarjetas para mostrar.
+                  No hay tarjetas para mostrar. Ese camino no era.
                   <FilteredOutNote active={data.filtersActive} />
                 </>
               }

@@ -4,7 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function Loading() {
   return (
     <DashboardSkeleton>
-      <div className="rounded-xl border bg-paper p-4">
+      <div className="rounded-2xl border bg-paper p-4 shadow-card">
         <Skeleton className="mb-4 h-5 w-full max-w-2xl" />
         {Array.from({ length: 7 }).map((_, i) => (
           <div key={i} className="flex items-center gap-4 border-b py-3 last:border-b-0">

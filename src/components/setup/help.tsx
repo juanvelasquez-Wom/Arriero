@@ -45,17 +45,17 @@ export function HelpLabel({ htmlFor, children, help, required }: { htmlFor?: str
 /** Panel "¿Qué es esto?" de cada paso. */
 export function HelpPanel({ help, className }: { help: StepHelp; className?: string }) {
   return (
-    <aside className={cn("rounded-xl border bg-paper p-4 text-sm", className)} aria-label="Ayuda de este paso">
+    <aside className={cn("rounded-2xl border bg-paper shadow-card p-4 text-sm", className)} aria-label="Ayuda de este paso">
       <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-soft">
         <Lightbulb className="size-3.5" aria-hidden /> ¿Qué es esto?
       </div>
-      <h2 className="text-base font-semibold">{help.title}</h2>
+      <h2 className="text-lg font-bold">{help.title}</h2>
       <p className="mt-2">{help.what}</p>
       <h3 className="mt-3 text-xs font-semibold uppercase tracking-wide text-soft">Por qué importa</h3>
       <p className="mt-1">{help.why}</p>
       <h3 className="mt-3 text-xs font-semibold uppercase tracking-wide text-soft">Ejemplo</h3>
       <p className="mt-1 rounded-md border-l-4 border-l-highlight bg-wash px-3 py-2">{help.example}</p>
-      {help.tip ? <p className="mt-3 text-xs text-soft">{help.tip}</p> : null}
+      {help.tip ? <p className="mt-3 flex gap-1.5 text-xs text-soft"><span aria-hidden>→</span>{help.tip}</p> : null}
     </aside>
   );
 }

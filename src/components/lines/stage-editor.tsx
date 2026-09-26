@@ -54,7 +54,7 @@ export function StageEditor({
   return (
     <div className="space-y-3">
       {stages.length ? (
-        <ol className="divide-y rounded-lg border">
+        <ol className="divide-y rounded-xl border">
           {stages.map((s, i) => (
             <StageRow
               key={s.id}
@@ -72,8 +72,8 @@ export function StageEditor({
           ))}
         </ol>
       ) : (
-        <p className="rounded-lg border border-dashed px-3 py-4 text-sm text-soft">
-          Sin etapas. Agrega las etapas del recorrido del cliente en esta línea (p. ej. Adquisición, Activación, Conversión, y
+        <p className="rounded-xl border border-dashed px-3 py-4 text-sm text-soft">
+          Sin etapas. Agregue las etapas del recorrido del cliente en esta línea (p. ej. Adquisición, Activación, Conversión, y
           Recuperación y recurrencia).
         </p>
       )}
@@ -139,7 +139,7 @@ function StageRow({
         {index + 1}
       </span>
       <div className="min-w-0 flex-1">
-        <div className="font-medium">
+        <div className="font-semibold">
           <span className="sr-only">Etapa {index + 1}: </span>
           {stage.name}
         </div>
@@ -245,7 +245,7 @@ function StageFormDialog({
         applyFieldErrors(result.fieldErrors, form.setError);
         return;
       }
-      toast.success(result.message ?? "Guardado");
+      toast.success(result.message ?? "¡Eso! Guardado");
       setOpen(false);
       router.refresh();
     });

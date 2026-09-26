@@ -45,7 +45,7 @@ export function TreeTab(props: Props) {
       <EmptyState
         icon={Network}
         title="El árbol está vacío"
-        description="El árbol parte de la métrica norte y la descompone en métricas de entrada por rama: volumen de demanda, conversión, eficiencia, y recuperación y recurrencia. Empieza por definir la métrica norte."
+        description="El árbol parte de la métrica norte y la descompone en métricas de entrada por rama: volumen de demanda, conversión, eficiencia, y recuperación y recurrencia. Empiece por definir la métrica norte: ¿y por dónde es?"
         action={
           <Button asChild variant={canEdit ? "default" : "outline"}>
             <Link href={`${baseHref}?tab=norte`}>
@@ -65,7 +65,7 @@ export function TreeTab(props: Props) {
       description="Cada métrica de entrada cuelga de otra y pertenece a una rama. Los ejercicios atacan métricas de este árbol."
       actions={
         <>
-          <nav aria-label="Vista del árbol" className="inline-flex rounded-lg border p-0.5">
+          <nav aria-label="Vista del árbol" className="inline-flex rounded-full border p-0.5">
             <ViewLink href={`${baseHref}?tab=arbol`} active={view === "arbol"} icon={ListTree} label="Árbol" />
             <ViewLink href={`${baseHref}?tab=arbol&vista=tabla`} active={view === "tabla"} icon={Table2} label="Tabla" />
           </nav>
@@ -100,10 +100,10 @@ export function TreeTab(props: Props) {
       </div>
 
       {!northStar ? (
-        <p className="mb-4 rounded-lg border border-dashed px-3 py-2 text-sm text-soft">
+        <p className="mb-4 rounded-xl border border-dashed px-3 py-2 text-sm text-soft">
           Falta la métrica norte, que es la raíz del árbol.{" "}
           <Link href={`${baseHref}?tab=norte`} className="underline underline-offset-4 hover:text-ink">
-            Defínela en la pestaña Métrica norte
+            Defínala en la pestaña Métrica norte
           </Link>
           .
         </p>
@@ -120,7 +120,7 @@ function ViewLink({ href, active, icon: Icon, label }: { href: string; active: b
       href={href}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "inline-flex h-6 items-center gap-1 rounded-md px-2 text-xs font-medium text-soft hover:text-ink",
+        "inline-flex h-6 items-center gap-1 rounded-full px-2.5 text-xs font-semibold text-soft hover:text-ink",
         active && "bg-gray-1 text-ink",
       )}
     >

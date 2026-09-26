@@ -100,7 +100,7 @@ export function WeeklyLoadForm({
 
   function onSave() {
     if (errors.size) {
-      setError("Corrige las filas marcadas antes de guardar.");
+      setError("Corrija las filas marcadas antes de guardar.");
       return;
     }
     if (!rows.length) return;
@@ -139,7 +139,7 @@ export function WeeklyLoadForm({
             {pendingIds.length ? <CircleDashed aria-hidden className="size-3.5" /> : <CircleCheck aria-hidden className="size-3.5" />}
             {pendingIds.length
               ? `${pendingIds.length} de ${allIds.length} ${pendingIds.length === 1 ? "métrica pendiente" : "métricas pendientes"}`
-              : "Semana completa"}
+              : "¡Eso! Semana completa"}
           </span>
           <Button
             variant="outline"
@@ -155,7 +155,7 @@ export function WeeklyLoadForm({
 
       {!canLoad ? (
         <Callout tone="neutral" title="Solo lectura">
-          Tu rol puede consultar los valores. La carga semanal la hacen owners y colaboradores del programa.
+          Con su rol puede consultar los valores. La carga semanal la hacen owners y colaboradores del programa.
         </Callout>
       ) : null}
 
@@ -164,9 +164,9 @@ export function WeeklyLoadForm({
         if (!visible.length) return null;
         const groupPending = g.metrics.filter((m) => !saved[m.id]).length;
         return (
-          <section key={g.lineId} aria-labelledby={`line-${g.lineId}`} className="rounded-xl border bg-paper">
+          <section key={g.lineId} aria-labelledby={`line-${g.lineId}`} className="rounded-2xl border bg-paper shadow-card">
             <header className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-2.5">
-              <h2 id={`line-${g.lineId}`} className="text-sm font-semibold">
+              <h2 id={`line-${g.lineId}`} className="text-sm font-bold">
                 {g.lineName}
               </h2>
               <span className="text-xs tabular-nums text-soft">
@@ -268,7 +268,7 @@ export function WeeklyLoadForm({
 
       {onlyPending && !pendingIds.length ? (
         <p className="rounded-xl border border-dashed px-4 py-6 text-center text-sm text-soft">
-          No hay métricas pendientes esta semana.
+          ¡Qué belleza! No hay métricas pendientes esta semana..
         </p>
       ) : null}
 
@@ -288,7 +288,7 @@ export function WeeklyLoadForm({
               ) : errors.size ? (
                 <span className="tabular-nums">{errors.size === 1 ? "1 fila con error" : `${errors.size} filas con error`}</span>
               ) : (
-                <span className="text-soft">Sin cambios. Solo se guardan las filas que modifiques.</span>
+                <span className="text-soft">Sin cambios. Solo se guardan las filas que modifique.</span>
               )}
             </div>
             <Button onClick={onSave} disabled={pending || (!rows.length && !errors.size)}>

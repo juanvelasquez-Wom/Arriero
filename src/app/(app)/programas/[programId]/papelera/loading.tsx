@@ -1,5 +1,5 @@
 import { PageSkeleton } from "@/components/app/route-states";
 
 export default function Loading() {
-  return <PageSkeleton />;
+  return <PageSkeleton phraseKey="papelera" />;
 }

@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { DECISION_LABEL, VERDICT_LABEL } from "@/domain/labels";
 import { DECISIONS, VERDICTS, type Decision, type Verdict } from "@/domain/types";
 import { cn } from "@/lib/utils";
+import { CELEBRATIONS, celebrate } from "@/components/brand/celebrate";
 import { decideExperiment } from "@/server/actions/experiments";
 
 export interface DecideDialogProps {
@@ -60,7 +61,9 @@ export function DecideDialog(props: DecideDialogProps) {
         setError(r.error);
         return;
       }
-      toast.success("Ejercicio decidido", { description: "El aprendizaje quedó en el repositorio." });
+      if (verdict === "winner") celebrate(...CELEBRATIONS.winner);
+      else if (verdict === "loser") toast.success("Ese camino no era", { description: "Tranquilo el corazón: ya sabemos por dónde no es. El aprendizaje quedó guardado." });
+      else toast.success("Listo pues: ejercicio decidido", { description: "El aprendizaje quedó guardado. Del dato al camino." });
       props.onOpenChange(false);
       router.refresh();
     });
@@ -72,7 +75,7 @@ export function DecideDialog(props: DecideDialogProps) {
         <DialogHeader>
           <DialogTitle>Decidir el ejercicio</DialogTitle>
           <DialogDescription>
-            El veredicto se emite frente a la regla de decisión fijada antes de lanzar. Al decidir es obligatorio dejar un aprendizaje.
+            Lea el resultado frente a la regla de decisión que fijó antes de lanzar. Para decidir, deje un aprendizaje: esa es la ñapa que queda para las otras líneas.
           </DialogDescription>
         </DialogHeader>
 
@@ -83,7 +86,7 @@ export function DecideDialog(props: DecideDialogProps) {
           </div>
         ) : null}
         {props.missingResults ? (
-          <Callout title="Faltan resultados">Carga muestra y conversiones (o el valor de la métrica) en todas las variantes antes de decidir.</Callout>
+          <Callout title="Faltan resultados">Cargue la muestra y las conversiones (o el valor de la métrica) de todas las variantes antes de decidir.</Callout>
         ) : null}
         {props.durationWarning ? <Callout title="Duración">{props.durationWarning}</Callout> : null}
 
@@ -122,7 +125,7 @@ export function DecideDialog(props: DecideDialogProps) {
           </div>
         </fieldset>
         <div className="space-y-1.5">
-          <Label htmlFor="rationale">Justificación de la decisión</Label>
+          <Label htmlFor="rationale">¿Por qué esta decisión?</Label>
           <Textarea id="rationale" rows={2} value={rationale} onChange={(e) => setRationale(e.target.value)} />
         </div>
         <div className="space-y-1.5">
@@ -132,7 +135,7 @@ export function DecideDialog(props: DecideDialogProps) {
             rows={3}
             value={learning}
             onChange={(e) => setLearning(e.target.value)}
-            placeholder="Qué aprendimos, más allá del resultado: por qué funcionó o no."
+            placeholder="¿Qué aprendimos, más allá del resultado? Por qué funcionó o por qué no."
           />
         </div>
         <div className="space-y-2">
@@ -153,7 +156,7 @@ export function DecideDialog(props: DecideDialogProps) {
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="suggested">Hipótesis derivada sugerida (opcional)</Label>
-          <Input id="suggested" value={suggested} onChange={(e) => setSuggested(e.target.value)} />
+          <Input id="suggested" placeholder="Probemos por ahí: SI… ENTONCES… PORQUE…" value={suggested} onChange={(e) => setSuggested(e.target.value)} />
         </div>
 
         {error ? <Callout title="No se pudo decidir">{error}</Callout> : null}

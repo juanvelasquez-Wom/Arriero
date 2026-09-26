@@ -95,8 +95,8 @@ function draftRow(d: z.output<typeof experimentDraftSchema>, allowScoring: boole
 export async function createExperiment(programId: string, input: ExperimentDraftInput): Promise<ActionResult<{ id: string; variantIds?: string[] }>> {
   if (!uuid.safeParse(programId).success) return fail("Programa inválido.");
   const ctx = await getActionActor(programId);
-  if (!ctx) return fail("Tu sesión venció o no tienes acceso a este programa.");
-  if (!can.createExperiment(ctx.actor)) return fail("Tu rol no puede crear ejercicios.");
+  if (!ctx) return fail("Su sesión venció o no tiene acceso a este programa.");
+  if (!can.createExperiment(ctx.actor)) return fail("Su rol no puede crear ejercicios.");
   const parsed = experimentDraftSchema.safeParse(input);
   if (!parsed.success) return fromZod(parsed.error);
 
@@ -123,7 +123,7 @@ export async function createExperiment(programId: string, input: ExperimentDraft
     variantIds = synced.ids;
   }
   revalidateProgram(programId);
-  return ok({ id: data.id, variantIds }, "Borrador guardado.");
+  return ok({ id: data.id, variantIds }, "Borrador guardado. Ahí vamos.");
 }
 
 export async function updateExperiment(
@@ -133,7 +133,7 @@ export async function updateExperiment(
 ): Promise<ActionResult<{ id: string; variantIds?: string[] }>> {
   if (!uuid.safeParse(programId).success || !uuid.safeParse(experimentId).success) return fail("Ejercicio inválido.");
   const ctx = await getActionActor(programId);
-  if (!ctx) return fail("Tu sesión venció o no tienes acceso a este programa.");
+  if (!ctx) return fail("Su sesión venció o no tiene acceso a este programa.");
   const parsed = experimentDraftSchema.safeParse(input);
   if (!parsed.success) return fromZod(parsed.error);
 
@@ -144,7 +144,7 @@ export async function updateExperiment(
     .eq("id", experimentId)
     .maybeSingle();
   if (!current) return fail("El ejercicio no existe o fue borrado.");
-  if (!can.editExperiment(ctx.actor, current)) return fail("No tienes permiso para editar este ejercicio.");
+  if (!can.editExperiment(ctx.actor, current)) return fail("No tiene permiso para editar este ejercicio.");
 
   const row = draftRow(parsed.data, can.scoreIce(ctx.actor));
   if (current.design_locked_at) {
@@ -170,7 +170,7 @@ export async function updateIce(
   input: { impact: number | null; confidence: number | null; ease: number | null },
 ): Promise<ActionResult> {
   const ctx = await getActionActor(programId);
-  if (!ctx || !can.scoreIce(ctx.actor)) return fail("No tienes permiso para calificar ICE.");
+  if (!ctx || !can.scoreIce(ctx.actor)) return fail("No tiene permiso para calificar ICE.");
   const s = z.coerce.number().int().min(1).max(10).nullable();
   const parsed = z.object({ impact: s, confidence: s, ease: s }).safeParse(input);
   if (!parsed.success) return fail("Las calificaciones van de 1 a 10.");
@@ -213,11 +213,11 @@ export async function decideExperiment(input: DecideInput): Promise<ActionResult
   });
   if (error) return failFrom(error);
   revalidateProgram(d.programId);
-  return ok(undefined, "Ejercicio decidido.");
+  return ok(undefined, "¡Qué berraquera! Ejercicio decidido.");
 }
 
 export async function unlockDesign(programId: string, experimentId: string, justification: string): Promise<ActionResult> {
-  if (!justification?.trim()) return fail("Escribe la justificación del desbloqueo.");
+  if (!justification?.trim()) return fail("Escriba la justificación del desbloqueo.");
   const supabase = await createClient();
   const { error } = await supabase.rpc("unlock_design", { p_experiment: experimentId, p_justification: justification.trim() });
   if (error) return failFrom(error);
@@ -236,7 +236,7 @@ export async function lockDesign(programId: string, experimentId: string): Promi
 /** Carga de resultados por variante (permitida con el diseño bloqueado). */
 export async function saveResults(programId: string, experimentId: string, input: unknown): Promise<ActionResult> {
   const ctx = await getActionActor(programId);
-  if (!ctx) return fail("Tu sesión venció o no tienes acceso a este programa.");
+  if (!ctx) return fail("Su sesión venció o no tiene acceso a este programa.");
   const parsed = resultsSchema.safeParse(input);
   if (!parsed.success) return fromZod(parsed.error);
   const supabase = await createClient();
@@ -252,7 +252,7 @@ export async function saveResults(programId: string, experimentId: string, input
     if (error) return failFrom(error);
   }
   revalidateProgram(programId);
-  return ok(undefined, "Resultados guardados.");
+  return ok(undefined, "Resultados guardados. Del dato al camino.");
 }
 
 /** Edita el aprendizaje de un ejercicio ya decidido. */
@@ -280,5 +280,5 @@ export async function updateLearning(
     .eq("id", learningId);
   if (error) return failFrom(error);
   revalidateProgram(programId);
-  return ok(undefined, "Aprendizaje actualizado.");
+  return ok(undefined, "Aprendizaje actualizado. Eso está como bueno.");
 }

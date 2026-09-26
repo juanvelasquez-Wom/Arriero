@@ -3,7 +3,7 @@ import { isMonday } from "@/domain/dates";
 import { parseDecimal } from "@/domain/metric-tree";
 import { METRIC_BRANCHES, METRIC_DIRECTIONS, METRIC_TYPES } from "@/domain/types";
 
-const uuid = z.string().uuid("Elige una opción.");
+const uuid = z.string().uuid("Elija una opción.");
 
 const optionalText = (max: number) =>
   z
@@ -21,7 +21,7 @@ const optionalDecimal = z
   .transform((v, ctx) => {
     const n = parseDecimal(v);
     if (n != null && Number.isNaN(n)) {
-      ctx.addIssue({ code: "custom", message: "Escribe un número (p. ej. 1234,5)." });
+      ctx.addIssue({ code: "custom", message: "Escriba un número (p. ej. 1234,5)." });
       return z.NEVER;
     }
     return n;
@@ -30,7 +30,7 @@ const optionalDecimal = z
 const requiredDecimal = z.union([z.string(), z.number()]).transform((v, ctx) => {
   const n = parseDecimal(v);
   if (n == null || Number.isNaN(n)) {
-    ctx.addIssue({ code: "custom", message: n == null ? "Escribe el valor." : "Escribe un número (p. ej. 1234,5)." });
+    ctx.addIssue({ code: "custom", message: n == null ? "Escriba el valor." : "Escriba un número (p. ej. 1234,5)." });
     return z.NEVER;
   }
   return n;
@@ -59,7 +59,7 @@ export const metricSchema = z
       .optional()
       .transform((v) => (v && v !== "none" ? v : null)),
     parent_id: optionalUuid,
-    name: z.string().trim().min(2, "Escribe el nombre de la métrica.").max(160, "Máximo 160 caracteres."),
+    name: z.string().trim().min(2, "Escriba el nombre de la métrica.").max(160, "Máximo 160 caracteres."),
     definition: optionalText(2000),
     channel: optionalText(120),
     unit: optionalText(40),
@@ -70,7 +70,7 @@ export const metricSchema = z
   })
   .superRefine((m, ctx) => {
     if (m.type === "input" && !m.branch) {
-      ctx.addIssue({ code: "custom", path: ["branch"], message: "Elige la rama del árbol." });
+      ctx.addIssue({ code: "custom", path: ["branch"], message: "Elija la rama del árbol." });
     }
     if (m.type === "north_star" && m.parent_id) {
       ctx.addIssue({ code: "custom", path: ["parent_id"], message: "La métrica norte es la raíz: no tiene padre." });
@@ -108,7 +108,7 @@ export type TargetsInput = z.input<typeof targetsSchema>;
 
 export const stageSchema = z.object({
   line_id: uuid,
-  name: z.string().trim().min(2, "Escribe el nombre de la etapa.").max(80, "Máximo 80 caracteres."),
+  name: z.string().trim().min(2, "Escriba el nombre de la etapa.").max(80, "Máximo 80 caracteres."),
   description: optionalText(1000),
   metric_id: optionalUuid,
 });

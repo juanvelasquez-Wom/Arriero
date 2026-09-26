@@ -269,12 +269,12 @@ export function diffWeeklyLoad(
     const value = parseDecimal(d.value);
     const note = d.note.trim() ? d.note.trim() : null;
     if (value != null && Number.isNaN(value)) {
-      errors.set(id, "Escribe un número (p. ej. 1234,5).");
+      errors.set(id, "Escriba un número (p. ej. 1234,5).");
       continue;
     }
     if (value == null) {
-      if (prev) errors.set(id, "Un valor guardado no se puede dejar vacío; corrígelo con el valor correcto.");
-      else if (note) errors.set(id, "Escribe el valor para poder guardar la nota.");
+      if (prev) errors.set(id, "Un valor guardado no se puede dejar vacío; corríjalo con el valor correcto.");
+      else if (note) errors.set(id, "Escriba el valor para poder guardar la nota.");
       continue;
     }
     if (prev && prev.value === value && (prev.note ?? null) === note) continue;

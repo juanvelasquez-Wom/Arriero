@@ -55,7 +55,7 @@ export function LoginForm({ next, initialError }: { next?: string; initialError?
           Entrar
         </SubmitButton>
         <Link href="/recuperar" className="text-sm text-soft underline underline-offset-4 hover:text-ink">
-          Olvidé mi contraseña
+          Se me olvidó la contraseña
         </Link>
       </FieldGroup>
     </form>

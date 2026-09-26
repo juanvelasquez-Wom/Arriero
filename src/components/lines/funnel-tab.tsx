@@ -75,7 +75,7 @@ export function FunnelTab({ programId, lineId, stages, problems, experiments, me
         )}
       </Section>
 
-      <Section title="Etapas" description="Edita el nombre, qué significa en esta línea, la métrica que la mide y el orden.">
+      <Section title="Etapas" description="Edite el nombre, qué significa en esta línea, la métrica que la mide y el orden.">
         <StageEditor
           programId={programId}
           lineId={lineId}
@@ -95,7 +95,7 @@ function FunnelBar({ name, index, width, stat }: { name: string; index: number; 
     <li
       style={{ width: `${Math.round(width * 100)}%` }}
       className={cn(
-        "min-w-[15rem] max-w-full rounded-lg border px-3 py-2",
+        "min-w-[15rem] max-w-full rounded-xl border px-3 py-2",
         stat.needsAttention
           ? "border-highlight bg-highlight/25"
           : stat.empty
@@ -123,7 +123,7 @@ function FunnelBar({ name, index, width, stat }: { name: string; index: number; 
         </span>
       </div>
       {stat.needsAttention ? (
-        <p className="mt-0.5 text-xs">Hay problemas validados sin ejercicio: es una oportunidad para diseñar uno.</p>
+        <p className="mt-0.5 text-xs">Hay problemas validados sin ejercicio. ¿Y por dónde es? Diseñe uno.</p>
       ) : stat.empty ? (
         <p className="mt-0.5 text-xs">Sin problemas ni ejercicios.</p>
       ) : null}

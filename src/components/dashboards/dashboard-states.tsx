@@ -20,10 +20,10 @@ export function DashboardError({ error, retry, reset, name }: DashboardErrorProp
   }, [error]);
   const again = retry ?? reset;
   return (
-    <div role="alert" className="mx-auto max-w-xl rounded-xl border bg-paper p-6">
-      <h2 className="text-base font-semibold">No pudimos cargar el tablero {name}</h2>
+    <div role="alert" className="mx-auto max-w-xl rounded-2xl border bg-paper p-6 shadow-card">
+      <h2 className="text-lg font-bold">¡Juepucha! Se nos enredó el tablero {name}</h2>
       <p className="mt-1 text-sm text-soft">
-        Puede ser un problema de conexión o de permisos. Intenta de nuevo; si persiste, avísale a un admin
+        No pudimos cargarlo. Puede ser la conexión o los permisos. Intente de nuevo y, si sigue igual, avísele a un admin
         {error.digest ? ` (código ${error.digest})` : ""}.
       </p>
       {again ? (
@@ -48,7 +48,7 @@ export function DashboardSkeleton({ children }: { children: ReactNode }) {
           <Skeleton key={i} className="h-7 w-28" />
         ))}
       </div>
-      <div className="mb-6 flex flex-wrap gap-3 rounded-xl border bg-paper p-3">
+      <div className="mb-6 flex flex-wrap gap-3 rounded-2xl border bg-paper p-3 shadow-card">
         {Array.from({ length: 4 }).map((_, i) => (
           <Skeleton key={i} className="h-12 w-44" />
         ))}

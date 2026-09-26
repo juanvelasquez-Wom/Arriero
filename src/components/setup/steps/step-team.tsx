@@ -60,8 +60,8 @@ export function StepTeam({
         {ROLE_CARDS.map((c) => {
           const Icon = c.icon;
           return (
-            <div key={c.role} className="rounded-xl border bg-paper p-4 text-sm">
-              <div className="flex items-center gap-2 font-semibold">
+            <div key={c.role} className="lift rounded-2xl border bg-paper p-4 text-sm shadow-card">
+              <div className="flex items-center gap-2 font-heading text-base font-bold">
                 <Icon className="size-4" aria-hidden /> {c.title}
               </div>
               <ul className="mt-2 space-y-1">
@@ -78,14 +78,14 @@ export function StepTeam({
           );
         })}
       </div>
-      <div className="rounded-xl border bg-paper p-5">
+      <div className="rounded-2xl border bg-paper shadow-card p-5">
         <MembersStep programId={programId} members={members} currentUserId={currentUserId} canManage={canManage} />
       </div>
       <StepFooter
         prevHref={prevHref}
         pending={false}
         onNext={() => router.push(nextHref)}
-        nextLabel={members.length > 1 ? "Seguir" : "Invitar después y seguir"}
+        nextLabel={members.length > 1 ? "Siga" : "Invite después y siga"}
       />
     </div>
   );

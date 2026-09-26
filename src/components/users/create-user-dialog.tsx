@@ -44,7 +44,7 @@ export function CreateUserDialog({ programs }: { programs: { id: string; name: s
         applyFieldErrors(r.fieldErrors, form.setError);
         return;
       }
-      toast.success(r.message ?? "Usuario creado");
+      toast.success(r.message ?? "¡Eso! Cuenta creada");
       form.reset(defaults);
       setOpen(false);
       if (r.data.link) setLink(r.data.link);
@@ -63,7 +63,7 @@ export function CreateUserDialog({ programs }: { programs: { id: string; name: s
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Crear usuario</DialogTitle>
-            <DialogDescription>La persona recibe un enlace para crear su contraseña. Nadie más la conoce.</DialogDescription>
+            <DialogDescription>La persona recibe un enlace para crear su contraseña. Nadie más la conoce, ni siquiera usted.</DialogDescription>
           </DialogHeader>
           <form onSubmit={onSubmit} noValidate>
             <FieldGroup>
@@ -79,7 +79,7 @@ export function CreateUserDialog({ programs }: { programs: { id: string; name: s
                 control={form.control}
                 name="isAdmin"
                 render={({ field }) => (
-                  <div className="flex items-start gap-3 rounded-lg border p-3">
+                  <div className="flex items-start gap-3 rounded-xl border p-3">
                     <Switch id="u-admin" checked={field.value} onCheckedChange={field.onChange} />
                     <div>
                       <Label htmlFor="u-admin">Admin global</Label>
@@ -152,7 +152,7 @@ export function CreateUserDialog({ programs }: { programs: { id: string; name: s
                         <Label htmlFor="mode-email" className="flex-col items-start gap-0.5">
                           <span>Enviar invitación por correo</span>
                           <span className="text-xs font-normal text-soft">
-                            Requiere un SMTP propio en Supabase. Si el correo falla, te mostramos un enlace para compartir.
+                            Requiere un SMTP propio en Supabase. Si el correo falla, le mostramos un enlace para compartir.
                           </span>
                         </Label>
                       </div>
@@ -160,7 +160,7 @@ export function CreateUserDialog({ programs }: { programs: { id: string; name: s
                         <RadioGroupItem value="link" id="mode-link" />
                         <Label htmlFor="mode-link" className="flex-col items-start gap-0.5">
                           <span>Generar un enlace para compartir</span>
-                          <span className="text-xs font-normal text-soft">No se envía correo; tú compartes el enlace de un solo uso.</span>
+                          <span className="text-xs font-normal text-soft">No se envía correo; usted comparte el enlace de un solo uso.</span>
                         </Label>
                       </div>
                     </RadioGroup>

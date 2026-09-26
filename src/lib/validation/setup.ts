@@ -1,13 +1,13 @@
 import { z } from "zod";
 import { CALENDAR_EVENT_TYPES, METRIC_BRANCHES, METRIC_DIRECTIONS } from "@/domain/types";
 
-const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Elige una fecha.");
+const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Elija una fecha.");
 const uuid = z.string().uuid();
 const optionalNumber = z.number().finite().nullable().optional();
 
 export const programStepSchema = z
   .object({
-    name: z.string().trim().min(3, "Escribe un nombre de al menos 3 caracteres.").max(120),
+    name: z.string().trim().min(3, "Escriba un nombre de al menos 3 caracteres.").max(120),
     description: z.string().trim().max(1000).optional(),
     start_date: date,
     end_date: date,
@@ -36,18 +36,18 @@ export type CalendarStepInput = z.input<typeof calendarStepSchema>;
 export const horizonsStepSchema = z.object({
   horizons: z
     .array(z.object({ id: uuid.optional(), name: z.string().trim().min(1).max(40), start_date: date, end_date: date }))
-    .min(1, "Agrega al menos un horizonte.")
+    .min(1, "Agregue al menos un horizonte.")
     .max(6),
 });
 export type HorizonsStepInput = z.input<typeof horizonsStepSchema>;
 
 export const linesStepSchema = z.object({
-  create: z.array(z.string().trim().min(2, "Escribe el nombre de la línea.").max(80)).max(12),
+  create: z.array(z.string().trim().min(2, "Escriba el nombre de la línea.").max(80)).max(12),
 });
 
 const metricDraft = z.object({
   id: uuid.optional(),
-  name: z.string().trim().min(2, "Escribe el nombre de la métrica.").max(160),
+  name: z.string().trim().min(2, "Escriba el nombre de la métrica.").max(160),
   unit: z.string().trim().max(40).optional().nullable(),
   direction: z.enum(METRIC_DIRECTIONS),
   definition: z.string().trim().max(2000).optional().nullable(),

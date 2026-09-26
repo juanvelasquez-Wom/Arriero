@@ -32,7 +32,7 @@ export function TrashTable({ programId, rows, canPurge }: { programId: string; r
       setBusy(undefined);
       if (!r.ok) toast.error(r.error);
       else {
-        toast.success(`“${row.label}” restaurado`);
+        toast.success(`“${row.label}” volvió al camino`);
         router.refresh();
       }
     });
@@ -49,7 +49,7 @@ export function TrashTable({ programId, rows, canPurge }: { programId: string; r
             onConfirm={async () => {
               const r = await emptyTrash(programId);
               if (!r.ok) return r.error;
-              toast.success("Papelera vaciada");
+              toast.success("Papelera vaciada. No cargue por cargar.");
               router.refresh();
             }}
           >
@@ -59,7 +59,7 @@ export function TrashTable({ programId, rows, canPurge }: { programId: string; r
           </ConfirmAction>
         </div>
       ) : null}
-      <div className="overflow-x-auto rounded-xl border bg-paper">
+      <div className="overflow-x-auto rounded-2xl border bg-paper shadow-card">
         <Table>
           <TableHeader>
             <TableRow>
@@ -90,12 +90,12 @@ export function TrashTable({ programId, rows, canPurge }: { programId: string; r
                     {canPurge ? (
                       <ConfirmAction
                         title={`Eliminar definitivamente “${row.label}”`}
-                        description="Se borra con todo lo que dependía de él, incluidos los archivos adjuntos. No se puede deshacer."
+                        description="Se borra con todo lo que dependía de este elemento, incluidos los archivos adjuntos. No se puede deshacer."
                         confirmLabel="Eliminar definitivamente"
                         onConfirm={async () => {
                           const r = await purgeTrashItem(row.id, programId);
                           if (!r.ok) return r.error;
-                          toast.success("Eliminado definitivamente");
+                          toast.success("Eliminado definitivamente. Ese camino no era.");
                           router.refresh();
                         }}
                       >

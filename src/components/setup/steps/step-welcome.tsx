@@ -1,5 +1,7 @@
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { Mule } from "@/components/brand/logo";
+import { SLOGAN } from "@/components/brand/phrases";
 import { Button } from "@/components/ui/button";
 import { WELCOME_IDEAS } from "../help-content";
 
@@ -7,35 +9,41 @@ import { WELCOME_IDEAS } from "../help-content";
 export function StepWelcome({ startHref }: { startHref: string }) {
   return (
     <div className="mx-auto max-w-3xl">
-      <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-soft">Antes de empezar</div>
-      <h1 className="text-3xl font-semibold tracking-tight">Cómo funciona un programa de growth</h1>
-      <p className="mt-2 max-w-2xl text-soft">
-        En lugar de apostar por grandes campañas basadas en intuición, el crecimiento se construye con muchos ejercicios pequeños, medidos
-        y encadenados. Cada ejercicio responde una pregunta, y lo aprendido es lo que hace crecer el negocio. Estas son las cinco ideas
-        que vas a configurar:
+      <div className="rise flex flex-col-reverse gap-6 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-soft">Antes de arrancar, mire el terreno</div>
+          <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">Así funciona un programa de growth</h1>
+          <p className="mt-2 font-heading text-lg font-bold">{SLOGAN}</p>
+        </div>
+        <Mule className="w-20 shrink-0 sm:w-28" />
+      </div>
+      <p className="rise rise-delay-1 mt-4 max-w-2xl text-soft">
+        En vez de apostarle a grandes campañas por intuición, el crecimiento se construye con muchos ejercicios pequeños, medidos y
+        encadenados. Cada ejercicio responde una pregunta, y lo aprendido es lo que hace crecer el negocio. Estas son las cinco ideas que va
+        a configurar:
       </p>
-      <ol className="mt-6 grid gap-3 sm:grid-cols-2">
+      <ol className="rise rise-delay-2 mt-6 grid gap-3 sm:grid-cols-2">
         {WELCOME_IDEAS.map((idea, i) => (
-          <li key={idea.title} className="flex gap-3 rounded-xl border bg-paper p-4">
-            <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-highlight text-sm font-semibold text-[#1f1f1f]">
+          <li key={idea.title} className="flex gap-3 rounded-2xl border bg-paper p-4 shadow-card">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-ink font-heading text-sm font-bold text-paper">
               {i + 1}
             </span>
             <div>
-              <div className="font-medium">{idea.title}</div>
+              <h2 className="text-base font-bold">{idea.title}</h2>
               <p className="mt-1 text-sm text-soft">{idea.text}</p>
             </div>
           </li>
         ))}
       </ol>
-      <div className="mt-6 rounded-xl border bg-wash p-4 text-sm">
-        <strong>Qué vas a hacer ahora:</strong> definir el periodo y el calendario comercial, los horizontes, las líneas de negocio y, para
+      <div className="rise rise-delay-3 mt-6 rounded-2xl border bg-wash p-4 text-sm">
+        <strong>Lo que va a hacer ahora:</strong> definir el periodo y el calendario comercial, los horizontes, las líneas de negocio y, para
         cada línea, su métrica norte, su árbol de métricas y su embudo. Después, el equipo y las reglas para priorizar. Toma entre 10 y 20
-        minutos, se guarda en cada paso y puedes retomarlo cuando quieras. En cada pantalla tienes ayudas y ejemplos.
+        minutos (lo que dura un tinto largo), se guarda en cada paso y puede retomarlo cuando quiera. En cada pantalla encuentra ayudas y ejemplos.
       </div>
       <div className="mt-6 flex justify-end">
         <Button size="lg" asChild>
           <Link href={startHref}>
-            Empezar <ArrowRight aria-hidden />
+            Hágale pues <ArrowRight aria-hidden />
           </Link>
         </Button>
       </div>

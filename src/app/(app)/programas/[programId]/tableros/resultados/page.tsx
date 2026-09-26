@@ -63,7 +63,7 @@ export default async function ResultsPage({ params, searchParams }: PageProps<"/
       programId={programId}
       active="resultados"
       title="Resultados"
-      description="Ejercicios cerrados (decididos o escalados a BAU): win rate, diferencia de los ganadores frente al control y distribución de veredictos y decisiones."
+      description="Ejercicios cerrados (decididos o escalados a BAU): win rate, cuánto le sacaron los ganadores al control y cómo se repartieron veredictos y decisiones. Aquí se ve el camello."
       fields={fields}
       current={data.current}
       query={data.query}
@@ -71,11 +71,11 @@ export default async function ResultsPage({ params, searchParams }: PageProps<"/
       {closed.length === 0 ? (
         <EmptyState
           icon={ChartColumn}
-          title="Aún no hay ejercicios cerrados"
+          title="Todavía no hay ejercicios cerrados"
           description={
             <>
-              Cuando decidas el primero verás aquí el win rate, la diferencia promedio de los ganadores frente al control y la
-              tabla de cerrados con su aprendizaje.
+              Cuando decida el primero, aquí va a ver el win rate, la diferencia promedio de los ganadores frente al control y la
+              tabla de cerrados con su aprendizaje. Si funciona, seguimos.
               <FilteredOutNote active={anyFilter} />
             </>
           }
@@ -87,7 +87,7 @@ export default async function ResultsPage({ params, searchParams }: PageProps<"/
         />
       ) : (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="rise grid grid-cols-1 gap-3 sm:grid-cols-3">
             <Stat label="Ejercicios cerrados" value={summary.closed} hint="Decididos o escalados a BAU" />
             <Stat
               label="Win rate"
@@ -100,7 +100,7 @@ export default async function ResultsPage({ params, searchParams }: PageProps<"/
               value={formatSignedPercent(summary.avgWinnerDiff)}
               hint={
                 summary.avgWinnerDiff == null
-                  ? "Sin ganadores con resultados comparables"
+                  ? "Todavía no hay ganadores con resultados comparables"
                   : "Mejor variante de cada ganador frente a su control"
               }
             />
@@ -175,7 +175,7 @@ export default async function ResultsPage({ params, searchParams }: PageProps<"/
                               <BookOpenCheck aria-hidden className="size-3.5" /> Ver aprendizaje
                             </Link>
                           ) : (
-                            <span className="text-soft">Sin aprendizaje</span>
+                            <span className="text-soft">Sin aprendizaje registrado</span>
                           )}
                         </TableCell>
                       </TableRow>

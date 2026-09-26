@@ -59,7 +59,7 @@ export function DashboardFilters({
     <div
       role="search"
       aria-label="Filtros del tablero"
-      className={cn("flex flex-wrap items-end gap-3 rounded-xl border bg-paper p-3", className)}
+      className={cn("flex flex-wrap items-end gap-3 rounded-2xl border bg-paper p-3 shadow-card", className)}
     >
       {fields.map((f) => {
         const id = `${baseId}-${f.key}`;

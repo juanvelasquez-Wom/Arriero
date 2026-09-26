@@ -68,7 +68,7 @@ function MetricFields({
   const bad = (v: string) => v.trim() !== "" && Number.isNaN(parseDecimal(v));
   return (
     <fieldset disabled={readOnly} className="space-y-4">
-      <legend className="mb-2 flex items-center gap-2 font-semibold">
+      <legend className="mb-2 flex items-center gap-2 font-heading text-lg font-bold">
         <Icon className="size-4" aria-hidden /> {title}
       </legend>
       <div className="grid gap-4 sm:grid-cols-[1fr_140px_150px]">
@@ -129,7 +129,7 @@ function MetricFields({
                 />
               </div>
             ))}
-            {!horizons.length ? <p className="text-sm text-soft">Define los horizontes para fijar metas.</p> : null}
+            {!horizons.length ? <p className="text-sm text-soft">Defina los horizontes para poder fijar metas.</p> : null}
           </div>
         </div>
       </div>
@@ -199,15 +199,15 @@ export function StepLineNorth({
     const e = toPayload(eff);
     if (north.name.trim().length < 2) {
       setErrors({ "n.name": "x" });
-      setError("Escribe el nombre de la métrica norte.");
+      setError("Escriba el nombre de la métrica norte.");
       return;
     }
     if (n.invalid || (withEff && e.invalid)) {
-      setError("Revisa los números: escribe solo cifras, por ejemplo 420 o 185.000.");
+      setError("Revise los números: escriba solo cifras, por ejemplo 420 o 185.000.");
       return;
     }
     if (!later && (n.missing || (withEff && e.missing))) {
-      setError("Faltan la línea base o alguna meta. Complétalas o marca \"Lo completo después\".");
+      setError("Falta la línea base o alguna meta. Complétela o marque \"Lo completo después\".");
       return;
     }
     startTransition(async () => {
@@ -227,7 +227,7 @@ export function StepLineNorth({
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border bg-wash px-4 py-2 text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border bg-wash px-4 py-2 text-sm">
         <span>
           Línea {lineIndex + 1} de {lineCount}: <strong>{line.name}</strong>
         </span>
@@ -243,11 +243,11 @@ export function StepLineNorth({
         ) : null}
       </div>
 
-      <div className="rounded-xl border border-l-4 border-l-highlight bg-paper p-5">
+      <div className="rounded-2xl border border-l-4 border-l-highlight bg-paper shadow-card p-5">
         <MetricFields prefix="n" title="Métrica norte" icon={Star} help={FIELD_HELP.northStar} draft={north} onChange={setNorth} horizons={horizons} readOnly={readOnly} errors={errors} />
       </div>
 
-      <div className="rounded-xl border bg-paper p-5">
+      <div className="rounded-2xl border bg-paper shadow-card p-5">
         <div className="mb-4 flex items-center gap-3">
           <Switch id="with-eff" checked={withEff} disabled={readOnly} onCheckedChange={setWithEff} />
           <label htmlFor="with-eff" className="text-sm">
@@ -264,7 +264,7 @@ export function StepLineNorth({
       {!readOnly ? (
         <label className="flex items-center gap-2 text-sm">
           <Checkbox checked={later} onCheckedChange={(c) => setLater(!!c)} />
-          Aún no tengo la línea base o las metas: lo completo después (quedará en los pendientes).
+          Todavía no tengo la línea base o las metas: lo completo después (queda en los pendientes).
         </label>
       ) : null}
       <FormError message={error} />

@@ -13,7 +13,7 @@ export async function loadDemoProgram(): Promise<ActionResult<{ programId: strin
   try {
     const programId = await loadDemo(await createClient(), createAdminClient(), user.id);
     revalidatePath("/programas", "layout");
-    return ok({ programId }, "Programa de ejemplo cargado.");
+    return ok({ programId }, "¡Eso! Programa de ejemplo cargado.");
   } catch (e) {
     console.error("[demo] Error al cargar el programa de ejemplo", e);
     return fail(e instanceof Error ? `No se pudo cargar el ejemplo. ${e.message}` : "No se pudo cargar el ejemplo.");
@@ -26,9 +26,9 @@ export async function deleteDemoProgram(): Promise<ActionResult> {
   try {
     const deleted = await deleteDemo(createAdminClient());
     revalidatePath("/programas", "layout");
-    return deleted ? ok(undefined, "Programa de ejemplo borrado.") : fail("No hay un programa de ejemplo.");
+    return deleted ? ok(undefined, "Programa de ejemplo borrado. Listo pues.") : fail("No hay un programa de ejemplo.");
   } catch (e) {
     console.error("[demo] Error al borrar el programa de ejemplo", e);
-    return fail("No se pudo borrar el programa de ejemplo. Intenta de nuevo.");
+    return fail("No se pudo borrar el programa de ejemplo. Intente de nuevo.");
   }
 }

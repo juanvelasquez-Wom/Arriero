@@ -19,7 +19,7 @@ export default async function NewProblemPage({ params, searchParams }: PageProps
     <div className="mx-auto max-w-3xl">
       <PageHeader
         title="Nuevo problema"
-        description="Un problema con evidencia es el origen de todo ejercicio: dónde se pierde valor, con qué datos y por qué creemos que pasa."
+        description="Cargue lo que importa: dónde se pierde valor, con qué datos y por qué creemos que pasa. De aquí nacen los ejercicios."
       />
       <Section>
         <ProblemForm

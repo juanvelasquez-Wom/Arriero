@@ -49,17 +49,20 @@ function StepLink({
       <span
         className={cn(
           "flex size-5 shrink-0 items-center justify-center rounded-full border text-[10px]",
-          current && "border-highlight bg-highlight text-[#1f1f1f]",
+          current && "border-[#1f1f1f] bg-paper text-[#1f1f1f]",
           done && !current && "border-ink bg-ink text-paper",
         )}
         aria-hidden
       >
-        {done && !current ? <Check className="size-3" /> : !reachable && !current ? <Lock className="size-2.5" /> : null}
+        {done && !current ? <Check className="size-3" strokeWidth={3} /> : !reachable && !current ? <Lock className="size-2.5" /> : current ? <span className="size-1.5 rounded-full bg-[#1f1f1f]" /> : null}
       </span>
       <span className="truncate">{children}</span>
     </>
   );
-  const cls = cn("flex items-center gap-2 rounded-md px-2 py-1.5 text-sm", current ? "bg-paper font-medium shadow-sm" : "text-ink/85");
+  const cls = cn(
+    "flex items-center gap-2 rounded-full px-2.5 py-1.5 text-sm transition-colors",
+    current ? "bg-highlight font-semibold text-[#1f1f1f] shadow-card" : "text-ink/85",
+  );
   if (!reachable || current) {
     return (
       <span className={cn(cls, !reachable && !current && "opacity-50")} aria-current={current ? "step" : undefined}>
@@ -134,13 +137,22 @@ export function WizardShell({ programId, current, state, lines, help, title, sub
 
   return (
     <div className="mx-auto max-w-7xl">
-      <div className="mb-5">
-        <div className="mb-1 flex items-center justify-between text-xs text-soft">
-          <span>{counter}</span>
-          <span>Se guarda automáticamente al avanzar</span>
+      <div className="mb-6 rounded-2xl border bg-paper px-4 py-3 shadow-card">
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs">
+          <span className="font-semibold text-ink">{counter}</span>
+          <span className="text-soft">
+            <span className="font-heading font-bold text-ink tabular-nums">{progress}%</span> · Se guarda solo cada vez que avanza
+          </span>
         </div>
-        <div className="h-1.5 overflow-hidden rounded-full bg-gray-1" role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}>
-          <div className="h-full rounded-full bg-highlight transition-all" style={{ width: `${progress}%` }} />
+        <div
+          className="h-2.5 overflow-hidden rounded-full bg-gray-1"
+          role="progressbar"
+          aria-label="Avance de la configuración"
+          aria-valuenow={progress}
+          aria-valuemin={0}
+          aria-valuemax={100}
+        >
+          <div className="h-full rounded-full bg-highlight transition-all duration-500" style={{ width: `${progress}%` }} />
         </div>
       </div>
 
@@ -150,15 +162,15 @@ export function WizardShell({ programId, current, state, lines, help, title, sub
         </div>
 
         <div className="min-w-0">
-          <Collapsible className="mb-4 rounded-xl border bg-paper lg:hidden">
+          <Collapsible className="mb-4 rounded-2xl border bg-paper shadow-card lg:hidden">
             <CollapsibleTrigger className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium">
               Ver todos los pasos <ChevronDown className="size-4" aria-hidden />
             </CollapsibleTrigger>
             <CollapsibleContent className="px-2 pb-3">{nav}</CollapsibleContent>
           </Collapsible>
 
-          <header className="mb-4">
-            <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+          <header className="rise mb-5">
+            <h1 className="text-3xl font-extrabold tracking-tight">{title}</h1>
             {subtitle ? <div className="mt-1 text-sm text-soft">{subtitle}</div> : null}
           </header>
 

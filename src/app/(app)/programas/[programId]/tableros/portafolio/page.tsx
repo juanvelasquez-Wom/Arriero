@@ -63,15 +63,15 @@ export default async function PortfolioPage({ params, searchParams }: PageProps<
         programId={programId}
         active="portafolio"
         title="Portafolio y velocidad"
-        description="Dónde están los ejercicios en el embudo de cada línea y qué tan rápido aprendemos."
+        description="Dónde están los ejercicios en el embudo de cada línea y qué tan rápido estamos aprendiendo. La mula no pregunta, avanza."
         fields={data.globalFields}
         current={data.current}
         query={data.query}
       >
         <EmptyState
           icon={Grid3x3}
-          title="Aún no hay líneas de negocio"
-          description="La matriz cruza las líneas con las etapas de su embudo. Crea las líneas y sus etapas para verla."
+          title="Todavía no hay líneas de negocio"
+          description="La matriz cruza las líneas con las etapas de su embudo. Cree las líneas y sus etapas para verla."
           action={
             <Button asChild variant="outline">
               <Link href={`${base}/configuracion?paso=lineas`}>Configurar líneas</Link>
@@ -87,14 +87,14 @@ export default async function PortfolioPage({ params, searchParams }: PageProps<
       programId={programId}
       active="portafolio"
       title="Portafolio y velocidad"
-      description="Dónde están los ejercicios en el embudo de cada línea y qué tan rápido aprendemos."
+      description="Dónde están los ejercicios en el embudo de cada línea y qué tan rápido estamos aprendiendo. La mula no pregunta, avanza."
       fields={data.globalFields}
       current={data.current}
       query={data.query}
     >
       <div className="space-y-6">
         {zeroLines.length || gaps.length ? (
-          <Callout icon={TriangleAlert} title="Revisa el portafolio">
+          <Callout icon={TriangleAlert} title="¡Ave María! Ojo con el portafolio">
             <ul className="list-disc pl-4">
               {zeroLines.length ? (
                 <li>
@@ -117,7 +117,7 @@ export default async function PortfolioPage({ params, searchParams }: PageProps<
         >
           {matrix.columns.length === 0 ? (
             <p className="text-sm text-soft">
-              Las líneas aún no tienen etapas de embudo. Defínelas en la pestaña Embudo de cada línea.
+              Las líneas todavía no tienen etapas de embudo. Defínalas en la pestaña Embudo de cada línea.
             </p>
           ) : (
             <div className="-m-4 overflow-x-auto p-4">
@@ -175,10 +175,10 @@ export default async function PortfolioPage({ params, searchParams }: PageProps<
                 const closed = exps.filter((e) => isClosed(e.status)).length;
                 const max = Math.max(1, ...matrix.rows.map((r) => r.totalExperiments));
                 return (
-                  <li key={row.line.id} className={cn("rounded-lg border p-2", row.alert && "border-highlight bg-highlight/10")}>
+                  <li key={row.line.id} className={cn("rounded-xl border p-2", row.alert && "border-highlight bg-highlight/10")}>
                     <div className="flex items-center justify-between gap-2 text-sm">
                       <span className="truncate font-medium">{row.line.name}</span>
-                      <span className="font-semibold">{row.totalExperiments}</span>
+                      <span className="font-heading font-extrabold">{row.totalExperiments}</span>
                     </div>
                     <div aria-hidden className="mt-1.5 h-1.5 rounded-full bg-gray-1">
                       <div className="h-full rounded-full bg-gray-4" style={{ width: `${(row.totalExperiments / max) * 100}%` }} />
@@ -239,7 +239,7 @@ export default async function PortfolioPage({ params, searchParams }: PageProps<
 function MatrixCell({ cell }: { cell: PortfolioCell }) {
   if (!cell.stageId) {
     return (
-      <td className="rounded-lg border border-dashed bg-wash/50 p-3 align-top text-xs text-soft">
+      <td className="rounded-xl border border-dashed bg-wash/50 p-3 align-top text-xs text-soft">
         <span aria-hidden>—</span>
         <span className="sr-only">Etapa no definida en esta línea</span>
       </td>
@@ -248,11 +248,11 @@ function MatrixCell({ cell }: { cell: PortfolioCell }) {
   return (
     <td
       className={cn(
-        "rounded-lg border p-3 align-top",
+        "rounded-xl border p-3 align-top",
         cell.gap ? "border-2 border-highlight bg-highlight/10" : cell.active ? "bg-paper" : "bg-wash/50",
       )}
     >
-      <div className="text-2xl leading-none font-semibold">
+      <div className="font-heading text-2xl leading-none font-extrabold">
         {cell.active}
         <span className="sr-only"> activo{cell.active === 1 ? "" : "s"}</span>
       </div>

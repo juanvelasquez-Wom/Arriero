@@ -39,14 +39,14 @@ export function ResetForm({ askName, defaultName }: { askName: boolean; defaultN
       <FieldGroup>
         <FormError message={error} />
         {askName ? (
-          <FormField id="name" label="Tu nombre" error={errors.name?.message}>
+          <FormField id="name" label="Su nombre" error={errors.name?.message}>
             <Input id="name" autoComplete="name" {...form.register("name")} />
           </FormField>
         ) : null}
         <FormField id="password" label="Contraseña nueva" description="Mínimo 8 caracteres." error={errors.password?.message}>
           <Input id="password" type="password" autoComplete="new-password" {...form.register("password")} />
         </FormField>
-        <FormField id="confirm" label="Repite la contraseña" error={errors.confirm?.message}>
+        <FormField id="confirm" label="Repita la contraseña" error={errors.confirm?.message}>
           <Input id="confirm" type="password" autoComplete="new-password" {...form.register("confirm")} />
         </FormField>
         <SubmitButton pending={pending} className="w-full" size="lg">

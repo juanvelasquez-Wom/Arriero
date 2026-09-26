@@ -75,7 +75,7 @@ export function ProblemForm({
           applyFieldErrors(r.fieldErrors, form.setError);
           return;
         }
-        toast.success("Problema actualizado");
+        toast.success("Problema actualizado. De una.");
         onDone?.();
         router.refresh();
         return;
@@ -90,7 +90,7 @@ export function ProblemForm({
         const up = await uploadAttachments(programId, "problem", r.data.id, files);
         for (const e of up.errors) toast.error(e);
       }
-      toast.success("Problema creado");
+      toast.success("Problema registrado. Ahora sí sabemos por dónde es.");
       router.push(`/programas/${programId}/problemas/${r.data.id}`);
     });
   });
@@ -122,7 +122,7 @@ export function ProblemForm({
               disabled={!!problemId}
             >
               <SelectTrigger id="line" className="w-full">
-                <SelectValue placeholder="Elige la línea" />
+                <SelectValue placeholder="Elija la línea" />
               </SelectTrigger>
               <SelectContent>
                 {lines.map((l) => (
@@ -165,7 +165,7 @@ export function ProblemForm({
           id="evidence"
           label="Evidencia"
           required
-          description="Datos que muestran el problema. Nada de nice to try."
+          description="Los datos que muestran el problema. Nada de corazonadas."
           error={errors.evidence?.message}
         >
           <Textarea id="evidence" rows={3} {...form.register("evidence")} />

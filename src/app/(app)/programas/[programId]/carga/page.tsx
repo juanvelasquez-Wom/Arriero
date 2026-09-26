@@ -43,7 +43,7 @@ export default async function WeeklyLoadPage({ params, searchParams }: PageProps
     <PageHeader
       eyebrow="Operación"
       title="Carga semanal"
-      description="Un valor por métrica y semana (de lunes a domingo). Se puede corregir después; cada cambio queda en el historial."
+      description="Del dato al camino. Un valor por métrica y semana (de lunes a domingo); se puede corregir después y cada cambio queda en el historial."
     />
   );
 
@@ -57,7 +57,7 @@ export default async function WeeklyLoadPage({ params, searchParams }: PageProps
           description={
             lines.length
               ? "Las métricas se definen en cada línea: primero la métrica norte y luego el árbol de métricas de entrada. Cuando existan, aquí se cargan sus valores cada semana."
-              : "El programa aún no tiene líneas de negocio. Crea las líneas en la configuración y define sus métricas."
+              : "El programa aún no tiene líneas de negocio. Cree las líneas en la configuración y defina sus métricas."
           }
           action={
             lines.length ? (
@@ -105,7 +105,7 @@ export default async function WeeklyLoadPage({ params, searchParams }: PageProps
       {header}
       {outside ? (
         <Callout tone="neutral" className="mb-4" title="Semana fuera de las fechas del programa">
-          Puedes cargar valores de referencia, pero no cuentan dentro del periodo del programa.
+          Puede cargar valores de referencia, pero no cuentan dentro del periodo del programa.
         </Callout>
       ) : null}
       <WeeklyLoadForm

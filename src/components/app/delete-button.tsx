@@ -114,8 +114,8 @@ export function DeleteButton({
         return;
       }
       setOpen(false);
-      toast.success(`${ENTITY_LABEL[entity]} enviado a la papelera`, {
-        description: "Puedes restaurarlo desde la papelera durante 30 días.",
+      toast.success(`Ese camino no era: “${name}” quedó en la papelera`, {
+        description: "Si se arrepiente, se puede restaurar desde la papelera durante 30 días.",
       });
       onDeleted?.();
       if (redirectTo) router.push(redirectTo);
@@ -139,7 +139,7 @@ export function DeleteButton({
           <DialogDescription>
             {entity === "program"
               ? "El programa y todo su contenido pasan a la papelera. Un owner o un admin puede restaurarlo durante 30 días."
-              : "Pasa a la papelera del programa. Un owner o un admin puede restaurarlo durante 30 días; después se elimina de forma definitiva."}
+              : "Pasa a la papelera del programa. Un owner o un admin puede restaurarlo todo durante 30 días; después se elimina de forma definitiva."}
           </DialogDescription>
         </DialogHeader>
 
@@ -153,7 +153,7 @@ export function DeleteButton({
         {impact && choice ? (
           <div className="space-y-3">
             <p className="text-sm">
-              Tiene <strong>{choice.count}</strong> {dependentsLabel} vinculados. Elige qué hacer con ellos:
+              Tiene <strong>{choice.count}</strong> {dependentsLabel} vinculados. Elija qué hacer con ellos:
             </p>
             <RadioGroup value={strategy} onValueChange={(v) => setStrategy(v as DeleteStrategy)}>
               <div className="flex items-start gap-2">
@@ -168,7 +168,7 @@ export function DeleteButton({
               {strategy === "reassign" && reassignOptions.length ? (
                 <Select value={target} onValueChange={setTarget}>
                   <SelectTrigger className="ml-6 w-[calc(100%-1.5rem)]" aria-label="Elemento destino">
-                    <SelectValue placeholder="Elige a dónde moverlos" />
+                    <SelectValue placeholder="Elija a dónde moverlos" />
                   </SelectTrigger>
                   <SelectContent>
                     {reassignOptions.map((o) => (
@@ -200,13 +200,13 @@ export function DeleteButton({
         {needsName && impact ? (
           <div className="space-y-1.5">
             <Label htmlFor="confirm-name">
-              Escribe <strong className="font-semibold">{name}</strong> para confirmar
+              Escriba <strong className="font-semibold">{name}</strong> para confirmar
             </Label>
             <Input id="confirm-name" value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" />
           </div>
         ) : null}
 
-        {error ? <Callout title="No se pudo borrar">{error}</Callout> : null}
+        {error ? <Callout title="¡Uy, qué pena! No se pudo borrar">{error}</Callout> : null}
 
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>

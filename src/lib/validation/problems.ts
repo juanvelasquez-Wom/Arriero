@@ -2,9 +2,9 @@ import { z } from "zod";
 import { CONTROL_LEVELS, IMPACT_LEVELS, PROBLEM_STATUSES } from "@/domain/types";
 
 export const problemSchema = z.object({
-  stage_id: z.string().uuid("Elige la etapa del embudo."),
+  stage_id: z.string().uuid("Elija la etapa del embudo."),
   channel: z.string().trim().max(80).optional(),
-  title: z.string().trim().min(5, "Describe el problema en al menos 5 caracteres.").max(240),
+  title: z.string().trim().min(5, "Describa el problema en al menos 5 caracteres.").max(240),
   evidence: z
     .string()
     .trim()

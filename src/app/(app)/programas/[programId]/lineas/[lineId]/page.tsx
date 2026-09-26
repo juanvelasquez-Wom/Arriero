@@ -103,7 +103,7 @@ export default async function LinePage({ params, searchParams }: PageProps<"/pro
         description={
           canEdit
             ? "Métrica norte, árbol de métricas y embudo de la línea. Los cambios se ven de inmediato en problemas, ejercicios y tableros."
-            : "Métrica norte, árbol de métricas y embudo de la línea. Tu rol puede consultarlos, no editarlos."
+            : "Métrica norte, árbol de métricas y embudo de la línea. Con su rol puede consultarlos, no editarlos."
         }
       />
       <LineTabs baseHref={baseHref} active={tab} />

@@ -38,7 +38,7 @@ export function NorthStarTab(props: Props) {
         <EmptyState
           icon={Star}
           title="Esta línea todavía no tiene métrica norte"
-          description="La métrica norte representa el valor que la línea quiere crecer (p. ej. altas digitales por semana). El árbol, el embudo y los ejercicios se ordenan alrededor de ella."
+          description="La métrica norte representa el valor que la línea quiere crecer (p. ej. altas digitales por semana). El árbol, el embudo y los ejercicios se ordenan alrededor de ella: sin norte no hay camino."
           action={
             canEdit ? (
               <MetricFormDialog
@@ -118,10 +118,10 @@ function MetricOverview({
       title={
         <span className="flex flex-wrap items-center gap-2">
           <MetricTypeBadge type={metric.type} />
-          <span className="text-base">{metric.name}</span>
+          <span className="text-base font-bold">{metric.name}</span>
         </span>
       }
-      description={metric.definition ?? "Sin definición. Descríbela para que todos carguen el mismo dato."}
+      description={metric.definition ?? "Sin definición. Descríbala para que todos carguen el mismo dato."}
       actions={
         canEdit ? (
           <>
@@ -178,7 +178,7 @@ function MetricOverview({
             {horizons.length === 0 ? (
               <p className="text-sm text-soft">El programa no tiene horizontes definidos.</p>
             ) : (
-              <ul className="divide-y rounded-lg border">
+              <ul className="divide-y rounded-xl border">
                 {horizons.map((h) => {
                   const isCurrent = h.id === currentHorizonId;
                   return (
@@ -232,7 +232,7 @@ function MetricOverview({
               icon={CalendarPlus}
               className="py-8"
               title="Todavía no hay valores semanales"
-              description="Cuando se carguen los valores de cada lunes, aquí verás la evolución frente a la línea base y el objetivo."
+              description="Cuando se carguen los valores de cada lunes, aquí verá la evolución frente a la línea base y el objetivo. Del dato al camino."
               action={
                 <Button asChild variant="outline" size="sm">
                   <Link href={`/programas/${programId}/carga`}>Ir a la carga semanal</Link>
@@ -248,9 +248,9 @@ function MetricOverview({
 
 function Fact({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <div className="rounded-lg border bg-wash px-3 py-2">
+    <div className="rounded-xl border bg-wash px-3 py-2">
       <div className="text-xs text-soft">{label}</div>
-      <div className="mt-0.5 text-lg font-semibold tabular-nums">{value}</div>
+      <div className="mt-0.5 font-heading text-xl font-extrabold tabular-nums">{value}</div>
       {hint ? <div className="text-[11px] text-soft">{hint}</div> : null}
     </div>
   );

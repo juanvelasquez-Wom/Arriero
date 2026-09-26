@@ -72,16 +72,16 @@ export default async function SetupPage({ params, searchParams }: PageProps<"/pr
   const title = line ? `${SUBSTEP_LABEL[current.key as LineSubstep]} · ${line.name}` : (mainLabel ?? "Configuración");
 
   const subtitles: Partial<Record<StepRef["key"], string>> = {
-    programa: "Ponle nombre y define el periodo del plan.",
-    calendario: "Marca los picos de venta, sus congelamientos y el punto de decisión.",
-    horizontes: "Divide el programa en tramos con su propia meta.",
-    lineas: "Elige los negocios que vas a medir por separado.",
+    programa: "Póngale nombre y defina el periodo del plan.",
+    calendario: "Marque los picos de venta, sus congelamientos y el punto de decisión.",
+    horizontes: "Parta el programa en tramos, cada uno con su propia meta.",
+    lineas: "Elija los negocios que va a medir por aparte.",
     "linea-norte": "El número que esta línea quiere crecer y cuánto cuesta crecerlo.",
-    "linea-arbol": "Las métricas de entrada que explican la métrica norte y que el equipo puede mover.",
+    "linea-arbol": "Las métricas de entrada que explican la métrica norte y que el equipo sí puede mover.",
     "linea-embudo": "El recorrido del cliente en esta línea, para ubicar los problemas.",
-    equipo: "Invita a las personas y asigna su rol.",
-    puntaje: "Cómo se ordenan los ejercicios en el backlog.",
-    resumen: "Revisa lo configurado y da el primer paso del ciclo.",
+    equipo: "Invite a las personas y asígneles su rol.",
+    puntaje: "Cómo se ordenan los ejercicios en el backlog: primero lo que más mueve.",
+    resumen: "Revise lo que dejó listo y dé el primer paso. Paso a paso se sube la montaña.",
   };
 
   let body: React.ReactNode = null;

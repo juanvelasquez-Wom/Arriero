@@ -36,7 +36,7 @@ export function QuickIce({
     const changed = (Object.keys(parsed) as Key[]).some((k) => parsed[k] !== values[k]);
     if (!changed) return;
     if ((Object.values(parsed) as (number | null)[]).some((n) => n != null && (!Number.isInteger(n) || n < 1 || n > 10))) {
-      toast.error("Las calificaciones ICE van de 1 a 10.");
+      toast.error("Las calificaciones ICE van de 1 a 10. Ni más, ni menos.");
       return;
     }
     startTransition(async () => {

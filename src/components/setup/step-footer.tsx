@@ -5,12 +5,12 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 
-/** Pie de cada paso: volver y "Guardar y seguir". */
+/** Pie de cada paso: volver y "Guarde y siga". */
 export function StepFooter({
   prevHref,
   pending,
   onNext,
-  nextLabel = "Guardar y seguir",
+  nextLabel = "Guarde y siga",
   extra,
   disabled,
 }: {

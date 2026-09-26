@@ -55,7 +55,7 @@ export function ConfirmAction({
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         {extra}
-        {error ? <Callout title="No se pudo completar">{error}</Callout> : null}
+        {error ? <Callout title="¡Uy, qué pena! No se pudo completar">{error}</Callout> : null}
         <AlertDialogFooter>
           <AlertDialogCancel>Cancelar</AlertDialogCancel>
           <Button

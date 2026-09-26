@@ -111,7 +111,7 @@ describe("borrado lógico y restauración", () => {
     const seed = await freshProgram("Del problema");
     const id = await readyExperiment(C.client, seed, C.id);
     const noChoice = await O.client.rpc("delete_problem", { p_id: seed.problemId });
-    expect(noChoice.error?.message).toMatch(/reasignarlos o borrarlos/);
+    expect(noChoice.error?.message).toMatch(/reasigna o los borra/);
     const reassign = await O.client.rpc("delete_problem", { p_id: seed.problemId, p_strategy: "reassign", p_target: seed.problem2Id });
     expect(reassign.error).toBeNull();
     const { data: moved } = await C.client.from("experiments").select("problem_id").eq("id", id).single();

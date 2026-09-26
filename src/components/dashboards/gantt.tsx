@@ -88,13 +88,13 @@ export function Gantt({ programId, widthPx, months, weeks, events, todayLeft, gr
   const grid = weeks ?? months;
 
   return (
-    <div className="rounded-xl border bg-paper">
+    <div className="overflow-hidden rounded-2xl border bg-paper shadow-card">
       <GanttLegend />
       <div
         ref={scroller}
         className="relative overflow-x-auto tabular-nums"
         role="region"
-        aria-label="Línea de tiempo de ejercicios (desplázate horizontalmente)"
+        aria-label="Línea de tiempo de ejercicios (desplácese horizontalmente)"
         tabIndex={0}
       >
         <div className="relative" style={{ width: LABEL_W + widthPx }}>

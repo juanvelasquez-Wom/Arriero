@@ -44,13 +44,13 @@ export default async function LearningsPage({ params, searchParams }: PageProps<
     <div className="mx-auto max-w-5xl">
       <PageHeader
         title="Aprendizajes"
-        description="Lo que dejó cada ejercicio cerrado. Un aprendizaje en una línea puede convertirse en hipótesis para las otras."
+        description="Lo que dejó cada ejercicio cerrado. Lo que se aprende en una línea puede volverse hipótesis en las otras."
       />
       {learnings.length === 0 ? (
         <EmptyState
           icon={BookOpenCheck}
-          title="Aún no hay aprendizajes"
-          description="Cada vez que se decide un ejercicio queda un aprendizaje obligatorio. Aparecerán aquí para buscarlos y reutilizarlos."
+          title="Todavía no hay aprendizajes"
+          description="Cada ejercicio decidido deja un aprendizaje. Aquí los va a encontrar para buscarlos y reutilizarlos. ¡Eso es oro en el carriel!"
           action={
             <Button asChild variant="outline">
               <Link href={`${base}/tableros/kanban`}>Ver ejercicios en curso</Link>
@@ -71,10 +71,10 @@ export default async function LearningsPage({ params, searchParams }: PageProps<
             {filtered.map((l) => {
               const otherLines = lines.filter((x) => x.id !== l.line_id);
               return (
-                <li key={l.id} id={l.id} className="scroll-mt-20 rounded-xl border bg-paper p-4">
+                <li key={l.id} id={l.id} className="lift scroll-mt-20 rounded-2xl border bg-paper p-4 shadow-card">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div>
-                      <Link href={`${base}/ejercicios/${l.experiment_id}?tab=aprendizaje`} className="font-medium hover:underline">
+                      <Link href={`${base}/ejercicios/${l.experiment_id}?tab=aprendizaje`} className="font-heading font-bold hover:underline">
                         {l.experiment_title}
                       </Link>
                       <div className="text-xs text-soft">
@@ -125,7 +125,7 @@ export default async function LearningsPage({ params, searchParams }: PageProps<
                 </li>
               );
             })}
-            {filtered.length === 0 ? <li className="py-8 text-center text-sm text-soft">Ningún aprendizaje coincide con los filtros.</li> : null}
+            {filtered.length === 0 ? <li className="py-8 text-center text-sm text-soft">Ningún aprendizaje coincide con los filtros. Ese camino no era: pruebe con otros.</li> : null}
           </ul>
         </>
       )}

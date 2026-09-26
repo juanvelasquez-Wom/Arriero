@@ -68,5 +68,5 @@ export async function deleteEntity(input: DeleteInput): Promise<ActionResult> {
 
   if (entity === "program") revalidatePath("/programas", "layout");
   else revalidatePath(`/programas/${programId}`, "layout");
-  return ok(undefined, "Enviado a la papelera.");
+  return ok(undefined, "Enviado a la papelera. Ese camino no era.");
 }

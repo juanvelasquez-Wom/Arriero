@@ -7,7 +7,7 @@ import { StepWelcome } from "@/components/setup/steps/step-welcome";
 import { WizardShell } from "@/components/setup/wizard-shell";
 import { requireUser } from "@/server/auth";
 
-export const metadata: Metadata = { title: "Crear programa" };
+export const metadata: Metadata = { title: "Cree un programa" };
 
 export default async function NewProgramPage({ searchParams }: PageProps<"/programas/nuevo">) {
   const user = await requireUser();
@@ -27,7 +27,7 @@ export default async function NewProgramPage({ searchParams }: PageProps<"/progr
             lines={[]}
             help={STEP_HELP.programa}
             title="El programa"
-            subtitle="Ponle nombre y define el periodo del plan."
+            subtitle="Póngale nombre y defina el periodo del plan."
           >
             <StepProgram programId={null} defaults={{ name: "", description: "", start_date: "", end_date: "" }} />
           </WizardShell>

@@ -7,11 +7,11 @@ export function DatabaseNotReady() {
       <EmptyState
         icon={Database}
         className="max-w-xl"
-        title="La base de datos todavía no está creada"
+        title="¡Ave María! La base de datos todavía no está creada"
         description={
           <>
-            Tu sesión funciona, pero faltan las tablas de la app. Aplica las migraciones: pega el SQL en el SQL Editor de Supabase y
-            ejecútalo, o corre <code className="rounded bg-wash px-1">npm run db:push</code>. Después recarga esta página.
+            Su sesión funciona, pero faltan las tablas de la app. Aplique las migraciones: pegue el SQL en el SQL Editor de Supabase y
+            ejecútelo, o corra <code className="rounded bg-wash px-1">npm run db:push</code>. Después recargue esta página.
           </>
         }
       />

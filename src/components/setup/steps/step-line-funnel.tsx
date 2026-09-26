@@ -97,7 +97,7 @@ export function StepLineFunnel({
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border bg-wash px-4 py-2 text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border bg-wash px-4 py-2 text-sm">
         <span>
           Línea {lineIndex + 1} de {lineCount}: <strong>{line.name}</strong>
         </span>
@@ -120,7 +120,7 @@ export function StepLineFunnel({
         {rows.map((row, i) => (
           <li key={row.id}>
             <div
-              className="mx-auto rounded-xl border bg-paper p-4"
+              className="mx-auto rounded-2xl border bg-paper shadow-card p-4"
               style={{ width: `${100 - i * 6}%`, minWidth: "min(100%, 320px)" }}
             >
               <div className="grid gap-3 sm:grid-cols-[1fr_260px]">
@@ -160,14 +160,14 @@ export function StepLineFunnel({
           </li>
         ))}
       </ol>
-      <p className="text-xs text-soft">Puedes agregar, quitar o reordenar etapas después, en la vista de la línea.</p>
+      <p className="text-xs text-soft">Sin afán: después puede agregar, quitar o reordenar etapas desde la vista de la línea.</p>
 
       <FormError message={error} />
       <StepFooter
         prevHref={prevHref}
         pending={pending}
         onNext={next}
-        nextLabel={isLastLine ? "Guardar y seguir con el equipo" : "Guardar y pasar a la siguiente línea"}
+        nextLabel={isLastLine ? "Guarde y siga con el equipo" : "Guarde y pase a la siguiente línea"}
       />
     </div>
   );

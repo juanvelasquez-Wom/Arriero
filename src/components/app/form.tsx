@@ -63,7 +63,7 @@ export function FormError({ message, className }: { message?: string | null; cla
   return (
     <div
       role="alert"
-      className={cn("rounded-md border border-ink/20 bg-wash px-3 py-2 text-sm text-ink", className)}
+      className={cn("rounded-xl border border-ink/20 bg-wash px-3 py-2 text-sm text-ink", className)}
     >
       {message}
     </div>

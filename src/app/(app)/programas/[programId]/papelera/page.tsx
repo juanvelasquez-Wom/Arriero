@@ -22,7 +22,11 @@ export default async function TrashPage({ params }: PageProps<"/programas/[progr
         description="Lo borrado desaparece de todas las vistas y tableros y queda aquí 30 días. Después se elimina de forma definitiva, con sus archivos."
       />
       {rows.length === 0 ? (
-        <EmptyState icon={Trash2} title="La papelera está vacía" description="Cuando alguien borre un elemento del programa, podrás restaurarlo desde aquí." />
+        <EmptyState
+          icon={Trash2}
+          title="No cargue por cargar: la papelera está vacía"
+          description="Cuando alguien borre un elemento del programa, lo podrá restaurar desde aquí durante 30 días."
+        />
       ) : (
         <TrashTable programId={programId} rows={rows} canPurge={can.emptyTrash(ctx.actor)} />
       )}

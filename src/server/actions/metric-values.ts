@@ -20,8 +20,8 @@ export async function saveWeeklyValues(
 ): Promise<ActionResult<{ saved: number }>> {
   if (!uuid.safeParse(programId).success) return fail("Programa inválido.");
   const ctx = await getActionActor(programId);
-  if (!ctx) return fail("Tu sesión venció o no tienes acceso a este programa.");
-  if (!can.loadMetricValues(ctx.actor)) return fail("Tu rol no puede cargar valores semanales.");
+  if (!ctx) return fail("Su sesión venció o no tiene acceso a este programa.");
+  if (!can.loadMetricValues(ctx.actor)) return fail("Su rol no puede cargar valores semanales.");
   const parsed = weeklyValuesSchema.safeParse(input);
   if (!parsed.success) return fromZod(parsed.error);
   const { week_start, rows } = parsed.data;
@@ -37,7 +37,7 @@ export async function saveWeeklyValues(
     .in("id", ids);
   if (mError) return failFrom(mError);
   if ((metrics ?? []).length !== ids.length) {
-    return fail("Alguna métrica ya no existe o no es de este programa. Recarga la página e intenta de nuevo.");
+    return fail("Alguna métrica ya no existe o no es de este programa. Recargue la página e intente de nuevo.");
   }
 
   const { error } = await supabase.from("metric_values").upsert(
@@ -46,5 +46,5 @@ export async function saveWeeklyValues(
   );
   if (error) return failFrom(error);
   revalidatePath(`/programas/${programId}`, "layout");
-  return ok({ saved: rows.length }, rows.length === 1 ? "Se guardó 1 valor." : `Se guardaron ${rows.length} valores.`);
+  return ok({ saved: rows.length }, rows.length === 1 ? "¡Eso! Se guardó 1 valor." : `¡Qué belleza! Se guardaron ${rows.length} valores.`);
 }

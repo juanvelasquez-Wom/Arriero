@@ -1,6 +1,6 @@
 @AGENTS.md
 
-# CLAUDE.md · Growth Framework App
+# CLAUDE.md · ARRIERO Growth Engine
 
 > Guía de trabajo para cualquier agente o persona que toque este repositorio. Si cambian la arquitectura, los comandos o las reglas de negocio, **este archivo se actualiza en el mismo cambio**.
 >
@@ -9,6 +9,8 @@
 ---
 
 ## 1. Qué es el producto
+
+**ARRIERO · Growth Engine** (lema: *Menos carreta, más crecimiento*). Concepto de marca, metáfora y voz en [`docs/brand/concepto.md`](docs/brand/concepto.md); logos en `public/brand/`.
 
 Una web app interna para **operar un framework de growth marketing** en un equipo de ventas digitales de telecomunicaciones. Cada línea de negocio tiene una métrica norte que se descompone en un árbol de métricas de entrada y un embudo donde se ubican los problemas. De cada problema con evidencia nacen **ejercicios** (cualquier cambio que se quiere probar antes de escalarlo), que se priorizan con ICE más los filtros de calendario y control, se diseñan antes de lanzarse, se prueban fuera de los congelamientos comerciales y se cierran con un veredicto, una decisión y un aprendizaje reutilizable en otras líneas. El equipo interno es dueño del resultado; la agencia ejecuta los ejercicios que se le asignan.
 
@@ -76,7 +78,7 @@ docs/                         PDF del modelo y especificación
 supabase/
   config.toml                 config de la CLI (registro cerrado, site_url)
   migrations/                 001 esquema · 002 helpers de permisos · 003 reglas (triggers)
-                              004 RPC · 005 RLS · 006 Storage y Realtime
+                              004 RPC · 005 RLS · 006 Storage y Realtime · 008 mensajes de error en usted
 scripts/                      create-admin.mts, drain-storage-queue.mts (usan la secret key)
 src/
   proxy.ts                    refresca la sesión y protege todo salvo login/recuperar/auth/confirm/api/cron
@@ -230,17 +232,20 @@ Línea ejecutiva y sobria: **grises + amarillo como único acento**. Tokens en `
 
 | Token | Claro | Oscuro |
 |---|---|---|
-| `--ink` (texto principal) | `#1F1F1F` | `#EDEDED` |
+| `--ink` (texto principal) | `#111111` | `#F2F2F0` |
 | `--soft` (texto secundario) | `#5C5C5C` | `#A9A9A6` |
-| `--line` (bordes) | `#DCDCDC` | `#3A3A3A` |
-| `--wash` (fondos de sección) | `#F3F3F1` | `#262626` |
-| `--paper` (fondo) | `#FFFFFF` | `#1C1C1C` |
+| `--line` (bordes) | `#E2E2DF` | `#333333` |
+| `--wash` (fondos de sección) | `#F6F6F4` | `#161616` |
+| `--paper` (fondo) | `#FFFFFF` | `#1F1F1F` |
 | `--accent-yellow` (`bg-highlight`, `primary` de shadcn) | `#F2C200` | `#F2C200` |
 
 - **El amarillo solo para lo que exige atención:** navegación activa, acción primaria (variante `default` de `Button`), punto de decisión, ganadores, estado "En prueba" y alertas (`Callout`). Nunca como decoración. Texto sobre amarillo siempre `#1F1F1F`.
 - Estados con `StatusBadge`: grises de distinta intensidad + amarillo para En prueba; `VerdictBadge` amarillo para Ganador. **Siempre ícono + etiqueta**.
-- Inter vía `next/font`; `tabular-nums` en tablas y tableros. Densidad media. Foco visible con contorno `--ink` (el amarillo no llega a 3:1 sobre blanco).
-- Modo oscuro por clase (`next-themes`), con el conmutador en el header.
+- Titulares (h1–h3, `font-heading`) en **Bricolage Grotesque**; texto en **Inter**, ambas vía `next/font`; `tabular-nums` en tablas y tableros. Densidad media. Foco visible con contorno `--ink` (el amarillo no llega a 3:1 sobre blanco).
+- Modo oscuro por clase (`next-themes`, por defecto el del sistema), con el conmutador en el header. Logo y mula se invierten con `.brand-ink`.
+- Utilidades: `shadow-card`, `lift` (tarjeta clicable que se eleva; no en tarjetas arrastrables), `rise` (entrada), `mule-walk`. Todo respeta `prefers-reduced-motion`.
+- Marca en `src/components/brand/`: `Mule`, `LogoLockup`, `LogoFull`; `phrases.ts` (lema y frases, `pickPhrase` estable para evitar diferencias de hidratación); `celebrate()` (confeti CSS para ganador, escalado y programa listo); `JourneyStrip` ("El camino del arriero": Ver → Crecer en el resumen, conteos en `src/domain/journey.ts`).
+- **Voz:** siempre de **usted**, paisa, cercana y con humor ("¡Eso!", "Hágale pues", "Ese camino no era"). Nada de "parce" ni similares, nada de voseo ni groserías. Los errores dicen primero qué pasó y cómo se arregla; el chiste, si va, después y corto. Máximo uno por mensaje. Los términos del modelo no se renombran.
 
 ## 9. Convenciones
 

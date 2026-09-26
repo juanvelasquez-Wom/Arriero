@@ -27,6 +27,7 @@ import { STATUS_ORDER, TRANSITIONS } from "@/domain/lifecycle";
 import { canTransition } from "@/domain/permissions";
 import type { Actor, ExperimentStatus } from "@/domain/types";
 import { cn } from "@/lib/utils";
+import { CELEBRATIONS, celebrate } from "@/components/brand/celebrate";
 import { transitionExperiment } from "@/server/actions/experiments";
 import { STATUS_FILL } from "./status-visual";
 
@@ -50,7 +51,7 @@ function allowedTargets(actor: Actor, card: KanbanCardData): ExperimentStatus[] 
 
 function lockReason(card: KanbanCardData): string {
   if (TRANSITIONS[card.status].length === 0) return `${STATUS_LABEL[card.status]} es un estado final.`;
-  return "No tienes permiso para mover este ejercicio de estado.";
+  return "Usted no tiene permiso para mover este ejercicio de estado.";
 }
 
 /** Con teclado, las flechas saltan de columna en columna (no de a pocos píxeles). */
@@ -118,7 +119,7 @@ export function Kanban({ programId, cards, actor }: { programId: string; cards: 
       toast.error(
         to === "decided" || to === "scaled"
           ? "Solo el owner o un admin puede decidir un ejercicio."
-          : "No tienes permiso para mover este ejercicio.",
+          : "Usted no tiene permiso para mover este ejercicio.",
       );
       return;
     }
@@ -133,7 +134,8 @@ export function Kanban({ programId, cards, actor }: { programId: string; cards: 
     try {
       const result = await transitionExperiment({ experimentId: card.id, programId, to });
       if (result.ok) {
-        toast.success(`«${card.title}» pasó a ${STATUS_LABEL[to]}.`);
+        if (to === "scaled") celebrate(...CELEBRATIONS.scaled);
+        else toast.success(`¡Eso! «${card.title}» pasó a ${STATUS_LABEL[to]}.`);
         router.refresh();
       } else {
         clear();
@@ -144,17 +146,17 @@ export function Kanban({ programId, cards, actor }: { programId: string; cards: 
       }
     } catch {
       clear();
-      toast.error("No se pudo mover el ejercicio. Revisa tu conexión e intenta de nuevo.");
+      toast.error("No se pudo mover el ejercicio. Revise su conexión e intente de nuevo. ¡Qué pena con usted!");
     }
   }
 
   const pendingTo = (c: KanbanCardData) => (pending[c.id]?.since === c.statusChangedAt ? pending[c.id].to : null);
 
   const announcements: Announcements = {
-    onDragStart: ({ active: a }) => `Tomaste «${byId.get(String(a.id))?.title ?? "el ejercicio"}».`,
+    onDragStart: ({ active: a }) => `Tomó «${byId.get(String(a.id))?.title ?? "el ejercicio"}».`,
     onDragOver: ({ over }) => (over ? `Sobre la columna ${STATUS_LABEL[over.id as ExperimentStatus]}.` : "Fuera de las columnas."),
     onDragEnd: ({ over }) =>
-      over ? `Soltaste en ${STATUS_LABEL[over.id as ExperimentStatus]}. Validando la transición…` : "Soltaste fuera de las columnas; no se movió.",
+      over ? `Soltó en ${STATUS_LABEL[over.id as ExperimentStatus]}. Validando la transición…` : "Soltó fuera de las columnas; no se movió.",
     onDragCancel: () => "Movimiento cancelado; la tarjeta no se movió.",
   };
 
@@ -168,7 +170,7 @@ export function Kanban({ programId, cards, actor }: { programId: string; cards: 
         announcements,
         screenReaderInstructions: {
           draggable:
-            "Para mover el ejercicio, pulsa espacio o enter sobre el asa, usa las flechas izquierda y derecha para cambiar de columna y vuelve a pulsar espacio o enter para soltar. Escape cancela.",
+            "Para mover el ejercicio, pulse espacio o enter sobre el asa, use las flechas izquierda y derecha para cambiar de columna y vuelva a pulsar espacio o enter para soltar. Escape cancela.",
         },
       }}
     >
@@ -233,7 +235,7 @@ function KanbanColumn({
       ref={setNodeRef}
       aria-labelledby={headingId}
       className={cn(
-        "flex w-72 shrink-0 flex-col rounded-xl border bg-wash/60 transition-colors",
+        "flex w-72 shrink-0 flex-col rounded-2xl border bg-wash/60 transition-colors",
         status === "in_test" && "border-t-4 border-t-highlight",
         dragging && isValidTarget && "border-dashed border-ink/60 bg-paper",
         dragging && !isValidTarget && !isSource && "opacity-60",
@@ -243,7 +245,7 @@ function KanbanColumn({
     >
       <header className="flex items-center gap-2 border-b px-3 py-2">
         <Icon aria-hidden className="size-4 shrink-0" />
-        <h2 id={headingId} className="text-sm font-semibold">
+        <h2 id={headingId} className="text-sm font-bold">
           {STATUS_LABEL[status]}
         </h2>
         <span className="ml-auto rounded-full border bg-paper px-2 text-xs tabular-nums" aria-label={`${cards.length} ejercicios`}>
@@ -268,7 +270,7 @@ function KanbanColumn({
       <div className="flex min-h-32 flex-1 flex-col gap-2 p-2">
         {cards.length === 0 ? (
           <p className="px-1 py-4 text-center text-xs text-soft">
-            {dragging && isValidTarget ? "Suelta aquí para mover" : "Sin ejercicios"}
+            {dragging && isValidTarget ? "Suéltelo aquí para moverlo" : "Por aquí no hay ejercicios"}
           </p>
         ) : (
           children
@@ -353,7 +355,7 @@ function CardBody({
     <article
       aria-busy={pendingTo ? true : undefined}
       className={cn(
-        "rounded-lg border bg-paper p-3 text-sm shadow-xs",
+        "rounded-xl border bg-paper p-3 text-sm shadow-card transition-shadow hover:shadow-md",
         card.status === "in_test" && "border-l-4 border-l-highlight",
         overlay && "w-68 rotate-1 cursor-grabbing shadow-lg ring-2 ring-ink",
       )}

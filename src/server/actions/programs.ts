@@ -24,5 +24,5 @@ export async function updateScoring(programId: string, input: ScoringInput, fini
   if (error) return failFrom(error);
   revalidatePath("/programas", "layout");
   revalidatePath(`/programas/${programId}`, "layout");
-  return ok(undefined, finish ? "Configuración completa." : "Puntaje guardado.");
+  return ok(undefined, finish ? "¡Qué belleza! Configuración completa." : "Puntaje guardado.");
 }

@@ -27,7 +27,7 @@ export default async function ProgramLayout({ children, params }: LayoutProps<"/
           <span aria-hidden className="hidden text-soft sm:inline">
             /
           </span>
-          <Link href={`/programas/${programId}`} className="truncate text-sm font-medium hover:underline">
+          <Link href={`/programas/${programId}`} className="truncate text-sm font-semibold hover:underline">
             {ctx.program.name}
           </Link>
           {ctx.program.is_demo ? <DemoBadge /> : null}

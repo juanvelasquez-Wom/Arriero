@@ -28,7 +28,7 @@ export default async function NewExperimentPage({ params, searchParams }: PagePr
         <EmptyState
           icon={ClipboardList}
           title="Primero, un problema con evidencia"
-          description="En este modelo no hay ejercicios sueltos: cada uno nace de un problema ubicado en el embudo y apunta a una métrica del árbol."
+          description="Aquí no hay ejercicios sueltos: cada uno nace de un problema ubicado en el embudo y apunta a una métrica del árbol. ¿Y por dónde es? Por el problema."
           action={
             can.createProblem(ctx.actor) ? (
               <Button asChild>
@@ -72,7 +72,7 @@ export default async function NewExperimentPage({ params, searchParams }: PagePr
           </Link>
         }
         title="Nuevo ejercicio"
-        description="Un cambio que queremos probar antes de escalarlo. Puedes guardarlo como borrador en cualquier paso."
+        description="Un cambio que queremos probar antes de escalarlo. Puede guardarlo como borrador en cualquier paso, sin afán."
       />
       {learningNote ? (
         <Callout tone="neutral" className="mb-4" title={`Derivado del aprendizaje de “${learningNote.source}”`}>

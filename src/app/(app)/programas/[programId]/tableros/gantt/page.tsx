@@ -88,7 +88,7 @@ export default async function GanttPage({ params, searchParams }: PageProps<"/pr
 
   const zoomHref = (z: "semana" | "mes") => `?${new URLSearchParams({ ...data.current, zoom: z }).toString()}`;
   const zoomLinks = (
-    <div role="group" aria-label="Zoom de la línea de tiempo" className="inline-flex rounded-lg border bg-paper p-0.5">
+    <div role="group" aria-label="Zoom de la línea de tiempo" className="inline-flex rounded-xl border bg-paper p-0.5 shadow-card">
       {(["semana", "mes"] as const).map((z) => {
         const active = (z === "mes") === (zoom === "month");
         return (
@@ -107,7 +107,7 @@ export default async function GanttPage({ params, searchParams }: PageProps<"/pr
       programId={programId}
       active="gantt"
       title="Gantt"
-      description="Todos los ejercicios en la línea de tiempo del programa, agrupados por línea, con congelamientos, picos y el punto de decisión."
+      description="Todos los ejercicios en la línea de tiempo del programa, por línea, con congelamientos, picos y el punto de decisión. Así se ve el camino."
       actions={zoomLinks}
       fields={data.globalFields}
       current={data.current}
@@ -116,8 +116,8 @@ export default async function GanttPage({ params, searchParams }: PageProps<"/pr
       {data.lines.length === 0 ? (
         <EmptyState
           icon={CalendarRange}
-          title="Aún no hay líneas de negocio"
-          description="El Gantt agrupa los ejercicios por línea. Crea las líneas del programa en la configuración para empezar."
+          title="Todavía no hay líneas de negocio"
+          description="El Gantt agrupa los ejercicios por línea. Cree las líneas del programa en la configuración para empezar."
           action={
             <Button asChild variant="outline">
               <Link href={`/programas/${programId}/configuracion?paso=lineas`}>Configurar líneas</Link>
@@ -127,10 +127,10 @@ export default async function GanttPage({ params, searchParams }: PageProps<"/pr
       ) : data.filtered.length === 0 ? (
         <EmptyState
           icon={CalendarRange}
-          title="No hay ejercicios para mostrar"
+          title="Camino despejado: todavía no hay ejercicios"
           description={
             <>
-              Cada ejercicio aparece aquí con su barra planeada y la real en cuanto tenga fechas.
+              Cada ejercicio aparece aquí con su barra planeada y la real apenas tenga fechas.
               <FilteredOutNote active={data.filtersActive} />
             </>
           }
@@ -144,7 +144,7 @@ export default async function GanttPage({ params, searchParams }: PageProps<"/pr
         <div className="space-y-4">
           {crossing.length ? (
             <Callout icon={TriangleAlert} title={`${crossing.length} ejercicio(s) se cruzan con un congelamiento`}>
-              {crossing.map((c) => c.title).join(" · ")}. En congelamiento no se lanzan ejercicios: revisa sus fechas.
+              {crossing.map((c) => c.title).join(" · ")}. En congelamiento no se lanzan ejercicios: revise sus fechas.
             </Callout>
           ) : null}
           <Gantt
@@ -159,7 +159,7 @@ export default async function GanttPage({ params, searchParams }: PageProps<"/pr
           <p className="text-xs text-soft">
             Rango: {formatDateRange(timeline.start, timeline.end)}
             {data.program.start_date && data.program.end_date ? " (fechas del programa)" : " (calculado con los ejercicios y el calendario)"}.
-            Haz clic en una barra para abrir el detalle del ejercicio.
+            Haga clic en una barra para abrir el detalle del ejercicio.
           </p>
         </div>
       )}

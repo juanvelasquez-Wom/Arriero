@@ -22,9 +22,9 @@ import type { UserRow } from "@/server/queries/users";
 import { LinkDialog } from "./link-dialog";
 
 const STATUS: Record<UserRow["status"], { label: string; className: string }> = {
-  active: { label: "Activo", className: "border-ink/30 bg-gray-1 text-ink" },
+  active: { label: "Con acceso", className: "border-ink/30 bg-gray-1 text-ink" },
   pending: { label: "Invitación pendiente", className: "border-dashed border-gray-4 text-soft" },
-  blocked: { label: "Bloqueado", className: "border-ink bg-ink text-paper" },
+  blocked: { label: "Acceso bloqueado", className: "border-ink bg-ink text-paper" },
 };
 
 export function UsersTable({ users, currentUserId }: { users: UserRow[]; currentUserId: string }) {
@@ -48,7 +48,7 @@ export function UsersTable({ users, currentUserId }: { users: UserRow[]; current
 
   return (
     <>
-      <div className="overflow-x-auto rounded-xl border bg-paper">
+      <div className="overflow-x-auto rounded-2xl border bg-paper shadow-card">
         <Table>
           <TableHeader>
             <TableRow>
@@ -69,7 +69,7 @@ export function UsersTable({ users, currentUserId }: { users: UserRow[]; current
                   <TableCell>
                     <div className="flex items-center gap-2 font-medium">
                       {u.name}
-                      {me ? <span className="text-xs font-normal text-soft">(tú)</span> : null}
+                      {me ? <span className="text-xs font-normal text-soft">(usted)</span> : null}
                       {u.isAdmin ? (
                         <span className="inline-flex items-center gap-1 rounded-full border border-highlight bg-highlight/20 px-2 py-0.5 text-[11px] font-semibold">
                           <ShieldCheck className="size-3" aria-hidden /> Admin global

@@ -47,9 +47,9 @@ export function MetricTreeEditor(props: EditorProps) {
 
       {others.length ? (
         <div>
-          <h3 className="mb-1 text-sm font-semibold">Fuera del árbol principal</h3>
+          <h3 className="mb-1 text-sm font-bold">Fuera del árbol principal</h3>
           <p className="mb-3 text-xs text-soft">
-            La métrica de eficiencia acompaña a la norte. Las entradas sin métrica padre también aparecen aquí: edítalas para
+            La métrica de eficiencia acompaña a la norte. Las entradas sin métrica padre también aparecen aquí: edítelas para
             colgarlas del árbol.
           </p>
           <ul aria-label="Métricas fuera del árbol principal" className="space-y-3">
@@ -134,7 +134,7 @@ function NodeCard({
   return (
     <div
       className={cn(
-        "max-w-2xl rounded-lg border border-l-4 bg-paper px-3 py-2.5 shadow-xs",
+        "max-w-2xl rounded-xl border border-l-4 bg-paper px-3 py-2.5 shadow-card",
         borderClass,
         isRoot && "bg-highlight/10",
       )}
@@ -143,7 +143,7 @@ function NodeCard({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5">
             {node.type === "input" && node.branch ? <BranchBadge branch={node.branch} /> : <MetricTypeBadge type={node.type} />}
-            <span className={cn("font-medium", isRoot && "text-base")}>
+            <span className={cn("font-semibold", isRoot && "text-base font-bold")}>
               {isRoot ? <Star aria-hidden className="mr-1 inline size-4 align-[-2px]" /> : null}
               {node.name}
             </span>

@@ -20,8 +20,8 @@ type Supabase = Awaited<ReturnType<typeof createClient>>;
 async function requireEditor(programId: string): Promise<ActionResult<never> | null> {
   if (!uuid.safeParse(programId).success) return fail("Programa inválido.");
   const ctx = await getActionActor(programId);
-  if (!ctx) return fail("Tu sesión venció o no tienes acceso a este programa.");
-  if (!can.editStructure(ctx.actor)) return fail("Tu rol no puede editar el embudo.");
+  if (!ctx) return fail("Su sesión venció o no tiene acceso a este programa.");
+  if (!can.editStructure(ctx.actor)) return fail("Su rol no puede editar el embudo.");
   return null;
 }
 
@@ -58,7 +58,7 @@ export async function createStage(programId: string, input: StageInput): Promise
     .maybeSingle();
   if (!line) return fail("La línea no existe o fue borrada.");
   if (!(await metricBelongsToLine(supabase, v.metric_id, v.line_id))) {
-    return fail("La métrica vinculada debe ser de esta línea.", { metric_id: ["Elige una métrica de esta línea."] });
+    return fail("La métrica vinculada debe ser de esta línea.", { metric_id: ["Elija una métrica de esta línea."] });
   }
   const stages = await loadStages(supabase, v.line_id);
   if (stages.error) return failFrom(stages.error);
@@ -76,7 +76,7 @@ export async function createStage(programId: string, input: StageInput): Promise
     .single();
   if (error) return failFrom(error);
   revalidateProgram(programId);
-  return ok({ id: data.id as string }, "Etapa creada.");
+  return ok({ id: data.id as string }, "Etapa creada. Ahí vamos.");
 }
 
 export async function updateStage(
@@ -100,7 +100,7 @@ export async function updateStage(
     .maybeSingle();
   if (!current) return fail("La etapa no existe o fue borrada.");
   if (!(await metricBelongsToLine(supabase, v.metric_id, current.line_id as string))) {
-    return fail("La métrica vinculada debe ser de esta línea.", { metric_id: ["Elige una métrica de esta línea."] });
+    return fail("La métrica vinculada debe ser de esta línea.", { metric_id: ["Elija una métrica de esta línea."] });
   }
   const { error } = await supabase
     .from("funnel_stages")

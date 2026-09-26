@@ -66,9 +66,9 @@ export function StepScoring({
 
   return (
     <div className="space-y-5">
-      <div className="rounded-xl border bg-paper p-5">
-        <h2 className="font-semibold">Prueba la calculadora</h2>
-        <p className="mt-1 text-sm text-soft">Mueve los valores para ver cómo se ordenaría un ejercicio en el backlog. No se guarda nada aquí.</p>
+      <div className="rounded-2xl border bg-paper shadow-card p-5">
+        <h2 className="text-lg font-bold">Pruebe la calculadora</h2>
+        <p className="mt-1 text-sm text-soft">Mueva los valores y vea cómo quedaría un ejercicio en el backlog. Aquí no se guarda nada, así que hágale sin miedo.</p>
         <div className="mt-4 grid gap-5 sm:grid-cols-3">
           {(["impact", "confidence", "ease"] as const).map((k) => (
             <div key={k} className="space-y-2">
@@ -76,7 +76,7 @@ export function StepScoring({
                 <HelpLabel help={ICE_HELP[k]}>{k === "impact" ? "Impacto" : k === "confidence" ? "Confianza" : "Facilidad"}</HelpLabel>
                 <span className="text-lg font-semibold tabular-nums">{ice[k]}</span>
               </div>
-              <Slider min={1} max={10} step={1} value={[ice[k]]} onValueChange={([v]) => setIce({ ...ice, [k]: v })} aria-label={k} />
+              <Slider min={1} max={10} step={1} value={[ice[k]]} onValueChange={([v]) => setIce({ ...ice, [k]: v })} aria-label={k === "impact" ? "Impacto" : k === "confidence" ? "Confianza" : "Facilidad"} />
             </div>
           ))}
         </div>
@@ -118,7 +118,7 @@ export function StepScoring({
         </div>
       </div>
 
-      <Collapsible className="rounded-xl border bg-paper">
+      <Collapsible className="rounded-2xl border bg-paper shadow-card">
         <CollapsibleTrigger className="flex w-full items-center justify-between px-5 py-3 text-sm font-medium">
           Opciones avanzadas: cambiar el bono y las penalidades <ChevronDown className="size-4" aria-hidden />
         </CollapsibleTrigger>

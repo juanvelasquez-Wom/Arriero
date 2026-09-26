@@ -12,7 +12,7 @@ const uuid = z.string().uuid();
 
 export async function createProblem(programId: string, input: ProblemInput): Promise<ActionResult<{ id: string }>> {
   const ctx = await getActionActor(programId);
-  if (!ctx || !can.createProblem(ctx.actor)) return fail("Tu rol no puede crear problemas.");
+  if (!ctx || !can.createProblem(ctx.actor)) return fail("Su rol no puede crear problemas.");
   const parsed = problemSchema.safeParse(input);
   if (!parsed.success) return fromZod(parsed.error);
   const supabase = await createClient();
@@ -31,12 +31,12 @@ export async function createProblem(programId: string, input: ProblemInput): Pro
     .single();
   if (error) return failFrom(error);
   revalidatePath(`/programas/${programId}`, "layout");
-  return ok({ id: data.id }, "Problema creado.");
+  return ok({ id: data.id }, "Problema registrado. Ahora sí sabemos por dónde es.");
 }
 
 export async function updateProblem(programId: string, problemId: string, input: ProblemInput): Promise<ActionResult> {
   const ctx = await getActionActor(programId);
-  if (!ctx || !can.editProblem(ctx.actor)) return fail("Tu rol no puede editar problemas.");
+  if (!ctx || !can.editProblem(ctx.actor)) return fail("Su rol no puede editar problemas.");
   if (!uuid.safeParse(problemId).success) return fail("Problema inválido.");
   const parsed = problemSchema.safeParse(input);
   if (!parsed.success) return fromZod(parsed.error);
@@ -47,7 +47,7 @@ export async function updateProblem(programId: string, problemId: string, input:
     .eq("id", problemId);
   if (error) return failFrom(error);
   revalidatePath(`/programas/${programId}`, "layout");
-  return ok(undefined, "Problema actualizado.");
+  return ok(undefined, "Problema actualizado. De una.");
 }
 
 /** Registra un archivo ya subido a Storage (la subida la valida la política de Storage). */

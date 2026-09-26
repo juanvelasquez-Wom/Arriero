@@ -28,7 +28,7 @@ export async function restoreTrashItem(trashId: string, programId?: string): Pro
   const { error } = await supabase.rpc("restore_trash_item", { p_trash: trashId });
   if (error) return failFrom(error);
   revalidate(programId);
-  return ok(undefined, "Restaurado.");
+  return ok(undefined, "Restaurado: volvió al camino.");
 }
 
 export async function purgeTrashItem(trashId: string, programId?: string): Promise<ActionResult> {
@@ -38,7 +38,7 @@ export async function purgeTrashItem(trashId: string, programId?: string): Promi
   if (error) return failFrom(error);
   await drainStorage();
   revalidate(programId);
-  return ok(undefined, "Eliminado definitivamente.");
+  return ok(undefined, "Eliminado definitivamente. No cargue por cargar.");
 }
 
 export async function emptyTrash(programId: string): Promise<ActionResult<{ count: number }>> {

@@ -12,9 +12,9 @@ export default async function ResetPage({ searchParams }: PageProps<"/restablece
   const isInvite = params.invitacion === "1";
   return (
     <>
-      <h1 className="text-xl font-semibold">{isInvite ? "Bienvenido" : "Nueva contraseña"}</h1>
-      <p className="mt-1 text-sm text-soft">
-        {isInvite ? `Crea tu contraseña para entrar como ${user.email}.` : `Cuenta: ${user.email}`}
+      <h1 className="text-3xl font-extrabold">{isInvite ? "¡Qué alegría tenerle por aquí!" : "Nueva contraseña"}</h1>
+      <p className="mt-1.5 text-sm text-soft">
+        {isInvite ? `Cree su contraseña para entrar como ${user.email}.` : `Cuenta: ${user.email}`}
       </p>
       <ResetForm askName={isInvite} defaultName={user.name === user.email ? "" : user.name} />
     </>

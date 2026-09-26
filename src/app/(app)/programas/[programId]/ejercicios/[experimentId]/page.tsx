@@ -111,7 +111,7 @@ export default async function ExperimentPage({ params, searchParams }: PageProps
             {daysInStatus(e.status_changed_at)} día(s) en {STATUS_LABEL[e.status]}
           </span>
           <span className="ml-auto text-sm">
-            Puntaje final <strong className="text-lg tabular-nums">{formatScore(e.final_score)}</strong>
+            Puntaje final <strong className="font-heading text-xl font-extrabold tabular-nums">{formatScore(e.final_score)}</strong>
           </span>
         </div>
         <div className="mt-4">
@@ -146,8 +146,8 @@ export default async function ExperimentPage({ params, searchParams }: PageProps
             href={href(t.key)}
             aria-current={tab === t.key ? "page" : undefined}
             className={cn(
-              "relative -mb-px border-b-2 border-transparent px-3 py-2 text-sm whitespace-nowrap text-soft hover:text-ink",
-              tab === t.key && "border-highlight font-medium text-ink",
+              "relative -mb-px border-b-2 border-transparent px-3 py-2 text-sm whitespace-nowrap text-soft transition-colors hover:text-ink",
+              tab === t.key && "border-highlight font-semibold text-ink",
             )}
           >
             {t.label}
@@ -169,7 +169,7 @@ export default async function ExperimentPage({ params, searchParams }: PageProps
               ).map(([k, val]) => (
                 <div key={k} className="grid grid-cols-[90px_1fr] gap-2">
                   <dt className="text-xs font-semibold tracking-wide text-soft">{k}</dt>
-                  <dd>{val || <span className="text-soft">Sin completar</span>}</dd>
+                  <dd>{val || <span className="text-soft">Falta completar</span>}</dd>
                 </div>
               ))}
             </dl>
@@ -260,7 +260,7 @@ export default async function ExperimentPage({ params, searchParams }: PageProps
             <Section title={`Variantes (${variants.length})`}>
               <ul className="space-y-2 text-sm">
                 {variants.map((v) => (
-                  <li key={v.id} className="rounded-lg border px-3 py-2">
+                  <li key={v.id} className="rounded-xl border px-3 py-2">
                     <div className="font-medium">
                       {v.name}
                       {v.is_control ? <span className="ml-2 rounded border px-1 text-[11px] text-soft">Control</span> : null}
@@ -268,7 +268,7 @@ export default async function ExperimentPage({ params, searchParams }: PageProps
                     {v.description ? <div className="text-xs text-soft">{v.description}</div> : null}
                   </li>
                 ))}
-                {!variants.length ? <li className="text-soft">Sin variantes todavía.</li> : null}
+                {!variants.length ? <li className="text-soft">Todavía no hay variantes.</li> : null}
               </ul>
             </Section>
           </div>
@@ -333,8 +333,8 @@ export default async function ExperimentPage({ params, searchParams }: PageProps
             </>
           ) : (
             <p className="text-sm text-soft">
-              El aprendizaje se registra al decidir el ejercicio. Cada ejercicio cerrado deja uno, y puede convertirse en hipótesis para otras
-              líneas.
+              El aprendizaje se registra al decidir el ejercicio. Cada ejercicio cerrado deja uno, y ese aprendizaje puede volverse hipótesis
+              en otras líneas. Si funciona, seguimos.
             </p>
           )}
         </Section>
@@ -357,7 +357,7 @@ export default async function ExperimentPage({ params, searchParams }: PageProps
               ))}
             </ol>
           ) : (
-            <p className="text-sm text-soft">Sin actividad registrada.</p>
+            <p className="text-sm text-soft">Todavía no hay actividad registrada. Ahí vamos.</p>
           )}
           <p className="mt-4 text-xs text-soft">Creado el {formatDate(e.created_at.slice(0, 10))}.</p>
         </Section>

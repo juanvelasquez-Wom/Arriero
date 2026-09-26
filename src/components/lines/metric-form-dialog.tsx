@@ -128,7 +128,7 @@ export function MetricFormDialog({
         applyFieldErrors(result.fieldErrors, form.setError);
         return;
       }
-      toast.success(result.message ?? "Guardado");
+      toast.success(result.message ?? "¡Eso! Guardado");
       setOpen(false);
       router.refresh();
     });
@@ -167,7 +167,7 @@ export function MetricFormDialog({
                     render={({ field }) => (
                       <Select value={field.value || undefined} onValueChange={field.onChange}>
                         <SelectTrigger id={`${idp}-branch`} className="w-full" aria-invalid={!!errors.branch}>
-                          <SelectValue placeholder="Elige la rama" />
+                          <SelectValue placeholder="Elija la rama" />
                         </SelectTrigger>
                         <SelectContent>
                           {METRIC_BRANCHES.map((b) => (
@@ -212,7 +212,7 @@ export function MetricFormDialog({
             <FormField
               id={`${idp}-definition`}
               label="Definición"
-              description="Cómo se calcula y qué cuenta. Evita ambigüedades para que todos carguen lo mismo."
+              description="Cómo se calcula y qué cuenta. Sin ambigüedades, para que todos carguen lo mismo."
               error={errors.definition?.message}
             >
               <Textarea id={`${idp}-definition`} rows={3} {...form.register("definition")} />

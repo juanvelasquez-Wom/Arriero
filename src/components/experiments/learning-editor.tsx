@@ -94,7 +94,7 @@ export function LearningEditor({
                 return;
               }
               setEditing(false);
-              toast.success("Aprendizaje actualizado");
+              toast.success("¡Eso! Aprendizaje actualizado", { description: "Queda para el camino." });
               router.refresh();
             })
           }

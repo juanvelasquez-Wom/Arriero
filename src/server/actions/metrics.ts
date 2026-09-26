@@ -27,8 +27,8 @@ type Supabase = Awaited<ReturnType<typeof createClient>>;
 async function requireEditor(programId: string): Promise<ActionResult<never> | null> {
   if (!uuid.safeParse(programId).success) return fail("Programa inválido.");
   const ctx = await getActionActor(programId);
-  if (!ctx) return fail("Tu sesión venció o no tienes acceso a este programa.");
-  if (!can.editStructure(ctx.actor)) return fail("Tu rol no puede editar métricas.");
+  if (!ctx) return fail("Su sesión venció o no tiene acceso a este programa.");
+  if (!can.editStructure(ctx.actor)) return fail("Su rol no puede editar métricas.");
   return null;
 }
 
@@ -84,10 +84,10 @@ export async function createMetric(programId: string, input: MetricInput): Promi
   const lineMetrics = await loadLineMetrics(supabase, v.line_id);
   if (lineMetrics.error) return failFrom(lineMetrics.error);
   if (v.type === "north_star" && lineMetrics.data.some((m) => m.type === "north_star")) {
-    return fail("Esta línea ya tiene métrica norte. Edítala en lugar de crear otra.", { type: ["Ya existe."] });
+    return fail("Esta línea ya tiene métrica norte. Edítela en lugar de crear otra.", { type: ["Ya existe."] });
   }
   if (v.parent_id && !lineMetrics.data.some((m) => m.id === v.parent_id)) {
-    return fail("La métrica padre debe ser de la misma línea.", { parent_id: ["Elige una métrica de esta línea."] });
+    return fail("La métrica padre debe ser de la misma línea.", { parent_id: ["Elija una métrica de esta línea."] });
   }
 
   const siblings = await loadSiblings(supabase, v.line_id, v.parent_id);
@@ -100,7 +100,7 @@ export async function createMetric(programId: string, input: MetricInput): Promi
     .single();
   if (error) return failFrom(error);
   revalidateProgram(programId);
-  return ok({ id: data.id as string }, "Métrica creada.");
+  return ok({ id: data.id as string }, "Métrica creada. Hágale pues.");
 }
 
 export async function updateMetric(
@@ -134,11 +134,11 @@ export async function updateMetric(
     return fail("Esta línea ya tiene métrica norte.", { type: ["Ya existe una métrica norte."] });
   }
   if (v.parent_id && !lineMetrics.data.some((m) => m.id === v.parent_id)) {
-    return fail("La métrica padre debe ser de la misma línea.", { parent_id: ["Elige una métrica de esta línea."] });
+    return fail("La métrica padre debe ser de la misma línea.", { parent_id: ["Elija una métrica de esta línea."] });
   }
   if (createsCycle(lineMetrics.data, metricId, v.parent_id)) {
     return fail("Una métrica no puede colgar de sí misma ni de una de sus hijas.", {
-      parent_id: ["Elige otra métrica padre."],
+      parent_id: ["Elija otra métrica padre."],
     });
   }
 
@@ -222,5 +222,5 @@ export async function setMetricTargets(programId: string, input: TargetsInput): 
     if (error) return failFrom(error);
   }
   revalidateProgram(programId);
-  return ok(undefined, "Objetivos guardados.");
+  return ok(undefined, "Objetivos guardados. La mula no pregunta, avanza.");
 }

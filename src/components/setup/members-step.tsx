@@ -52,7 +52,7 @@ export function MembersStep({
         return;
       }
       if (r.data.link) setLink(r.data.link);
-      toast.success(r.message ?? "Listo");
+      toast.success(r.message ?? "¡Listo pues! Invitación enviada");
       form.reset({ email: "", name: "", role: values.role });
       router.refresh();
     });
@@ -63,7 +63,7 @@ export function MembersStep({
       const r = await changeMemberRole(programId, memberId, role);
       if (!r.ok) toast.error(r.error);
       else {
-        toast.success("Rol actualizado");
+        toast.success("¡Eso! Rol actualizado");
         router.refresh();
       }
     });
@@ -71,7 +71,7 @@ export function MembersStep({
 
   return (
     <div className="space-y-6">
-      <div className="overflow-x-auto rounded-xl border bg-paper">
+      <div className="overflow-x-auto rounded-2xl border bg-paper shadow-card">
         <Table>
           <TableHeader>
             <TableRow>
@@ -111,12 +111,12 @@ export function MembersStep({
                   {canManage && m.user_id !== currentUserId ? (
                     <ConfirmAction
                       title={`Quitar a ${m.name} del programa`}
-                      description="Deja de ver el programa. Los ejercicios que tenga asignados conservan su responsable hasta que lo cambies."
+                      description="Deja de ver el programa. Los ejercicios que tenga asignados conservan su responsable hasta que usted lo cambie."
                       confirmLabel="Quitar"
                       onConfirm={async () => {
                         const r = await removeMember(programId, m.id);
                         if (!r.ok) return r.error;
-                        toast.success("Miembro quitado");
+                        toast.success("Persona quitada del programa");
                         router.refresh();
                       }}
                     >
@@ -133,9 +133,9 @@ export function MembersStep({
       </div>
 
       {canManage ? (
-        <form onSubmit={onInvite} noValidate className="rounded-xl border bg-paper p-4">
-          <h3 className="text-sm font-semibold">Invitar por correo</h3>
-          <p className="mt-0.5 text-xs text-soft">No hay registro abierto: solo entra quien invites. El rol se asigna al invitar.</p>
+        <form onSubmit={onInvite} noValidate className="rounded-2xl border bg-paper shadow-card p-4">
+          <h3 className="text-base font-bold">Invite por correo</h3>
+          <p className="mt-0.5 text-xs text-soft">No hay registro abierto: solo entra quien usted invite. El rol se asigna al invitar.</p>
           <FormError message={error} className="mt-3" />
           <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_1fr_200px]">
             <FormField id="inv-email" label="Correo" required error={errors.email?.message}>
@@ -170,7 +170,7 @@ export function MembersStep({
             <UserPlus aria-hidden /> Invitar
           </SubmitButton>
           {link ? (
-            <Callout className="mt-3" title="Comparte este enlace de invitación">
+            <Callout className="mt-3" title="Comparta este enlace de invitación">
               <p className="text-xs">
                 El correo no se pudo enviar (Supabase necesita un SMTP propio para enviar a cualquier dirección). El enlace es personal y vence.
               </p>
@@ -189,7 +189,7 @@ export function MembersStep({
           ) : null}
         </form>
       ) : (
-        <p className="text-sm text-soft">Solo el owner o un admin puede invitar y cambiar roles.</p>
+        <p className="text-sm text-soft">Solo el owner o un admin pueden invitar y cambiar roles.</p>
       )}
     </div>
   );

@@ -22,7 +22,7 @@ export function DemoControls({ demo }: { demo: { id: string; name: string } | nu
         onConfirm={async () => {
           const r = await deleteDemoProgram();
           if (!r.ok) return r.error;
-          toast.success("Programa de ejemplo borrado");
+          toast.success("Programa de ejemplo borrado. Listo pues.");
           router.refresh();
         }}
       >
@@ -44,7 +44,7 @@ export function DemoControls({ demo }: { demo: { id: string; name: string } | nu
             toast.error(r.error);
             return;
           }
-          toast.success("Programa de ejemplo cargado", { description: "Todos los datos son inventados." });
+          toast.success("Programa de ejemplo cargado. Probemos por ahí.", { description: "Todos los datos son inventados." });
           router.push(`/programas/${r.data.programId}`);
         })
       }

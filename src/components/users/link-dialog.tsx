@@ -35,10 +35,10 @@ export function LinkDialog({
           </Button>
         </div>
         <p className="text-xs text-soft">
-          El enlace es personal, de un solo uso y vence. Compártelo por un canal privado. Si vence, genera otro desde la lista de usuarios.
+          El enlace es personal, de un solo uso y vence. Compártalo por un canal privado. Si vence, genere otro desde la lista de usuarios.
         </p>
         <DialogFooter>
-          <Button onClick={onClose}>Listo</Button>
+          <Button onClick={onClose}>Listo pues</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

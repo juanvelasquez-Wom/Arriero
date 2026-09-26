@@ -22,7 +22,7 @@ export default async function UsersPage() {
         <PageHeader
           eyebrow="Administración"
           title="Usuarios"
-          description="No hay registro abierto: aquí se crean las cuentas. Cada persona crea su propia contraseña desde el enlace de invitación. Los roles por programa se asignan al crear o desde la configuración de cada programa."
+          description="Aquí no entra cualquiera: las cuentas se crean desde esta pantalla. Cada persona pone su propia contraseña con el enlace de invitación. El rol en cada programa se asigna al crear la cuenta o desde la configuración del programa."
           actions={<CreateUserDialog programs={programs.map((p) => ({ id: p.id, name: p.name }))} />}
         />
         <UsersTable users={users} currentUserId={user.id} />

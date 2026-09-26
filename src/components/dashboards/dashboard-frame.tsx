@@ -37,5 +37,5 @@ export function DashboardFrame({
 
 /** Texto para estados vacíos cuando los filtros dejan el tablero sin datos. */
 export function FilteredOutNote({ active }: { active: boolean }) {
-  return active ? <> Revisa los filtros activos o usa «Limpiar filtros».</> : null;
+  return active ? <> Revise los filtros activos o use «Limpiar filtros».</> : null;
 }

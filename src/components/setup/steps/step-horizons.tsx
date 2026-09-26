@@ -67,15 +67,15 @@ export function StepHorizons({
   }
 
   return (
-    <div className="rounded-xl border bg-paper p-5">
+    <div className="rounded-2xl border bg-paper shadow-card p-5">
       <p className="text-sm">
         {decisionDate ? (
           <>
-            Te proponemos dos horizontes a partir de tu punto de decisión del <strong>{formatDate(decisionDate)}</strong>: en{" "}
+            Le proponemos dos horizontes a partir de su punto de decisión del <strong>{formatDate(decisionDate)}</strong>: en{" "}
             <strong>H1</strong> se prueba y se aprende; en <strong>H2</strong> se escala lo que funcionó.
           </>
         ) : (
-          <>Como no definiste un punto de decisión, te proponemos un solo horizonte para todo el programa. Puedes agregar más.</>
+          <>Como no definió un punto de decisión, le proponemos un solo horizonte para todo el programa. Si necesita más, agréguelos.</>
         )}
       </p>
 

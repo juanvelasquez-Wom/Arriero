@@ -46,7 +46,7 @@ export async function createUser(input: CreateUserInput): Promise<ActionResult<C
     result = await provisionUser(admin, { email, name, mode });
   } catch (e) {
     console.error("[usuarios]", e);
-    return fail("No se pudo crear el usuario. Revisa el correo e intenta de nuevo.");
+    return fail("No se pudo crear el usuario. Revise el correo e intente de nuevo.");
   }
 
   const { error: profileError } = await admin.from("profiles").update({ name, ...(isAdmin ? { is_admin: true } : {}) }).eq("id", result.userId);
@@ -72,7 +72,7 @@ export async function createUser(input: CreateUserInput): Promise<ActionResult<C
       ? "El usuario ya existía: se actualizaron sus datos."
       : result.emailed
         ? "Usuario creado. Le llegará un correo para crear su contraseña."
-        : "Usuario creado. Comparte el enlace para que cree su contraseña.",
+        : "Usuario creado. Comparta el enlace para que cree su contraseña.",
   );
 }
 
@@ -80,7 +80,7 @@ export async function setAdmin(userId: string, isAdmin: boolean): Promise<Action
   const me = await requireAdmin();
   if (!me) return fail("Solo un admin global puede cambiar este permiso.");
   if (!uuid.safeParse(userId).success) return fail("Usuario inválido.");
-  if (!isAdmin && userId === me.id) return fail("No puedes quitarte a ti mismo el rol de admin global.");
+  if (!isAdmin && userId === me.id) return fail("No puede quitarse su propio rol de admin global.");
   const admin = createAdminClient();
   if (!isAdmin) {
     const { count } = await admin.from("profiles").select("id", { count: "exact", head: true }).eq("is_admin", true);
@@ -113,7 +113,7 @@ export async function setBlocked(userId: string, blocked: boolean): Promise<Acti
   const me = await requireAdmin();
   if (!me) return fail("Solo un admin global puede bloquear usuarios.");
   if (!uuid.safeParse(userId).success) return fail("Usuario inválido.");
-  if (userId === me.id) return fail("No puedes bloquearte a ti mismo.");
+  if (userId === me.id) return fail("No puede bloquear su propia cuenta.");
   const admin = createAdminClient();
   const { data, error } = await admin.auth.admin.updateUserById(userId, { ban_duration: blocked ? "876000h" : "none" });
   if (error) return fail("No se pudo actualizar el acceso.");

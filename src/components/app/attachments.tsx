@@ -85,7 +85,7 @@ export function AttachmentList({
     if (!files?.length) return;
     startTransition(async () => {
       const { uploaded, errors } = await uploadAttachments(programId, entityType, entityId, Array.from(files));
-      if (uploaded) toast.success(uploaded === 1 ? "Adjunto guardado" : `${uploaded} adjuntos guardados`);
+      if (uploaded) toast.success(uploaded === 1 ? "¡Eso! Adjunto guardado" : `¡Eso! ${uploaded} adjuntos guardados`);
       for (const e of errors) toast.error(e);
       if (input.current) input.current.value = "";
       router.refresh();
@@ -104,10 +104,10 @@ export function AttachmentList({
     <div className="space-y-3">
       {items.length === 0 ? (
         <p className="flex items-center gap-2 text-sm text-soft">
-          <Paperclip className="size-4" aria-hidden /> Sin adjuntos. Sube capturas, reportes o bases que respalden la evidencia.
+          <Paperclip className="size-4" aria-hidden /> Sin adjuntos. Suba capturas, reportes o bases que respalden la evidencia.
         </p>
       ) : (
-        <ul className="divide-y rounded-lg border">
+        <ul className="divide-y rounded-xl border">
           {items.map((a) => (
             <li key={a.id} className="flex flex-wrap items-center gap-3 px-3 py-2 text-sm">
               <FileText className="size-4 shrink-0" aria-hidden />

@@ -37,7 +37,7 @@ export async function inviteMember(programId: string, input: InviteInput): Promi
     provisioned = await provisionUser(createAdminClient(), { email, name });
   } catch (e) {
     console.error("[invitación]", e);
-    return fail("No se pudo crear la invitación. Revisa el correo e intenta de nuevo.");
+    return fail("No se pudo crear la invitación. Revise el correo e intente de nuevo.");
   }
   const result: InviteResult = { emailed: provisioned.emailed, existing: provisioned.existing, link: provisioned.link };
 
@@ -66,7 +66,7 @@ export async function changeMemberRole(programId: string, memberId: string, role
   const { error } = await supabase.from("program_members").update({ role: parsed.data }).eq("id", memberId);
   if (error) return failFrom(error);
   revalidatePath(`/programas/${programId}`, "layout");
-  return ok(undefined, "Rol actualizado.");
+  return ok(undefined, "Rol actualizado. Listo pues.");
 }
 
 export async function removeMember(programId: string, memberId: string): Promise<ActionResult> {

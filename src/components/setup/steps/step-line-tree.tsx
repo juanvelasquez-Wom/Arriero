@@ -111,15 +111,15 @@ export function StepLineTree({
       return;
     }
     if (!northStarName) {
-      setError("Primero define la métrica norte de esta línea (paso anterior).");
+      setError("Primero defina la métrica norte de esta línea (paso anterior).");
       return;
     }
     if (!selected.length) {
-      setError("Elige al menos una métrica de entrada: son las que los ejercicios van a mover.");
+      setError("Elija al menos una métrica de entrada: son las que los ejercicios van a mover.");
       return;
     }
     if (selected.some((i) => i.baseline.trim() && Number.isNaN(parseDecimal(i.baseline)))) {
-      setError("Revisa las líneas base: escribe solo cifras.");
+      setError("Revise las líneas base: escriba solo cifras, por ejemplo 420.");
       return;
     }
     setError(undefined);
@@ -142,12 +142,12 @@ export function StepLineTree({
 
   return (
     <div className="space-y-5">
-      <div className="rounded-xl border bg-wash px-4 py-2 text-sm">
+      <div className="rounded-2xl border bg-wash px-4 py-2 text-sm">
         Línea {lineIndex + 1} de {lineCount}: <strong>{line.name}</strong>
       </div>
 
       {/* Dibujo del árbol en vivo */}
-      <div className="rounded-xl border bg-paper p-5" aria-label="Vista del árbol">
+      <div className="rounded-2xl border bg-paper shadow-card p-5" aria-label="Vista del árbol">
         <div className="mx-auto w-fit rounded-lg border-2 border-highlight px-4 py-2 text-center text-sm font-semibold">
           <Star className="mr-1 inline size-4" aria-hidden />
           {northStarName ?? "Métrica norte (pendiente)"}
@@ -169,8 +169,8 @@ export function StepLineTree({
       </div>
 
       {METRIC_BRANCHES.map((b) => (
-        <section key={b} className="rounded-xl border bg-paper p-5">
-          <h2 className="flex items-center gap-1 font-semibold">
+        <section key={b} className="rounded-2xl border bg-paper shadow-card p-5">
+          <h2 className="flex items-center gap-1 text-lg font-bold">
             {METRIC_BRANCH_LABEL[b]} <InfoTip label="Ramas del árbol">{FIELD_HELP.branch}</InfoTip>
           </h2>
           <p className="text-sm text-soft">{BRANCH_HINT[b]}</p>
@@ -232,7 +232,7 @@ export function StepLineTree({
                 addCustom(b);
               }}
             >
-              <Input aria-label={`Nueva métrica de ${METRIC_BRANCH_LABEL[b]}`} placeholder="Agregar una métrica propia" value={drafts[b]} onChange={(e) => setDrafts({ ...drafts, [b]: e.target.value })} />
+              <Input aria-label={`Nueva métrica de ${METRIC_BRANCH_LABEL[b]}`} placeholder="Agregue una métrica propia" value={drafts[b]} onChange={(e) => setDrafts({ ...drafts, [b]: e.target.value })} />
               <Button type="submit" variant="outline" disabled={drafts[b].trim().length < 2}>
                 <Plus aria-hidden /> Agregar
               </Button>
@@ -242,7 +242,7 @@ export function StepLineTree({
       ))}
 
       <FormError message={error} />
-      <StepFooter prevHref={prevHref} pending={pending} onNext={next} nextLabel={`Guardar ${selected.length} métrica(s) y seguir`} />
+      <StepFooter prevHref={prevHref} pending={pending} onNext={next} nextLabel={`Guarde ${selected.length} métrica(s) y siga`} />
     </div>
   );
 }

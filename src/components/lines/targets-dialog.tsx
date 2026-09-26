@@ -65,7 +65,7 @@ export function TargetsDialog({
     const errs: Record<string, string> = {};
     for (const h of horizons) {
       const n = parseDecimal(values[h.id]);
-      if (n != null && Number.isNaN(n)) errs[h.id] = "Escribe un número (p. ej. 1234,5).";
+      if (n != null && Number.isNaN(n)) errs[h.id] = "Escriba un número (p. ej. 1234,5).";
     }
     setFieldErrors(errs);
     if (Object.keys(errs).length) return;

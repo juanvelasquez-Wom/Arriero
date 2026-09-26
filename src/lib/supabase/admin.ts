@@ -12,7 +12,7 @@ import { publicEnv } from "@/lib/env";
 export function createAdminClient() {
   const secret = process.env.SUPABASE_SECRET_KEY;
   if (!secret) {
-    throw new Error("Falta SUPABASE_SECRET_KEY en el servidor. Revisa .env.local.");
+    throw new Error("Falta SUPABASE_SECRET_KEY en el servidor. Revise .env.local.");
   }
   return createClient(publicEnv.supabaseUrl, secret, {
     auth: { autoRefreshToken: false, persistSession: false },

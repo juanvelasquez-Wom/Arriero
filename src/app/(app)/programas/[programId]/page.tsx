@@ -2,10 +2,12 @@ import { CalendarClock, CheckCircle2, Circle, Flag, Snowflake, Sparkles, Triangl
 import Link from "next/link";
 import { PageHeader, Section, Stat } from "@/components/app/page";
 import { StatusBadge } from "@/components/app/status-badge";
+import { JourneyStrip } from "@/components/brand/journey-strip";
 import { Button } from "@/components/ui/button";
 import { CALENDAR_EVENT_LABEL } from "@/domain/labels";
 import { isActive, isClosed } from "@/domain/lifecycle";
 import { formatDate, formatDateRange, formatPercent } from "@/domain/format";
+import { journeyStages } from "@/domain/journey";
 import { onboardingComplete, onboardingSteps } from "@/domain/onboarding";
 import { can } from "@/domain/permissions";
 import { summarizeResults } from "@/domain/dashboards";
@@ -46,7 +48,7 @@ export default async function ProgramOverviewPage({ params }: PageProps<"/progra
   const nextUp = experiments.filter((e) => e.status === "prioritized" || e.status === "in_design").slice(0, 5);
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="rise mx-auto max-w-6xl">
       <PageHeader
         eyebrow="Resumen del programa"
         title={ctx.program.name}
@@ -71,12 +73,12 @@ export default async function ProgramOverviewPage({ params }: PageProps<"/progra
       />
 
       {!ctx.program.setup_completed_at && !ctx.program.is_demo && can.editStructure(ctx.actor) ? (
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-highlight bg-highlight/15 px-4 py-3 text-sm">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-highlight bg-highlight/15 shadow-card px-4 py-3 text-sm">
           <span className="inline-flex items-center gap-2">
-            <TriangleAlert className="size-4" aria-hidden /> La configuración del programa quedó a medias.
+            <TriangleAlert className="size-4" aria-hidden /> La configuración del programa quedó a medio camino. Retómela sin afán.
           </span>
           <Button size="sm" asChild>
-            <Link href={`${base}/configuracion`}>Retomar configuración</Link>
+            <Link href={`${base}/configuracion`}>Retome la configuración</Link>
           </Button>
         </div>
       ) : null}
@@ -85,14 +87,14 @@ export default async function ProgramOverviewPage({ params }: PageProps<"/progra
         <Section
           className="mb-6"
           title="Primeros pasos"
-          description="Esta lista desaparece cuando completes todo."
+          description="Esta lista se va sola cuando complete todo. Paso a paso se sube la montaña."
         >
           <ol className="grid gap-2 md:grid-cols-2">
             {steps.map((s, i) => (
               <li key={s.key}>
                 <Link
                   href={stepHref[s.key]}
-                  className="flex items-start gap-3 rounded-lg border px-3 py-2.5 hover:border-ink/40"
+                  className="lift flex items-start gap-3 rounded-xl border bg-paper px-3 py-2.5 hover:border-ink/40"
                 >
                   {s.done ? (
                     <CheckCircle2 className="mt-0.5 size-4 shrink-0" aria-label="Completado" />
@@ -111,6 +113,17 @@ export default async function ProgramOverviewPage({ params }: PageProps<"/progra
           </ol>
         </Section>
       ) : null}
+
+      <div className="mb-6">
+        <JourneyStrip
+          programId={programId}
+          stages={journeyStages({
+            metrics: counts.linesWithNorthStar + counts.inputMetrics,
+            problems: counts.problems,
+            experiments,
+          })}
+        />
+      </div>
 
       <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
         <Stat label="Ejercicios activos" value={experiments.filter((e) => isActive(e.status)).length} hint="Priorizados a En lectura" />
@@ -143,7 +156,7 @@ export default async function ProgramOverviewPage({ params }: PageProps<"/progra
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-soft">No hay ejercicios corriendo. Revisa el backlog para lanzar el siguiente.</p>
+            <p className="text-sm text-soft">No hay ejercicios corriendo. Revise el backlog y lance el siguiente: probemos por ahí.</p>
           )}
         </Section>
 
@@ -174,10 +187,10 @@ export default async function ProgramOverviewPage({ params }: PageProps<"/progra
             </ul>
           ) : (
             <p className="text-sm text-soft">
-              Sin eventos próximos.{" "}
+              Sin eventos próximos: camino despejado.{" "}
               {can.editCalendar(ctx.actor) ? (
                 <Link href={`${base}/configuracion?paso=calendario`} className="underline underline-offset-4">
-                  Configura el calendario
+                  Configure el calendario
                 </Link>
               ) : null}
             </p>
@@ -205,7 +218,7 @@ export default async function ProgramOverviewPage({ params }: PageProps<"/progra
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-soft">No hay ejercicios priorizados todavía.</p>
+            <p className="text-sm text-soft">La fila está vacía: todavía no hay ejercicios priorizados. ¡A camellar!</p>
           )}
         </Section>
 
@@ -228,7 +241,7 @@ export default async function ProgramOverviewPage({ params }: PageProps<"/progra
               })}
             </ul>
           ) : (
-            <p className="text-sm text-soft">Aún no hay líneas. Empieza por la configuración.</p>
+            <p className="text-sm text-soft">Todavía no hay líneas. Arranque por la configuración.</p>
           )}
         </Section>
       </div>

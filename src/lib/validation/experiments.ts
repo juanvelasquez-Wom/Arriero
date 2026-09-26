@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { CONTROL_LEVELS, DECISIONS, EXPERIMENT_STATUSES, OWNER_TYPES, TEST_TYPES, VERDICTS } from "@/domain/types";
 
-const uuid = z.string().uuid("Elige una opción.");
+const uuid = z.string().uuid("Elija una opción.");
 const optionalText = z
   .string()
   .trim()
@@ -22,7 +22,7 @@ const score = z.coerce.number().int().min(1, "De 1 a 10.").max(10, "De 1 a 10.")
 export const experimentOriginSchema = z.object({
   problem_id: uuid,
   metric_id: uuid,
-  title: z.string().trim().min(3, "Escribe un título de al menos 3 caracteres.").max(200),
+  title: z.string().trim().min(3, "Escriba un título de al menos 3 caracteres.").max(200),
   derived_from_learning_id: uuid.optional().nullable(),
 });
 
@@ -118,8 +118,8 @@ export const transitionSchema = z.object({
 export const decideSchema = z.object({
   experimentId: uuid,
   programId: uuid,
-  verdict: z.enum(VERDICTS, { message: "Elige el veredicto." }),
-  decision: z.enum(DECISIONS, { message: "Elige la decisión." }),
+  verdict: z.enum(VERDICTS, { message: "Elija el veredicto." }),
+  decision: z.enum(DECISIONS, { message: "Elija la decisión." }),
   rationale: z.string().trim().max(4000).optional(),
   learning: z.string().trim().min(10, "El aprendizaje es obligatorio (al menos 10 caracteres).").max(4000),
   appliesTo: z.array(uuid).default([]),

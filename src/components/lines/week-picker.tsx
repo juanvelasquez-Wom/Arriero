@@ -23,7 +23,7 @@ export function WeekPicker({
 }) {
   const router = useRouter();
   const confirmLeave = () =>
-    !dirty || window.confirm("Tienes cambios sin guardar en esta semana. ¿Cambiar de semana sin guardarlos?");
+    !dirty || window.confirm("Tiene cambios sin guardar en esta semana. ¿Cambiar de semana sin guardarlos?");
   const guard = (e: { preventDefault: () => void }) => {
     if (!confirmLeave()) e.preventDefault();
   };

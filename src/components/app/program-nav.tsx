@@ -21,6 +21,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { SLOGAN } from "@/components/brand/phrases";
 import { cn } from "@/lib/utils";
 
 interface NavItem {
@@ -80,9 +81,9 @@ function NavList(props: ProgramNavProps & { onNavigate?: () => void }) {
     <nav aria-label="Navegación del programa" className="flex flex-col gap-4 text-sm">
       {groups.map((g, i) => (
         <div key={g.title ?? i}>
-          {g.title ? <div className="mb-1 px-2 text-[11px] font-semibold uppercase tracking-wide text-soft">{g.title}</div> : null}
+          {g.title ? <div className="mb-1.5 px-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-soft">{g.title}</div> : null}
           {g.title === "Líneas" && g.items.length === 0 ? (
-            <p className="px-2 text-xs text-soft">Sin líneas todavía.</p>
+            <p className="px-2.5 text-xs text-soft">Sin líneas todavía.</p>
           ) : null}
           <ul className="flex flex-col gap-0.5">
             {g.items.map((item) => {
@@ -95,13 +96,10 @@ function NavList(props: ProgramNavProps & { onNavigate?: () => void }) {
                     onClick={props.onNavigate}
                     aria-current={active ? "page" : undefined}
                     className={cn(
-                      "relative flex items-center gap-2 rounded-md px-2 py-1.5 text-ink/85 hover:bg-gray-1 hover:text-ink",
-                      active && "bg-paper font-medium text-ink shadow-sm",
+                      "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-ink/80 transition-colors hover:bg-wash hover:text-ink",
+                      active && "bg-highlight font-semibold text-[#111111] hover:bg-highlight hover:text-[#111111]",
                     )}
                   >
-                    {active ? (
-                      <span aria-hidden className="absolute inset-y-1 left-0 w-1 rounded-full bg-highlight" />
-                    ) : null}
                     <Icon aria-hidden className="size-4 shrink-0" />
                     <span className="truncate">{item.label}</span>
                   </Link>
@@ -117,9 +115,10 @@ function NavList(props: ProgramNavProps & { onNavigate?: () => void }) {
 
 export function ProgramSidebar(props: ProgramNavProps) {
   return (
-    <aside className="hidden w-60 shrink-0 border-r bg-wash px-3 py-4 lg:block">
-      <div className="sticky top-16">
+    <aside className="hidden w-64 shrink-0 border-r bg-paper px-3 py-5 lg:block">
+      <div className="sticky top-20 flex max-h-[calc(100vh-6rem)] flex-col gap-6 overflow-y-auto">
         <NavList {...props} />
+        <p className="mt-auto px-2.5 font-heading text-xs font-semibold text-soft">{SLOGAN}</p>
       </div>
     </aside>
   );
@@ -134,7 +133,7 @@ export function ProgramMobileNav(props: ProgramNavProps) {
           <Menu aria-hidden className="size-4" />
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="w-72 overflow-y-auto bg-wash p-4">
+      <SheetContent side="left" className="w-72 overflow-y-auto bg-paper p-4">
         <SheetHeader className="p-0 pb-3">
           <SheetTitle>Programa</SheetTitle>
         </SheetHeader>
