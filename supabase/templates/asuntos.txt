@@ -1,6 +1,6 @@
-invite: ¡Ave María! Ya ensillaron la mula y solo falta usted
-recovery: ¿Se le embolató la contraseña? Aquí le tenemos otra
-magic_link: Su enlace para entrar de una a Arriero, sin tanta vuelta
-email_change: ¿Nos mudamos de correo? Confírmelo aquí
-reauthentication: Su código de Arriero (pa' saber que sí es usted)
-confirmation: Ya casi: confirme su correo y arrancamos pa' la montaña
+invite: ¡Ave María! Su equipo ya está experimentando y solo falta usted
+recovery: ¿Se le embolató la contraseña? Tranquilidad, eso no baja la conversión
+magic_link: Su enlace para entrar a Arriero: cero fricción, pura conversión
+email_change: ¿Nos mudamos de correo? Confírmelo para no perder ni un dato
+reauthentication: Su código de Arriero: verifiquemos la hipótesis de que sí es usted
+confirmation: Ya casi: confirme su correo y arrancamos a mover la métrica norte

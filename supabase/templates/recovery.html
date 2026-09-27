@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>¡Uy, se le embolató la contraseña!</title>
+<title>¡Uy, un tropiezo en el embudo!</title>
 </head>
 <body style="margin:0;padding:0;background:#F6F6F4;font-family:Inter,Segoe UI,Helvetica,Arial,sans-serif;color:#111111;">
-<div style="display:none;max-height:0;overflow:hidden;opacity:0;">Un enlace para crear una contraseña nueva y seguir el camino.</div>
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;">Un enlace para crear una contraseña nueva y volver a sus experimentos.</div>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F6F6F4;">
   <tr><td align="center" style="padding:32px 16px;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#FFFFFF;border:1px solid #E2E2DF;border-radius:16px;overflow:hidden;">
@@ -18,10 +18,10 @@
         <img src="{{ .SiteURL }}/brand/icons/mapa.png" width="88" alt="" style="display:block;width:88px;height:auto;border:0;">
       </td></tr>
       <tr><td style="padding:12px 32px 0 32px;">
-        <h1 style="margin:0;font-size:26px;line-height:1.2;font-weight:800;letter-spacing:-0.02em;color:#111111;">¡Uy, se le embolató la contraseña!</h1>
+        <h1 style="margin:0;font-size:26px;line-height:1.2;font-weight:800;letter-spacing:-0.02em;color:#111111;">¡Uy, un tropiezo en el embudo!</h1>
       </td></tr>
-      <tr><td style="padding:12px 32px 0 32px;font-size:15px;line-height:1.6;color:#111111;"><p style="margin:0 0 12px 0;">No se preocupe, que eso le pasa hasta al arriero más berraco. Pidieron cambiar la contraseña de <strong>{{ .Email }}</strong> en Arriero.</p>
-<p style="margin:0;">Con este botón crea una nueva y sigue andando, sin afán.</p></td></tr>
+      <tr><td style="padding:12px 32px 0 32px;font-size:15px;line-height:1.6;color:#111111;"><p style="margin:0 0 12px 0;">Se le embolató la contraseña de <strong>{{ .Email }}</strong>. Nada grave: es de los problemas más fáciles de resolver en todo el embudo.</p>
+<p style="margin:0;">Con este botón crea una nueva y vuelve a sus experimentos, sin afán.</p></td></tr>
       <tr><td style="padding:24px 32px 8px 32px;">
         <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=recovery" style="display:inline-block;background:#F2C200;color:#111111;text-decoration:none;font-weight:700;font-size:15px;padding:13px 22px;border-radius:10px;">Crear una contraseña nueva</a>
       </td></tr>
@@ -29,11 +29,11 @@
         Si el botón no abre, copie este enlace en el navegador:<br>
         <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=recovery" style="color:#595959;word-break:break-all;">{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=recovery</a>
       </td></tr>
-      <tr><td style="padding:16px 32px 0 32px;font-size:15px;line-height:1.6;color:#111111;"><p style="margin:0;font-size:13px;color:#595959;">El enlace sirve una sola vez y vence en una hora: no lo deje enfriar como el tinto.</p></td></tr>
+      <tr><td style="padding:16px 32px 0 32px;font-size:15px;line-height:1.6;color:#111111;"><p style="margin:0;font-size:13px;color:#595959;">El enlace sirve una sola vez y vence en una hora: esta prueba tiene duración mínima… y también máxima.</p></td></tr>
       <tr><td style="padding:24px 32px 28px 32px;">
         <p style="margin:0;padding-top:16px;border-top:1px solid #E2E2DF;font-size:12px;line-height:1.5;color:#595959;">
           ¿No fue usted? Ignore este correo, que su contraseña sigue igualita. Si le llegan muchos de estos, avísele a un admin.<br>
-          <strong style="color:#111111;">Arriero</strong> · Menos carreta, más crecimiento.<br>El que sabe por dónde es.
+          <strong style="color:#111111;">Arriero</strong> · Menos carreta, más growth marketing.<br>Del dato al experimento.
         </p>
       </td></tr>
     </table>

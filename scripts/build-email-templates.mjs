@@ -49,7 +49,7 @@ function layout({ preheader, title, body, button, after, footnote, art }) {
       <tr><td style="padding:24px 32px 28px 32px;">
         <p style="margin:0;padding-top:16px;border-top:1px solid ${LINE};font-size:12px;line-height:1.5;color:${SOFT};">
           ${footnote}<br>
-          <strong style="color:${INK};">Arriero</strong> · Menos carreta, más crecimiento.<br>El que sabe por dónde es.
+          <strong style="color:${INK};">Arriero</strong> · Menos carreta, más growth marketing.<br>Del dato al experimento.
         </p>
       </td></tr>
     </table>
@@ -64,72 +64,74 @@ const confirm = (type) => `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash 
 
 const templates = {
   invite: {
-    subject: "¡Ave María! Ya ensillaron la mula y solo falta usted",
+    subject: "¡Ave María! Su equipo ya está experimentando y solo falta usted",
     html: layout({
       art: "mula-cargada",
-      preheader: "Cree su contraseña y arranque: menos carreta, más crecimiento.",
-      title: "¡Hágale pues, que la mula ya está ensillada!",
-      body: `<p style="margin:0 0 12px 0;">Su equipo le abrió un puesto en <strong>Arriero</strong>, el carriel donde se guarda todo lo del crecimiento: las métricas, los problemas, los ejercicios y lo que se va aprendiendo. Aquí nadie carga por cargar.</p>
-<p style="margin:0;">Para arrancar solo le falta crear su contraseña. Es más rápido que tomarse un tinto.</p>`,
+      preheader: "Cree su contraseña y arranque: menos carreta, más growth marketing.",
+      title: "¡Hágale pues, que el growth marketing no se hace solo!",
+      body: `<p style="margin:0 0 12px 0;">Su equipo le abrió un puesto en <strong>Arriero</strong>, donde se hace growth marketing en serio: métrica norte, embudo, hipótesis, experimentos y aprendizajes, todo en un solo carriel.</p>
+<p style="margin:0 0 12px 0;">Aquí nada se lanza por corazonada: se prueba, se mide y, si funciona, se escala.</p>
+<p style="margin:0;">Solo le falta crear su contraseña. Va a ser la conversión más fácil de su mes.</p>`,
       button: { href: confirm("invite"), label: "Crear mi contraseña y arrancar" },
-      after: `<p style="margin:0;font-size:13px;color:${SOFT};">Ojo: el enlace sirve una sola vez y se vence en 24 horas, como el pandebono de la tienda. Si se le vence, pídale a quien le mandó la invitación que se la reenvíe.</p>`,
+      after: `<p style="margin:0;font-size:13px;color:${SOFT};">Ojo: el enlace sirve una sola vez y se vence en 24 horas. Como todo buen experimento, tiene fecha de cierre. Si se le vence, pídale a quien le mandó la invitación que se la reenvíe.</p>`,
       footnote: "¿No esperaba esta invitación? Tranquilidad: ignore este correo, que sin la contraseña nadie entra con su cuenta.",
     }),
   },
   recovery: {
-    subject: "¿Se le embolató la contraseña? Aquí le tenemos otra",
+    subject: "¿Se le embolató la contraseña? Tranquilidad, eso no baja la conversión",
     html: layout({
       art: "mapa",
-      preheader: "Un enlace para crear una contraseña nueva y seguir el camino.",
-      title: "¡Uy, se le embolató la contraseña!",
-      body: `<p style="margin:0 0 12px 0;">No se preocupe, que eso le pasa hasta al arriero más berraco. Pidieron cambiar la contraseña de <strong>{{ .Email }}</strong> en Arriero.</p>
-<p style="margin:0;">Con este botón crea una nueva y sigue andando, sin afán.</p>`,
+      preheader: "Un enlace para crear una contraseña nueva y volver a sus experimentos.",
+      title: "¡Uy, un tropiezo en el embudo!",
+      body: `<p style="margin:0 0 12px 0;">Se le embolató la contraseña de <strong>{{ .Email }}</strong>. Nada grave: es de los problemas más fáciles de resolver en todo el embudo.</p>
+<p style="margin:0;">Con este botón crea una nueva y vuelve a sus experimentos, sin afán.</p>`,
       button: { href: confirm("recovery"), label: "Crear una contraseña nueva" },
-      after: `<p style="margin:0;font-size:13px;color:${SOFT};">El enlace sirve una sola vez y vence en una hora: no lo deje enfriar como el tinto.</p>`,
+      after: `<p style="margin:0;font-size:13px;color:${SOFT};">El enlace sirve una sola vez y vence en una hora: esta prueba tiene duración mínima… y también máxima.</p>`,
       footnote: "¿No fue usted? Ignore este correo, que su contraseña sigue igualita. Si le llegan muchos de estos, avísele a un admin.",
     }),
   },
   magic_link: {
-    subject: "Su enlace para entrar de una a Arriero, sin tanta vuelta",
+    subject: "Su enlace para entrar a Arriero: cero fricción, pura conversión",
     html: layout({
       art: "celular-ruta",
       preheader: "Un clic y ya está adentro.",
-      title: "¡Entre de una, sin tanta vuelta!",
-      body: `<p style="margin:0;">Aquí está su enlace para entrar a Arriero como <strong>{{ .Email }}</strong>. Un clic y ya está adentro, más rápido que mula en bajada.</p>`,
+      title: "¡Entre de una, sin fricción!",
+      body: `<p style="margin:0;">Aquí está su enlace para entrar a Arriero como <strong>{{ .Email }}</strong>. Un clic y ya está adentro: el paso más corto de todo el embudo.</p>`,
       button: { href: confirm("email"), label: "Entrar a Arriero" },
       after: `<p style="margin:0;font-size:13px;color:${SOFT};">Sirve una sola vez y vence en una hora.</p>`,
       footnote: "Si usted no pidió este enlace, ignórelo sin pena.",
     }),
   },
   email_change: {
-    subject: "¿Nos mudamos de correo? Confírmelo aquí",
+    subject: "¿Nos mudamos de correo? Confírmelo para no perder ni un dato",
     html: layout({
       art: "camino",
       preheader: "Confirme el cambio de correo de su cuenta.",
-      title: "¿Cambiamos de casa?",
-      body: `<p style="margin:0;">Pidieron cambiar el correo de su cuenta de <strong>{{ .Email }}</strong> a <strong>{{ .NewEmail }}</strong>. Confírmelo para que los avisos, los chismecitos de La Tía y todo lo demás le lleguen al lugar correcto.</p>`,
+      title: "¿Cambiamos de canal?",
+      body: `<p style="margin:0 0 12px 0;">Pidieron cambiar el correo de su cuenta de <strong>{{ .Email }}</strong> a <strong>{{ .NewEmail }}</strong>.</p>
+<p style="margin:0;">Confírmelo para que los avisos de sus experimentos, los resultados y los chismecitos de La Tía le lleguen al lugar correcto. Dato que no llega, dato que no se aprovecha.</p>`,
       button: { href: confirm("email_change"), label: "Sí, confirmar el cambio" },
       footnote: "Si usted no pidió este cambio, no toque nada y avísele a un admin, que eso está como raro.",
     }),
   },
   reauthentication: {
-    subject: "Su código de Arriero (pa' saber que sí es usted)",
+    subject: "Su código de Arriero: verifiquemos la hipótesis de que sí es usted",
     html: layout({
       art: "diana",
       preheader: "Código para confirmar que sí es usted.",
-      title: "¿Sí es usted o es un colado?",
-      body: `<p style="margin:0 0 12px 0;">Para seguir, escriba este código en Arriero:</p>
+      title: "Hipótesis: sí es usted. Validémosla.",
+      body: `<p style="margin:0 0 12px 0;"><strong>SI</strong> escribe este código en Arriero, <strong>ENTONCES</strong> seguimos, <strong>PORQUE</strong> así sabemos que sí es usted:</p>
 <p style="margin:0;font-size:32px;font-weight:800;letter-spacing:0.2em;background:${WASH};border-radius:12px;padding:16px;text-align:center;">{{ .Token }}</p>`,
       footnote: "Si no fue usted, ignore este correo y cambie su contraseña de una.",
     }),
   },
   confirmation: {
-    subject: "Ya casi: confirme su correo y arrancamos pa' la montaña",
+    subject: "Ya casi: confirme su correo y arrancamos a mover la métrica norte",
     html: layout({
       art: "montana-cima",
       preheader: "Confirme su correo para empezar.",
-      title: "Ya casi, falta el último empujoncito",
-      body: `<p style="margin:0;">Confirme <strong>{{ .Email }}</strong> para terminar de ensillar su cuenta en Arriero. Después, a subir la montaña.</p>`,
+      title: "Falta el último paso del embudo",
+      body: `<p style="margin:0;">Confirme <strong>{{ .Email }}</strong> para terminar de ensillar su cuenta en Arriero. Después, a mover la métrica norte.</p>`,
       button: { href: confirm("email"), label: "Confirmar mi correo" },
       footnote: "Si usted no creó esta cuenta, ignore este correo.",
     }),
