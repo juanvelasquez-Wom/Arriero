@@ -32,10 +32,10 @@ test("flujo principal de un ejercicio", async ({ page }) => {
   await page.getByRole("button", { name: "Entrar" }).click();
   await expect(page).toHaveURL(/\/programas$/);
 
-  // Arranque rápido: bienvenida → formulario corto.
+  // Arranque rápido: "Crear programa" abre directo el formulario corto (Pospago ya viene marcada).
   await page.getByRole("link", { name: /Crear programa/ }).first().click();
-  await page.getByRole("link", { name: /Arranque rápido/ }).first().click();
-  await expect(page).toHaveURL(/paso=rapido/);
+  await expect(page).toHaveURL(/\/programas\/nuevo$/);
+  await expect(page.getByRole("heading", { name: /Arme el programa de una/ })).toBeVisible();
   await page.getByRole("textbox", { name: /Nombre del programa/ }).fill(programName);
   // Sin calendario telco: así ningún congelamiento bloquea el lanzamiento de la prueba.
   await page.getByRole("checkbox", { name: /calendario típico de telco/ }).click();

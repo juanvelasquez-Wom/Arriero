@@ -1,174 +1,124 @@
 "use client";
 
 import { ChevronDown } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
-import { FormError } from "@/components/app/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import type { LineTemplate } from "@/domain/growth-templates";
-import { saveFunnelStep } from "@/server/actions/setup";
 import type { MetricRow, StageRow } from "@/server/queries/structure";
 import { FIELD_HELP } from "../help-content";
-import { HelpLabel, UseExampleButton } from "../help";
-import { StepFooter } from "../step-footer";
+import { HelpLabel } from "../help";
 
 /** Descripciones genéricas que crea la base al crear la línea. */
-const DB_DEFAULTS = new Set([
+export const DB_STAGE_DEFAULTS = new Set([
   "Cómo llega el cliente: alcance, tráfico y conversaciones iniciadas.",
   "El cliente muestra intención: explora la oferta, responde o agrega al carrito.",
   "El cliente compra, se porta o activa el servicio.",
   "Rescate de abandonos y compras repetidas.",
 ]);
 const NONE = "__none__";
+const norm = (s: string) => s.trim().toLowerCase();
 
-interface Row {
+export interface FunnelRow {
   id: string;
   name: string;
   description: string;
-  metric_id: string | null;
+  /** Nombre de la métrica del árbol que la mide (puede ser nueva, aún sin id). */
+  metricName: string | null;
 }
 
-export function StepLineFunnel({
-  programId,
-  line,
-  lineIndex,
-  lineCount,
-  stages,
-  metrics,
-  template,
-  prevHref,
-  nextHref,
-  isLastLine,
+/** ¿El embudo ya fue revisado? (alguna etapa con métrica o descripción propia). */
+export function funnelConfigured(stages: StageRow[]): boolean {
+  return stages.some((s) => s.metric_id || (s.description && !DB_STAGE_DEFAULTS.has(s.description)));
+}
+
+/** Etapas con lo guardado o, si siguen como las creó la base, con la sugerencia de la plantilla. */
+export function initialFunnelRows(stages: StageRow[], metrics: MetricRow[], template: LineTemplate): FunnelRow[] {
+  return [...stages]
+    .sort((a, b) => a.sort_order - b.sort_order)
+    .map((s) => {
+      const t = template.funnel[s.name as keyof LineTemplate["funnel"]];
+      const useSuggested = !s.description || DB_STAGE_DEFAULTS.has(s.description);
+      const saved = s.metric_id ? (metrics.find((m) => m.id === s.metric_id)?.name ?? null) : null;
+      return {
+        id: s.id,
+        name: s.name,
+        description: useSuggested ? (t?.description ?? s.description ?? "") : (s.description ?? ""),
+        metricName: saved ?? (useSuggested ? (t?.metric ?? null) : null),
+      };
+    });
+}
+
+/** Sección "Embudo" de la pantalla de una línea (controlada). Las métricas son las marcadas en el árbol. */
+export function FunnelEditor({
+  rows,
+  onChange,
+  metricNames,
+  lineName,
   readOnly,
 }: {
-  programId: string;
-  line: { id: string; name: string };
-  lineIndex: number;
-  lineCount: number;
-  stages: StageRow[];
-  metrics: MetricRow[];
-  template: LineTemplate;
-  prevHref: string;
-  nextHref: string;
-  isLastLine: boolean;
+  rows: FunnelRow[];
+  onChange: (rows: FunnelRow[]) => void;
+  metricNames: string[];
+  lineName: string;
   readOnly?: boolean;
 }) {
-  const router = useRouter();
-  const suggestion = (row: StageRow): Pick<Row, "description" | "metric_id"> => {
-    const t = template.funnel[row.name as keyof LineTemplate["funnel"]];
-    const metric = t?.metric ? metrics.find((m) => m.name.toLowerCase() === t.metric!.toLowerCase()) : undefined;
-    return { description: t?.description ?? row.description ?? "", metric_id: metric?.id ?? null };
-  };
-  const [rows, setRows] = useState<Row[]>(() =>
-    [...stages]
-      .sort((a, b) => a.sort_order - b.sort_order)
-      .map((s) => {
-        const useSuggested = !s.description || DB_DEFAULTS.has(s.description);
-        const sug = suggestion(s);
-        return {
-          id: s.id,
-          name: s.name,
-          description: useSuggested ? sug.description : (s.description ?? ""),
-          metric_id: s.metric_id ?? (useSuggested ? sug.metric_id : null),
-        };
-      }),
-  );
-  const [error, setError] = useState<string>();
-  const [pending, startTransition] = useTransition();
-  const update = (id: string, patch: Partial<Row>) => setRows((r) => r.map((x) => (x.id === id ? { ...x, ...patch } : x)));
-
-  function next() {
-    if (readOnly) {
-      router.push(nextHref);
-      return;
-    }
-    setError(undefined);
-    startTransition(async () => {
-      const r = await saveFunnelStep(programId, line.id, { stages: rows });
-      if (!r.ok) {
-        setError(r.error);
-        return;
-      }
-      router.push(nextHref);
-    });
-  }
+  const update = (id: string, patch: Partial<FunnelRow>) => onChange(rows.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+  const available = new Set(metricNames.map(norm));
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border bg-wash px-4 py-2 text-sm">
-        <span>
-          Línea {lineIndex + 1} de {lineCount}: <strong>{line.name}</strong>
-        </span>
-        {!readOnly ? (
-          <UseExampleButton
-            label="Usar las sugerencias"
-            onClick={() =>
-              setRows((r) =>
-                r.map((row) => {
-                  const s = stages.find((x) => x.id === row.id)!;
-                  return { ...row, ...suggestion(s) };
-                }),
-              )
-            }
-          />
-        ) : null}
-      </div>
-
-      <ol className="space-y-2">
-        {rows.map((row, i) => (
-          <li key={row.id}>
-            <div
-              className="mx-auto rounded-2xl border bg-paper shadow-card p-4"
-              style={{ width: `${100 - i * 6}%`, minWidth: "min(100%, 320px)" }}
-            >
-              <div className="grid gap-3 sm:grid-cols-[1fr_260px]">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-ink text-xs font-semibold text-paper">{i + 1}</span>
-                    <Input aria-label={`Nombre de la etapa ${i + 1}`} className="h-8 font-medium" value={row.name} disabled={readOnly} onChange={(e) => update(row.id, { name: e.target.value })} />
+    <div>
+      <ol className="stagger space-y-2">
+        {rows.map((row, i) => {
+          const value = row.metricName && available.has(norm(row.metricName)) ? metricNames.find((n) => norm(n) === norm(row.metricName!))! : NONE;
+          return (
+            <li key={row.id}>
+              <div className="mx-auto rounded-xl border p-4" style={{ width: `${100 - i * 5}%`, minWidth: "min(100%, 300px)" }}>
+                <div className="grid gap-3 sm:grid-cols-[1fr_240px]">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-ink text-xs font-semibold text-paper">{i + 1}</span>
+                      <Input
+                        aria-label={`Nombre de la etapa ${i + 1}`}
+                        className="h-8 font-medium"
+                        value={row.name}
+                        disabled={readOnly}
+                        onChange={(e) => update(row.id, { name: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <HelpLabel htmlFor={`st-d-${row.id}`} help="Qué hace el cliente en esta etapa, en esta línea. Así todos ubican los problemas en el mismo lugar.">
+                        Qué significa en {lineName}
+                      </HelpLabel>
+                      <Textarea id={`st-d-${row.id}`} rows={2} value={row.description} disabled={readOnly} onChange={(e) => update(row.id, { description: e.target.value })} />
+                    </div>
                   </div>
                   <div className="space-y-1">
-                    <HelpLabel htmlFor={`st-d-${row.id}`} help="Qué hace el cliente en esta etapa, en esta línea. Así todos ubican los problemas en el mismo lugar.">
-                      Qué significa en {line.name}
+                    <HelpLabel htmlFor={`st-m-${row.id}`} help={FIELD_HELP.stageMetric}>
+                      Métrica que la mide
                     </HelpLabel>
-                    <Textarea id={`st-d-${row.id}`} rows={2} value={row.description} disabled={readOnly} onChange={(e) => update(row.id, { description: e.target.value })} />
+                    <Select value={value} disabled={readOnly} onValueChange={(v) => update(row.id, { metricName: v === NONE ? null : v })}>
+                      <SelectTrigger id={`st-m-${row.id}`} className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={NONE}>Sin métrica</SelectItem>
+                        {metricNames.map((m) => (
+                          <SelectItem key={m} value={m}>
+                            {m}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
-                <div className="space-y-1">
-                  <HelpLabel htmlFor={`st-m-${row.id}`} help={FIELD_HELP.stageMetric}>
-                    Métrica que la mide
-                  </HelpLabel>
-                  <Select value={row.metric_id ?? NONE} disabled={readOnly} onValueChange={(v) => update(row.id, { metric_id: v === NONE ? null : v })}>
-                    <SelectTrigger id={`st-m-${row.id}`} className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={NONE}>Sin métrica</SelectItem>
-                      {metrics.map((m) => (
-                        <SelectItem key={m.id} value={m.id}>
-                          {m.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
               </div>
-            </div>
-            {i < rows.length - 1 ? <ChevronDown className="mx-auto mt-2 size-4 text-soft" aria-hidden /> : null}
-          </li>
-        ))}
+              {i < rows.length - 1 ? <ChevronDown className="mx-auto mt-2 size-4 text-soft" aria-hidden /> : null}
+            </li>
+          );
+        })}
       </ol>
-      <p className="text-xs text-soft">Sin afán: después puede agregar, quitar o reordenar etapas desde la vista de la línea.</p>
-
-      <FormError message={error} />
-      <StepFooter
-        prevHref={prevHref}
-        pending={pending}
-        onNext={next}
-        nextLabel={isLastLine ? "Guarde y siga con el equipo" : "Guarde y pase a la siguiente línea"}
-      />
+      <p className="mt-2 text-xs text-soft">Sin afán: después puede agregar, quitar o reordenar etapas desde la vista de la línea.</p>
     </div>
   );
 }

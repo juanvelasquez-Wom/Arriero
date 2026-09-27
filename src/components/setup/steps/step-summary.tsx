@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, CircleAlert, ClipboardList } from "lucide-react";
+import { ArrowRight, CheckCircle2, CircleAlert, ClipboardList, SlidersHorizontal, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -17,15 +17,26 @@ export interface SummaryItem {
   href: string;
 }
 
+export interface OptionalItem {
+  kind: "team" | "scoring";
+  label: string;
+  detail: string;
+  href: string;
+}
+
+const OPTIONAL_ICON = { team: UserPlus, scoring: SlidersHorizontal };
+
 export function StepSummary({
   programId,
   items,
+  optional,
   prevHref,
   completed,
   canFinish,
 }: {
   programId: string;
   items: SummaryItem[];
+  optional: OptionalItem[];
   prevHref: string;
   completed: boolean;
   canFinish: boolean;
@@ -53,11 +64,11 @@ export function StepSummary({
   return (
     <div className="space-y-5">
       <div className="rounded-2xl border bg-paper shadow-card p-5">
-        <h2 className="text-lg font-bold">¡Qué belleza! Esto es lo que dejó listo</h2>
-        <ul className="mt-3 divide-y">
+        <h2 className="text-lg font-bold">{pendingCount ? "Así va el programa" : "¡Qué belleza! Esto es lo que dejó listo"}</h2>
+        <ul className="stagger mt-3 divide-y">
           {items.map((i) => (
             <li key={i.label} className="flex items-start gap-3 py-2.5 text-sm">
-              {i.ok ? <CheckCircle2 className="mt-0.5 size-4 shrink-0" aria-label="Completo" /> : <CircleAlert className="mt-0.5 size-4 shrink-0" aria-label="Pendiente" />}
+              {i.ok ? <CheckCircle2 className="pop-in mt-0.5 size-4 shrink-0" aria-label="Completo" /> : <CircleAlert className="mt-0.5 size-4 shrink-0" aria-label="Pendiente" />}
               <div className="min-w-0 flex-1">
                 <div className="font-medium">{i.label}</div>
                 <div className="text-soft">{i.detail}</div>
@@ -70,9 +81,32 @@ export function StepSummary({
         </ul>
         {pendingCount ? (
           <p className="mt-3 text-sm text-soft">
-            Hay {pendingCount} pendiente(s). Puede terminar igual y completarlos después desde la vista de cada línea, sin afán.
+            Hay {pendingCount} pendiente(s). Puede terminar igual: quedan en esta lista y en los primeros pasos del programa, para completarlos
+            sin afán.
           </p>
         ) : null}
+      </div>
+
+      <div className="rounded-2xl border bg-paper shadow-card p-5">
+        <h2 className="text-lg font-bold">Opcional</h2>
+        <p className="mt-1 text-sm text-soft">Con los valores por defecto ya puede arrancar. Si quiere, de una vez:</p>
+        <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+          {optional.map((o) => {
+            const Icon = OPTIONAL_ICON[o.kind];
+            return (
+              <li key={o.kind}>
+                <Link href={o.href} className="lift group flex h-full items-start gap-3 rounded-xl border p-3 text-sm hover:border-ink/40">
+                  <Icon className="wiggle-on-hover mt-0.5 size-4 shrink-0" aria-hidden />
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-medium">{o.label}</span>
+                    <span className="block text-xs text-soft">{o.detail}</span>
+                  </span>
+                  <ArrowRight className="mt-0.5 size-4 shrink-0 transition-transform group-hover:translate-x-0.5" aria-hidden />
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
       </div>
 
       <div className="rounded-2xl border border-l-4 border-l-highlight bg-paper shadow-card p-5">
@@ -84,10 +118,10 @@ export function StepSummary({
           etapa del embudo. Registre dónde se está perdiendo valor hoy y con qué datos lo sabe. Del dato al camino.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
-          <Button onClick={() => finish(`/programas/${programId}/problemas/nuevo`)} disabled={pending}>
+          <Button size="lg" onClick={() => finish(`/programas/${programId}/problemas/nuevo`)} disabled={pending}>
             {pending ? <Spinner /> : null} Termine y registre el primer problema
           </Button>
-          <Button variant="outline" onClick={() => finish(`/programas/${programId}`)} disabled={pending}>
+          <Button variant="ghost" className="underline underline-offset-4" onClick={() => finish(`/programas/${programId}`)} disabled={pending}>
             Termine y vaya al programa
           </Button>
         </div>
@@ -95,9 +129,9 @@ export function StepSummary({
 
       <FormError message={error} />
       <div className="flex">
-        <Button variant="outline" asChild>
-          <Link href={prevHref}>Anterior</Link>
-        </Button>
+        <Link href={prevHref} className="text-sm text-soft underline-offset-4 hover:text-ink hover:underline">
+          ← Anterior
+        </Link>
       </div>
     </div>
   );

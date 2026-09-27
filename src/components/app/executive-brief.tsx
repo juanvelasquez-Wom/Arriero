@@ -64,7 +64,7 @@ export function ExecutiveBriefView({ brief, periodKey }: { brief: ExecutiveBrief
         </nav>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+      <div className="stagger grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {brief.sections.map((s) => {
           return (
             <article

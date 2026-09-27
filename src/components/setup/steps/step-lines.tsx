@@ -32,7 +32,7 @@ export function StepLines({
 }) {
   const router = useRouter();
   const existingNames = new Set(existing.map((l) => norm(l.name)));
-  const [selected, setSelected] = useState<string[]>(existing.length ? [] : TELCO_TEMPLATES.map((t) => t.name));
+  const [selected, setSelected] = useState<string[]>(existing.length ? [] : [TELCO_TEMPLATES[0].name]);
   const [custom, setCustom] = useState<string[]>([]);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string>();
@@ -44,7 +44,14 @@ export function StepLines({
     setSelected((s) => (s.includes(name) ? s.filter((x) => x !== name) : [...s, name]));
   }
 
-  function next() {
+  function addDraft() {
+    const n = draft.trim();
+    if (n.length >= 2 && !custom.some((c) => norm(c) === norm(n))) setCustom([...custom, n]);
+    setDraft("");
+  }
+
+  function next(e?: React.FormEvent) {
+    e?.preventDefault();
     if (readOnly) {
       router.push(advanceHref);
       return;
@@ -65,7 +72,7 @@ export function StepLines({
   }
 
   return (
-    <div className="space-y-5">
+    <form onSubmit={next} noValidate className="space-y-5">
       {existing.length ? (
         <div className="rounded-2xl border bg-paper shadow-card p-5">
           <h2 className="mb-3 text-lg font-bold">Líneas del programa</h2>
@@ -85,10 +92,10 @@ export function StepLines({
         <div className="rounded-2xl border bg-paper shadow-card p-5">
           <h2 className="text-lg font-bold">{existing.length ? "Agregar más líneas" : "Elija sus líneas de negocio"}</h2>
           <p className="mt-1 text-sm text-soft">
-            Las plantillas de telecomunicaciones traen métrica norte, árbol y embudo sugeridos. En los siguientes pasos los revisa línea por
-            línea.
+            Cada plantilla trae métrica norte, árbol y embudo sugeridos. Después revisa cada línea en una sola pantalla. Arranque con las que va a
+            trabajar primero: las demás se agregan cuando quiera.
           </p>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <div className="stagger mt-4 grid gap-3 sm:grid-cols-2">
             {TELCO_TEMPLATES.map((t) => {
               const created = existingNames.has(norm(t.name));
               const on = created || selected.includes(t.name);
@@ -107,7 +114,7 @@ export function StepLines({
                   )}
                 >
                   <span className={cn("mt-0.5 flex size-5 shrink-0 items-center justify-center rounded border", on && "border-ink bg-ink text-paper")} aria-hidden>
-                    {on ? <Check className="size-3.5" /> : null}
+                    {on ? <Check className="pop-in size-3.5" /> : null}
                   </span>
                   <span>
                     <span className="block font-medium">
@@ -130,38 +137,36 @@ export function StepLines({
                 {custom.map((c) => (
                   <li key={c} className="flex items-center gap-2">
                     <Waypoints className="size-4" aria-hidden /> {c}
-                    <Button size="icon-xs" variant="ghost" aria-label={`Quitar ${c}`} onClick={() => setCustom((x) => x.filter((y) => y !== c))}>
+                    <Button type="button" size="icon-xs" variant="ghost" aria-label={`Quitar ${c}`} onClick={() => setCustom((x) => x.filter((y) => y !== c))}>
                       <Trash2 aria-hidden />
                     </Button>
                   </li>
                 ))}
               </ul>
             ) : null}
-            <form
-              className="mt-2 flex gap-2"
-              onSubmit={(e) => {
-                e.preventDefault();
-                const n = draft.trim();
-                if (n.length >= 2 && !custom.some((c) => norm(c) === norm(n))) setCustom([...custom, n]);
-                setDraft("");
-              }}
-            >
-              <Input aria-label="Nombre de la línea" value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Ej.: Hogar fibra" />
-              <Button type="submit" variant="outline" disabled={draft.trim().length < 2}>
+            <div className="mt-2 flex gap-2">
+              <Input
+                aria-label="Nombre de la línea"
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addDraft();
+                  }
+                }}
+                placeholder="Ej.: Hogar fibra"
+              />
+              <Button type="button" variant="outline" disabled={draft.trim().length < 2} onClick={addDraft}>
                 <Plus aria-hidden /> Agregar
               </Button>
-            </form>
+            </div>
           </div>
         </div>
       ) : null}
 
       <FormError message={error} />
-      <StepFooter
-        prevHref={prevHref}
-        pending={pending}
-        onNext={next}
-        nextLabel={toCreate.length ? `Cree ${toCreate.length} línea(s) y siga` : "Siga"}
-      />
-    </div>
+      <StepFooter prevHref={prevHref} pending={pending} nextLabel={toCreate.length ? `Cree ${toCreate.length} línea(s) y siga` : "Siga"} />
+    </form>
   );
 }

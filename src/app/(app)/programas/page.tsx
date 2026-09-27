@@ -4,6 +4,7 @@ import Link from "next/link";
 import { AppHeader } from "@/components/app/app-header";
 import { EmptyState, PageHeader } from "@/components/app/page";
 import { DemoBadge } from "@/components/app/status-badge";
+import { Credits } from "@/components/brand/credits";
 import { phraseOfTheDay } from "@/components/brand/phrases";
 import { Button } from "@/components/ui/button";
 import { ROLE_LABEL } from "@/domain/labels";
@@ -138,6 +139,10 @@ export default async function ProgramsPage() {
         )}
 
         {deleted.length ? <DeletedPrograms items={deleted} /> : null}
+
+        <footer className="mt-12 border-t pt-6">
+          <Credits />
+        </footer>
       </main>
     </>
   );

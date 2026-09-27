@@ -9,13 +9,14 @@ import {
   quickFunnel,
   quickProgramEnd,
   quickTreeMetrics,
+  suggestProgramName,
   typicalTelcoCalendar,
   type QuickStartInput,
 } from "./quick-start";
 
 const base: QuickStartInput = {
   name: "Plan digital",
-  templateKey: "pospago",
+  lines: [{ templateKey: "pospago" }],
   startDate: "2026-10-01",
   months: 6,
   useTelcoCalendar: true,
@@ -126,9 +127,10 @@ describe("planQuickStart", () => {
     if (!r.ok) return;
     const { plan } = r;
     expect(plan.program).toEqual({ name: "Plan digital", start_date: "2026-10-01", end_date: "2027-03-31" });
-    expect(plan.line).toEqual({ name: "Pospago", templateKey: "pospago" });
-    expect(plan.northStar.name).toBe("Altas digitales semanales");
-    expect(plan.efficiency.name).toBe("Costo por alta");
+    expect(plan.lines).toHaveLength(1);
+    expect(plan.lines[0]).toMatchObject({ name: "Pospago", templateKey: "pospago" });
+    expect(plan.lines[0].northStar.name).toBe("Altas digitales semanales");
+    expect(plan.lines[0].efficiency.name).toBe("Costo por alta");
     expect(plan.horizons).toEqual([
       { name: "H1", start_date: "2026-10-01", end_date: "2027-01-18" },
       { name: "H2", start_date: "2027-01-19", end_date: "2027-03-31" },
@@ -141,12 +143,36 @@ describe("planQuickStart", () => {
     expect(r.ok && r.plan.horizons).toEqual([{ name: "H1", start_date: "2026-10-01", end_date: "2027-03-31" }]);
   });
   it("otra línea exige nombre propio", () => {
-    expect(planQuickStart({ ...base, templateKey: CUSTOM_LINE_KEY, lineName: " " }).ok).toBe(false);
-    const r = planQuickStart({ ...base, templateKey: CUSTOM_LINE_KEY, lineName: "  Hogar fibra " });
-    expect(r.ok && r.plan.line).toEqual({ name: "Hogar fibra", templateKey: CUSTOM_LINE_KEY });
+    expect(planQuickStart({ ...base, lines: [{ templateKey: CUSTOM_LINE_KEY, lineName: " " }] }).ok).toBe(false);
+    const r = planQuickStart({ ...base, lines: [{ templateKey: CUSTOM_LINE_KEY, lineName: "  Hogar fibra " }] });
+    expect(r.ok && r.plan.lines[0]).toMatchObject({ name: "Hogar fibra", templateKey: CUSTOM_LINE_KEY });
+  });
+  it("arma varias líneas, cada una con su norte, árbol y embudo", () => {
+    const r = planQuickStart({
+      ...base,
+      lines: [{ templateKey: "pospago" }, { templateKey: TELCO_TEMPLATES[1].key }, { templateKey: CUSTOM_LINE_KEY, lineName: "Hogar fibra" }],
+    });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.plan.lines.map((l) => l.name)).toEqual(["Pospago", TELCO_TEMPLATES[1].name, "Hogar fibra"]);
+    for (const l of r.plan.lines) {
+      expect(l.tree.length).toBeGreaterThan(0);
+      expect(l.funnel).toHaveLength(4);
+    }
+    // Un solo calendario y unos solos horizontes para todo el programa.
+    expect(r.plan.horizons).toHaveLength(2);
+  });
+  it("sin líneas, con líneas repetidas o con demasiadas, no arma", () => {
+    expect(planQuickStart({ ...base, lines: [] }).ok).toBe(false);
+    expect(planQuickStart({ ...base, lines: [{ templateKey: "pospago" }, { templateKey: CUSTOM_LINE_KEY, lineName: "pospago" }] }).ok).toBe(false);
+    expect(planQuickStart({ ...base, lines: Array.from({ length: 9 }, (_, i) => ({ templateKey: CUSTOM_LINE_KEY, lineName: `Línea ${i}` })) }).ok).toBe(false);
+  });
+  it("sin nombre usa el sugerido", () => {
+    const r = planQuickStart({ ...base, name: "  " });
+    expect(r.ok && r.plan.program.name).toBe("Plan digital Pospago oct 2026 – mar 2027");
   });
   it("rechaza plantillas y duraciones desconocidas", () => {
-    expect(planQuickStart({ ...base, templateKey: "satelital" }).ok).toBe(false);
+    expect(planQuickStart({ ...base, lines: [{ templateKey: "satelital" }] }).ok).toBe(false);
     expect(planQuickStart({ ...base, months: 9 as never }).ok).toBe(false);
   });
   it("los horizontes siempre caben en el programa", () => {
@@ -159,5 +185,16 @@ describe("planQuickStart", () => {
         expect(r.plan.events.filter((e) => e.type === "decision").length).toBeLessThanOrEqual(1);
       }
     }
+  });
+});
+
+describe("suggestProgramName", () => {
+  it("nombra una línea y el periodo; con varias usa un nombre general", () => {
+    expect(suggestProgramName(["Pospago"], "2026-10-01", 6)).toBe("Plan digital Pospago oct 2026 – mar 2027");
+    expect(suggestProgramName(["Pospago", "Recargas"], "2026-10-01", 3)).toBe("Plan digital WOM oct 2026 – dic 2026");
+  });
+  it("con muchas líneas, sin líneas o sin fecha válida se queda corto", () => {
+    expect(suggestProgramName(["a", "b", "c"], "2026-10-01", 12)).toBe("Plan digital WOM oct 2026 – sep 2027");
+    expect(suggestProgramName([], "", 6)).toBe("Plan digital WOM");
   });
 });

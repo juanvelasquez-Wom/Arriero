@@ -85,7 +85,8 @@ export function StepTeam({
         prevHref={prevHref}
         pending={false}
         onNext={() => router.push(nextHref)}
-        nextLabel={members.length > 1 ? "Siga" : "Invite después y siga"}
+        prevLabel="Volver al resumen"
+        nextLabel={members.length > 1 ? "Listo, volver al resumen" : "Invito después, volver al resumen"}
       />
     </div>
   );

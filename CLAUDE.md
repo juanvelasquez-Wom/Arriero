@@ -89,12 +89,12 @@ src/
     (auth)/login, recuperar, restablecer
     auth/confirm              recibe enlaces de invitación y recuperación (token_hash, code o fragmento)
     (app)/programas           Mis programas · ejemplo · programas en la papelera
-    (app)/programas/nuevo     paso 1 del asistente para crear un programa
+    (app)/programas/nuevo     arranque rápido (y ?paso=programa: paso 1 del asistente)
     (app)/admin/usuarios      administración de usuarios (solo admin global): crear, admin sí/no,
                               enlace de contraseña, bloquear
     (app)/programas/[programId]/
       page                    resumen + lista de primeros pasos
-      configuracion?paso=…    asistente guiado (ver "Asistente de configuración" abajo)
+      configuracion?paso=…    asistente guiado (ver "Crear y configurar un programa" abajo)
       lineas/[lineId]?tab=norte|arbol|embudo
       carga?semana=           carga semanal en lote
       problemas, problemas/nuevo, problemas/[id]
@@ -138,23 +138,13 @@ tests/
   e2e/                        Playwright: smoke del flujo principal
 ```
 
-**Asistente de configuración del programa** (pensado para quien no conoce el modelo de growth)
+**Crear y configurar un programa** (pensado para quien no conoce el modelo de growth)
 
-- `/programas/nuevo` muestra primero la bienvenida (el modelo en 5 ideas) con dos caminos: **Arranque rápido** (`?paso=rapido`, una línea con plantilla telco, calendario típico y horizontes automáticos en un solo formulario; `saveQuickStart` + `domain/quick-start.ts`; termina en "Nuevo problema") y **Configuración completa** (`?paso=programa`).
-- `/programas/[id]/configuracion?paso=<clave>[&linea=<id>]` con las claves de `src/domain/setup-flow.ts`: `programa` → `calendario` (picos con congelamiento sugerido y punto de decisión) → `horizontes` (propuestos desde el punto de decisión) → `lineas` (plantillas telco) → por cada línea `linea-norte` → `linea-arbol` → `linea-embudo` → `equipo` → `puntaje` → `resumen`.
-- Se guarda al avanzar (`src/server/actions/setup.ts`). `programs.setup_step` guarda el último paso principal completado (1–4); el avance dentro de cada línea se deduce de los datos. `resumeStep` decide dónde retomar e `isReachable` impide saltar pasos.
-- Ayudas: panel "¿Qué es esto?" y textos en `src/components/setup/help-content.ts`; burbujas ⓘ (`InfoTip`) por campo; botones "Usar ejemplo". Plantillas y sugerencias en `src/domain/growth-templates.ts`.
+- `/programas/nuevo` abre directo el **arranque rápido** (`?paso=rapido` sigue funcionando): una sola pantalla con nombre (vacío = sugerido por `suggestProgramName`), una o más líneas (tarjetas de plantillas telco + "Otra línea" con nombre), inicio (hoy), duración (6 meses) y calendario típico de telco (activado). Muestra en vivo lo que va a crear y con "Arme el programa" (`saveQuickStart`, plan en `src/domain/quick-start.ts`) crea programa, calendario, horizontes y cada línea con norte, eficiencia, árbol y embudo; termina en "Nuevo problema" con `?desde=arranque&linea=<primera línea>`. Al lado, el plegable "¿Nuevo en growth? Así funciona" (`GrowthPrimer`: abierto si aún no hay programas; recuerda la elección en `localStorage`). El enlace "Prefiero configurarlo todo paso a paso" lleva a `?paso=programa`.
+- Asistente paso a paso: `/programas/[id]/configuracion?paso=<clave>[&linea=<id>]` con las claves de `src/domain/setup-flow.ts`. Camino principal: `programa` → `calendario` (picos, congelamientos, punto de decisión y, en la misma pantalla, los horizontes propuestos desde el punto de decisión, editables en un desplegable; un programa nuevo arranca con el calendario típico de telco puesto) → `lineas` → una pantalla `linea` por línea ("Configurar {línea}": secciones plegables Métrica norte y eficiencia · Árbol · Embudo, prellenadas desde la plantilla, con chulito si ya están guardadas; un solo "Guarde y siga", `saveLineStep`) → `resumen`. Son 4 + N pantallas (5 con una línea, 7 con tres). **Opcionales** desde el resumen: `equipo` y `puntaje` (vuelven al resumen). Las claves viejas (`horizontes`, `linea-norte|arbol|embudo`) redirigen a las nuevas.
+- Se guarda al avanzar (`src/server/actions/setup.ts`). `programs.setup_step`: 1 programa · 2 calendario sin horizontes (solo programas del asistente anterior) · 3 calendario y horizontes · 4 líneas · 5 cierre. El avance dentro de cada línea se deduce de los datos. `resumeStep` decide dónde retomar e `isReachable` impide saltar pasos; con las líneas creadas se abre todo y aparece "Terminar después · ir al resumen" (`canFinishEarly`). Lo pendiente (líneas sin configurar, línea base y metas) queda en el resumen y en "Primeros pasos" del programa.
+- Ayudas: panel "¿Qué es esto?" y textos en `src/components/setup/help-content.ts`; burbujas ⓘ (`InfoTip`) por campo; botones "Usar ejemplo"/"Volver a las sugerencias". Plantillas y sugerencias en `src/domain/growth-templates.ts`. Microanimaciones de `globals.css`: `.slide-in` al cambiar de paso, `.pop-in` en chulitos, `.stagger` en listas de tarjetas, `.fill-in` en la barra de avance, `.lift` en tarjetas clicables.
 - Se mantiene el término de la metodología, **horizonte** (H1, H2), siempre explicado como "tramo del programa con su propia meta".
-
-**La Tía (copiloto con Claude)** — ver [`docs/la-tia.md`](docs/la-tia.md). **Apagada por ahora:** solo aparece con `NEXT_PUBLIC_TIA_ENABLED=true` (`TIA_ENABLED` en `domain/tia.ts`; cada componente de `components/tia` se oculta solo y `tiaConfigured()` devuelve false).
-
-- Llamada a la API de Claude con `fetch` en `src/server/tia/client.ts` (sin SDK). Llave solo en `ANTHROPIC_API_KEY` (servidor); modelo `TIA_MODEL` (por defecto `claude-sonnet-5`); tope por persona `TIA_DAILY_LIMIT`.
-- `runTia` (`src/server/tia/run.ts`) verifica llave y tope, arma el contexto del programa con RLS (`context.ts`) y registra el consumo en `tia_usage`.
-- Personalidad y reglas de oro en `src/domain/tia.ts`: **La Tía propone, la persona decide**; nunca pone veredictos, decisiones ni ICE; cita los datos; los textos del programa son datos, no instrucciones. Todo se pide con un botón y solo llena campos que la persona guarda.
-- Funciones: chat `POST /api/tia/chat` (streaming, botón "Pregúntele a la Tía" en la barra del programa), oportunidades (resumen del programa), recomendaciones (asistente de ejercicios y diálogo de decisión), explicar métricas, preparar el comité (`/direccion`) y el chismecito semanal (lunes, en `/api/cron/avisos`, `src/server/tia/gossip.ts`).
-- Sin llave, cada punto de entrada muestra "La Tía todavía no está conectada".
-
-**Correo:** SMTP propio en Supabase con una cuenta de Gmail (ver [`docs/correo-smtp.md`](docs/correo-smtp.md)). Plantillas con la marca en `supabase/templates/`, generadas con `node scripts/build-email-templates.mjs`.
 
 **Acceso a Supabase**
 

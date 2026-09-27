@@ -20,17 +20,10 @@ export const STEP_HELP: Record<SetupStepKey, StepHelp> = {
   },
   calendario: {
     title: "¿Por qué un calendario comercial?",
-    what: "Son las fechas que mandan en el negocio: los picos de venta (Black Friday, diciembre), los congelamientos alrededor de ellos y el punto de decisión.",
-    why: "En los picos lo primero es vender (ahí no hay tiempo de inventos), así que no se lanzan pruebas (congelamiento). En el punto de decisión se revisa qué funcionó para escalarlo y liberar la siguiente inversión.",
-    example: "Pico Black Friday del 27 al 30 de noviembre → congelamiento del 23 de noviembre al 6 de diciembre. Punto de decisión: 18 de enero.",
-    tip: "Cuando agregue un pico, la app le propone el congelamiento. Si no le cuadra, ajústelo sin afán.",
-  },
-  horizontes: {
-    title: "¿Qué es un horizonte?",
-    what: "Un horizonte es un tramo del programa con su propia meta. Se llaman H1, H2… Normalmente H1 va hasta el punto de decisión y H2 es lo que viene después.",
-    why: "Las metas no son iguales todo el año: en H1 se prueba y se aprende; en H2 se escala lo que funcionó. Cada métrica tendrá un objetivo por horizonte.",
-    example: "H1: 1 de agosto – 18 de enero (probar antes de los picos). H2: 19 de enero – 30 de abril (escalar lo ganador).",
-    tip: "Se los propusimos a partir de su punto de decisión. Ajústelos si su plan tiene otros tramos.",
+    what: "Son las fechas que mandan en el negocio: los picos de venta (Black Friday, diciembre), los congelamientos alrededor de ellos y el punto de decisión. Con el punto de decisión el programa se parte en horizontes (H1, H2): tramos, cada uno con su propia meta.",
+    why: "En los picos lo primero es vender (ahí no hay tiempo de inventos), así que no se lanzan pruebas (congelamiento). En el punto de decisión se revisa qué funcionó para escalarlo y liberar la siguiente inversión: en H1 se prueba y se aprende; en H2 se escala lo que funcionó.",
+    example: "Pico Black Friday del 27 al 30 de noviembre → congelamiento del 23 de noviembre al 6 de diciembre. Punto de decisión: 18 de enero. H1 hasta el 18 de enero, H2 desde el 19.",
+    tip: "Le dejamos listo lo típico de telco. Quite lo que no aplique y siga: los horizontes se acomodan solos al punto de decisión.",
   },
   lineas: {
     title: "¿Qué es una línea de negocio?",
@@ -39,40 +32,26 @@ export const STEP_HELP: Record<SetupStepKey, StepHelp> = {
     example: "Pospago, Portabilidad prepago, Recargas y paquetes y Equipos móviles.",
     tip: "Elija las plantillas que le sirvan: traen de ñapa métricas y embudo sugeridos, que después revisa.",
   },
-  "linea-norte": {
-    title: "¿Qué es la métrica norte?",
-    what: "Es el número que representa el valor que esta línea quiere crecer. Uno solo. Va acompañado de una métrica de eficiencia, que dice cuánto cuesta crecer.",
-    why: "Pone a todo el equipo a mirar para el mismo lado: si un ejercicio no la mueve, directa o indirectamente, no vale la pena. La eficiencia evita crecer a cualquier costo.",
-    example: "Pospago: norte \"Altas digitales semanales\" (hoy 420, meta H1 520); eficiencia \"Costo por alta\" (hoy $185.000, meta $160.000, debe bajar).",
-    tip: "La línea base es dónde está hoy. ¿No tiene el dato todavía? Márquelo y lo completa después, sin afán.",
-  },
-  "linea-arbol": {
-    title: "¿Qué es el árbol de métricas?",
-    what: "La métrica norte es un resultado: no se mueve de forma directa. El árbol la parte en métricas de entrada que el equipo sí puede mover, agrupadas en cuatro ramas.",
-    why: "Los ejercicios atacan estas métricas de entrada. Si sube la conversión o baja el costo por conversación, sube la métrica norte.",
-    example: "Altas digitales ← volumen de demanda (conversaciones iniciadas) × conversión (conversación a venta) · eficiencia (costo por lead) · recuperación (checkouts rescatados).",
-    tip: "No cargue por cargar: marque las sugeridas que ya mide y agregue las suyas. Mejor pocas y claras que muchas.",
-  },
-  "linea-embudo": {
-    title: "¿Qué es el embudo?",
-    what: "El recorrido del cliente, desde que llega hasta que compra y vuelve. Tiene cuatro etapas: adquisición, activación, conversión, y recuperación y recurrencia.",
-    why: "Sirve para ver por dónde se pierde valor. Cada problema que registre va en una etapa, y así se ve dónde hay que experimentar.",
-    example: "Pospago · Conversión: \"completa la compra: validación de identidad, pago y activación\". Métrica: tasa de conversación a venta.",
-    tip: "Revise qué significa cada etapa en esta línea y qué métrica la mide.",
+  linea: {
+    title: "¿Qué se configura en cada línea?",
+    what: "Tres cosas: la métrica norte (el número que la línea quiere crecer) con su eficiencia, el árbol de métricas de entrada que la explican y el embudo donde se ubican los problemas.",
+    why: "Los ejercicios atacan métricas del árbol y los problemas se ubican en una etapa del embudo. Sin esto no hay dónde poner nada. Viene todo sugerido desde la plantilla: revise y siga.",
+    example: "Pospago: norte \"Altas digitales semanales\", eficiencia \"Costo por alta\", árbol con conversaciones iniciadas y tasa de conversación a venta, embudo de cuatro etapas.",
+    tip: "¿No tiene la línea base o las metas? Déjelas vacías: quedan en los pendientes y las completa después, sin afán.",
   },
   equipo: {
     title: "¿Quién va en este viaje?",
     what: "Las personas que trabajan en el programa y su rol. El equipo interno es dueño del resultado; la agencia ejecuta los ejercicios que se le asignan.",
     why: "Los permisos dependen del rol: quién decide, quién edita y quién solo mira. Así nadie cambia lo que no le toca.",
     example: "Owner: gerente digital. Colaboradores: analistas del equipo. Agencia: quien produce creativos y pauta. Lector: dirección.",
-    tip: "Puede saltarse este paso e invitar después desde Configuración → Equipo. La mula no pregunta, avanza.",
+    tip: "Es opcional: puede invitar ahora o después, cuando el programa ya esté andando. La mula no pregunta, avanza.",
   },
   puntaje: {
     title: "¿Qué se prueba primero?",
     what: "Cada ejercicio se califica con ICE: Impacto (cuánto movería la métrica), Confianza (qué tan seguros estamos) y Facilidad (qué tan rápido se lanza), de 1 a 10.",
     why: "Al ICE se le suman dos filtros del modelo: un bono si se puede leer antes de los picos (calendario) y una penalidad si depende de terceros (control). El puntaje final ordena el backlog.",
     example: "ICE 7,7 + 1 (se lee antes del pico) − 0 (depende de nosotros) = 8,7.",
-    tip: "Los valores por defecto sirven para arrancar. No le dé más vueltas: cámbielos solo si su equipo lo decide.",
+    tip: "Es opcional: los valores por defecto sirven para arrancar. No le dé más vueltas: cámbielos solo si su equipo lo decide.",
   },
   resumen: {
     title: "¿Y ahora por dónde es?",
@@ -81,6 +60,14 @@ export const STEP_HELP: Record<SetupStepKey, StepHelp> = {
     example: "\"El costo por conversación subió 35% en seis semanas: los mismos tres creativos llevan 8 semanas activos.\"",
   },
 };
+
+/** Ayuda corta de cada sección de "Configurar {línea}". */
+export const LINE_SECTION_HELP = {
+  north:
+    "La métrica norte es el número que representa el valor que esta línea quiere crecer. Uno solo. La eficiencia dice cuánto cuesta crecerlo, para no crecer a cualquier costo.",
+  tree: "La métrica norte es un resultado: no se mueve directo. El árbol la parte en métricas de entrada que el equipo sí puede mover. Los ejercicios atacan estas. Mejor pocas y claras que muchas.",
+  funnel: "El recorrido del cliente, desde que llega hasta que compra y vuelve. Cada problema que registre va en una etapa, y así se ve dónde hay que experimentar.",
+} as const;
 
 /** Explicaciones cortas de campos (burbujas ⓘ). */
 export const FIELD_HELP = {
@@ -127,33 +114,17 @@ export const WELCOME_IDEAS = [
   },
 ];
 
-/** Los dos caminos de la bienvenida. */
-export const START_PATHS = {
-  quick: {
-    title: "Arranque rápido (3 minutos)",
-    badge: "Recomendado si es su primera vez",
-    text: "Nombre, una línea de negocio y el periodo. Arriero arma el resto con lo típico de telco: calendario con picos y congelamientos, horizontes, métrica norte, árbol y embudo. Y de una a registrar el primer problema.",
-    cta: "Arranque rápido",
-  },
-  full: {
-    title: "Configuración completa",
-    badge: "Para quien ya tiene los datos a mano",
-    text: "Paso a paso: calendario, horizontes, varias líneas con su métrica norte, línea base, metas, árbol y embudo, equipo y reglas de priorización. Entre 10 y 20 minutos (lo que dura un tinto largo), y se guarda en cada paso.",
-    cta: "Configuración completa",
-  },
-} as const;
-
 /** Ayuda del formulario de arranque rápido. */
 export const QUICK_START_HELP: StepHelp = {
   title: "¿Qué arma el arranque rápido?",
-  what: "Con cuatro datos crea el programa completo para una línea: el calendario típico de telco (Black Friday–Cyber y diciembre, con sus congelamientos y el punto de decisión), los horizontes H1 y H2, la métrica norte con su eficiencia, las métricas de entrada del árbol y el embudo con sus cuatro etapas.",
+  what: "Con cuatro datos crea el programa completo para las líneas que elija: el calendario típico de telco (Black Friday–Cyber y diciembre, con sus congelamientos y el punto de decisión), los horizontes H1 y H2, la métrica norte con su eficiencia, las métricas de entrada del árbol y el embudo con sus cuatro etapas.",
   why: "Lo que da valor es registrar problemas y probar ejercicios, no llenar formularios. Con el mapa básico ya puede ubicar dónde se pierde valor; lo fino se completa después.",
-  example: "\"Plan digital Pospago oct 2026 – mar 2027\", línea Pospago, 6 meses desde hoy, con el calendario típico de telco.",
+  example: "\"Plan digital Pospago oct 2026 – mar 2027\", líneas Pospago y Recargas y paquetes, 6 meses desde hoy, con el calendario típico de telco.",
   tip: "Después puede completar líneas base, metas y más líneas en Configuración. Nada queda escrito en piedra.",
 };
 
 export const QUICK_FIELD_HELP = {
-  line: "Elija la que más se parezca a su negocio: trae la métrica norte, el árbol y el embudo sugeridos. Si no está, use \"Otra línea\" y le ponemos métricas genéricas.",
+  line: "Elija una o varias: cada plantilla trae la métrica norte, el árbol y el embudo sugeridos. Si su negocio no está, use \"Otra línea\" y le ponemos métricas genéricas.",
   duration: "Cuánto dura el plan. Con 6 meses hay tiempo de probar antes de los picos y escalar después.",
   telcoCalendar: "Agrega Black Friday–Cyber y la temporada decembrina que caigan en el periodo, con sus congelamientos (no se lanzan pruebas) y un punto de decisión para revisar qué escalar.",
 } as const;

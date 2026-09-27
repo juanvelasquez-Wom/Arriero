@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarClock, Flag, Plus, Snowflake, Trash2 } from "lucide-react";
+import { CalendarClock, Flag, Plus, Snowflake, Sparkles, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { FormError } from "@/components/app/form";
@@ -8,14 +8,16 @@ import { Callout } from "@/components/app/page";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { addDays, rangesOverlap } from "@/domain/dates";
+import { rangesOverlap } from "@/domain/dates";
 import { formatDate, formatDateRange } from "@/domain/format";
-import { suggestFreeze } from "@/domain/growth-templates";
-import type { CalendarEvent } from "@/domain/types";
-import { saveCalendarStep } from "@/server/actions/setup";
+import { horizonProblems, proposeHorizons, suggestFreeze } from "@/domain/growth-templates";
+import { typicalTelcoCalendar } from "@/domain/quick-start";
+import type { CalendarEventType } from "@/domain/types";
+import { saveScheduleStep } from "@/server/actions/setup";
 import { FIELD_HELP } from "../help-content";
 import { HelpLabel, InfoTip, UseExampleButton } from "../help";
 import { StepFooter } from "../step-footer";
+import { HorizonsSection, type HorizonDraft } from "./step-horizons";
 
 interface Range {
   id?: string;
@@ -27,11 +29,18 @@ interface Peak extends Range {
   name: string;
   freeze: Range | null;
 }
+interface EventLike {
+  id?: string;
+  type: CalendarEventType;
+  name: string;
+  start_date: string;
+  end_date: string;
+}
 
 let seq = 0;
 const key = () => `k${++seq}`;
 
-function fromEvents(events: CalendarEvent[]) {
+function fromEvents(events: EventLike[]) {
   const peaks: Peak[] = events
     .filter((e) => e.type === "peak")
     .map((e) => ({ key: key(), id: e.id, name: e.name, start: e.start_date, end: e.end_date, freeze: null }));
@@ -45,32 +54,66 @@ function fromEvents(events: CalendarEvent[]) {
   return { peaks, extras, decision: d ? { id: d.id, date: d.start_date } : { date: "" } };
 }
 
+const sameHorizons = (a: HorizonDraft[], b: HorizonDraft[]) =>
+  a.length === b.length && a.every((h, i) => h.name === b[i].name && h.start_date === b[i].start_date && h.end_date === b[i].end_date);
+
+/** Enter en un campo auxiliar ejecuta su propia acción, no el "Guarde y siga" del paso. */
+const onEnter = (fn: () => void) => (e: React.KeyboardEvent) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    fn();
+  }
+};
+
+/**
+ * Paso "Calendario y horizontes": picos con su congelamiento, punto de decisión
+ * y, abajo, los horizontes propuestos desde ese punto. Un programa nuevo arranca
+ * con el calendario típico de telco ya puesto.
+ */
 export function StepCalendar({
   programId,
   program,
   events,
+  horizons,
+  suggestTypical,
   prevHref,
   nextHref,
   readOnly,
+  canEditHorizons,
 }: {
   programId: string;
   program: { start_date: string; end_date: string };
-  events: CalendarEvent[];
+  events: EventLike[];
+  horizons: HorizonDraft[];
+  /** Programa sin calendario todavía: se propone el típico de telco. */
+  suggestTypical: boolean;
   prevHref: string;
   nextHref: string;
   readOnly?: boolean;
+  canEditHorizons: boolean;
 }) {
   const router = useRouter();
-  const initial = fromEvents(events);
+  const [initial] = useState(() => fromEvents(suggestTypical ? typicalTelcoCalendar(program.start_date, program.end_date) : events));
+  const [suggested, setSuggested] = useState(suggestTypical);
   const [peaks, setPeaks] = useState<Peak[]>(initial.peaks);
   const [extras, setExtras] = useState(initial.extras);
   const [decision, setDecision] = useState<{ id?: string; date: string }>(initial.decision);
   const [draft, setDraft] = useState({ name: "", start: "", end: "", withFreeze: true, before: 4, after: 6 });
   const [error, setError] = useState<string>();
   const [pending, startTransition] = useTransition();
-  const originalIds = events.map((e) => e.id);
+  const originalIds = events.map((e) => e.id).filter((id): id is string => !!id);
 
-  const draftFreeze = draft.start && draft.end && draft.end >= draft.start ? suggestFreeze({ start_date: draft.start, end_date: draft.end }, draft.before, draft.after) : null;
+  // Horizontes: siguen al punto de decisión mientras no se ajusten a mano.
+  const propose = (date: string) =>
+    proposeHorizons(program.start_date, program.end_date, date || null).map((p, i) => ({ ...p, id: horizons[i]?.id }));
+  const [custom, setCustom] = useState<HorizonDraft[] | null>(() =>
+    horizons.length && !sameHorizons(horizons, proposeHorizons(program.start_date, program.end_date, initial.decision.date || null)) ? horizons : null,
+  );
+  const horizonRows = custom ?? propose(decision.date);
+  const problems = horizonProblems({ start: program.start_date, end: program.end_date }, horizonRows);
+
+  const draftFreeze =
+    draft.start && draft.end && draft.end >= draft.start ? suggestFreeze({ start_date: draft.start, end_date: draft.end }, draft.before, draft.after) : null;
 
   function addPeak() {
     if (draft.name.trim().length < 2 || !draft.start || !draft.end || draft.end < draft.start) {
@@ -91,21 +134,22 @@ export function StepCalendar({
     setDraft({ ...draft, name: "", start: "", end: "" });
   }
 
-  function useExample() {
-    const y = Number(program.start_date.slice(0, 4));
-    const year = program.start_date <= `${y}-11-27` ? y : y + 1;
-    const bf = { start: `${year}-11-27`, end: `${year}-11-30` };
-    const dec = { start: `${year}-12-14`, end: `${year}-12-31` };
-    const f1 = suggestFreeze({ start_date: bf.start, end_date: bf.end });
-    setPeaks([
-      { key: key(), name: "Black Friday–Cyber", ...bf, freeze: { start: f1.start_date, end: f1.end_date } },
-      { key: key(), name: "Temporada decembrina", ...dec, freeze: { start: dec.start, end: `${year + 1}-01-03` } },
-    ]);
-    const decisionDate = `${year + 1}-01-18`;
-    setDecision((d) => ({ ...d, date: decisionDate > program.start_date && decisionDate < program.end_date ? decisionDate : "" }));
+  function applyTypical() {
+    const t = fromEvents(typicalTelcoCalendar(program.start_date, program.end_date));
+    setPeaks(t.peaks);
+    setExtras([]);
+    setDecision((d) => ({ ...d, date: t.decision.date }));
   }
 
-  function next() {
+  function clearAll() {
+    setPeaks([]);
+    setExtras([]);
+    setDecision((d) => ({ ...d, date: "" }));
+    setSuggested(false);
+  }
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
     if (readOnly) {
       router.push(nextHref);
       return;
@@ -119,10 +163,13 @@ export function StepCalendar({
       ...extras.map((f) => ({ id: f.id, type: "freeze" as const, name: f.name, start_date: f.start, end_date: f.end })),
       ...(decision.date ? [{ id: decision.id, type: "decision" as const, name: "Punto de decisión", start_date: decision.date, end_date: decision.date }] : []),
     ];
-    const kept = new Set(payload.map((e) => e.id).filter(Boolean));
+    const kept = new Set(payload.map((ev) => ev.id).filter(Boolean));
     const removedIds = originalIds.filter((id) => !kept.has(id));
     startTransition(async () => {
-      const r = await saveCalendarStep(programId, { events: payload, removedIds });
+      const r = await saveScheduleStep(programId, {
+        calendar: { events: payload, removedIds },
+        horizons: canEditHorizons ? { horizons: horizonRows } : null,
+      });
       if (!r.ok) {
         setError(r.error);
         return;
@@ -134,18 +181,32 @@ export function StepCalendar({
   const outside = (d: string) => d && (d < program.start_date || d > program.end_date);
 
   return (
-    <div className="space-y-5">
-      <div className="rounded-2xl border bg-paper shadow-card p-5">
+    <form onSubmit={submit} noValidate className="space-y-5">
+      {suggested && !readOnly ? (
+        <Callout tone="neutral">
+          <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span className="inline-flex items-center gap-1.5">
+              <Sparkles className="size-4" aria-hidden /> Le dejamos puesto el calendario típico de telco para sus fechas. Quite lo que no aplique y
+              siga.
+            </span>
+            <button type="button" className="text-sm underline underline-offset-4" onClick={clearAll}>
+              Prefiero empezar vacío
+            </button>
+          </span>
+        </Callout>
+      ) : null}
+
+      <div className="rounded-2xl border bg-paper p-5 shadow-card">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h2 className="flex items-center gap-2 text-lg font-bold">
             <CalendarClock className="size-4" aria-hidden /> Picos comerciales
             <InfoTip label="Pico comercial">{FIELD_HELP.peak}</InfoTip>
           </h2>
-          {!readOnly ? <UseExampleButton onClick={useExample} label="Usar picos típicos de telco" /> : null}
+          {!readOnly && !suggested ? <UseExampleButton onClick={applyTypical} label="Usar el calendario típico de telco" /> : null}
         </div>
 
         {peaks.length ? (
-          <ul className="mb-4 space-y-2">
+          <ul className="stagger mb-4 space-y-2">
             {peaks.map((p) => (
               <li key={p.key} className="rounded-lg border p-3">
                 <div className="flex flex-wrap items-center gap-2">
@@ -153,7 +214,7 @@ export function StepCalendar({
                   <span className="text-sm text-soft">{formatDateRange(p.start, p.end)}</span>
                   <span className="flex-1" />
                   {!readOnly ? (
-                    <Button size="icon-sm" variant="ghost" aria-label={`Quitar ${p.name}`} onClick={() => setPeaks((x) => x.filter((y) => y.key !== p.key))}>
+                    <Button type="button" size="icon-sm" variant="ghost" aria-label={`Quitar ${p.name}`} onClick={() => setPeaks((x) => x.filter((y) => y.key !== p.key))}>
                       <Trash2 aria-hidden />
                     </Button>
                   ) : null}
@@ -181,7 +242,7 @@ export function StepCalendar({
                         onChange={(e) => setPeaks((x) => x.map((y) => (y.key === p.key ? { ...y, freeze: { ...y.freeze!, end: e.target.value } } : y)))}
                       />
                       {!readOnly ? (
-                        <Button size="xs" variant="ghost" onClick={() => setPeaks((x) => x.map((y) => (y.key === p.key ? { ...y, freeze: null } : y)))}>
+                        <Button type="button" size="xs" variant="ghost" onClick={() => setPeaks((x) => x.map((y) => (y.key === p.key ? { ...y, freeze: null } : y)))}>
                           Sin congelamiento
                         </Button>
                       ) : null}
@@ -191,6 +252,7 @@ export function StepCalendar({
                       <span className="text-soft">Sin congelamiento.</span>
                       {!readOnly ? (
                         <Button
+                          type="button"
                           size="xs"
                           variant="outline"
                           onClick={() => {
@@ -208,7 +270,10 @@ export function StepCalendar({
             ))}
           </ul>
         ) : (
-          <p className="mb-4 text-sm text-soft">Todavía no hay picos. Agregue las fechas en que más vende: en esos días no se lanzan pruebas, ahí es a vender.</p>
+          <p className="mb-4 text-sm text-soft">
+            Todavía no hay picos. Agregue las fechas en que más vende: en esos días no se lanzan pruebas, ahí es a vender. Si no tiene picos en
+            este periodo, siga sin afán.
+          </p>
         )}
 
         {!readOnly ? (
@@ -218,19 +283,31 @@ export function StepCalendar({
                 <label htmlFor="pk-name" className="text-xs text-soft">
                   Nombre del pico
                 </label>
-                <Input id="pk-name" value={draft.name} placeholder="Black Friday–Cyber" onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
+                <Input
+                  id="pk-name"
+                  value={draft.name}
+                  placeholder="Día de la madre"
+                  onKeyDown={onEnter(addPeak)}
+                  onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+                />
               </div>
               <div className="space-y-1">
                 <label htmlFor="pk-start" className="text-xs text-soft">
                   Desde
                 </label>
-                <Input id="pk-start" type="date" value={draft.start} onChange={(e) => setDraft({ ...draft, start: e.target.value, end: draft.end || e.target.value })} />
+                <Input
+                  id="pk-start"
+                  type="date"
+                  value={draft.start}
+                  onKeyDown={onEnter(addPeak)}
+                  onChange={(e) => setDraft({ ...draft, start: e.target.value, end: draft.end || e.target.value })}
+                />
               </div>
               <div className="space-y-1">
                 <label htmlFor="pk-end" className="text-xs text-soft">
                   Hasta
                 </label>
-                <Input id="pk-end" type="date" value={draft.end} onChange={(e) => setDraft({ ...draft, end: e.target.value })} />
+                <Input id="pk-end" type="date" value={draft.end} onKeyDown={onEnter(addPeak)} onChange={(e) => setDraft({ ...draft, end: e.target.value })} />
               </div>
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
@@ -238,16 +315,34 @@ export function StepCalendar({
               <label htmlFor="pk-freeze">Congelar</label>
               {draft.withFreeze ? (
                 <>
-                  <Input aria-label="Días antes" type="number" min={0} max={30} className="h-7 w-16" value={draft.before} onChange={(e) => setDraft({ ...draft, before: Number(e.target.value) || 0 })} />
+                  <Input
+                    aria-label="Días antes"
+                    type="number"
+                    min={0}
+                    max={30}
+                    className="h-7 w-16"
+                    value={draft.before}
+                    onKeyDown={onEnter(addPeak)}
+                    onChange={(e) => setDraft({ ...draft, before: Number(e.target.value) || 0 })}
+                  />
                   <span>días antes y</span>
-                  <Input aria-label="Días después" type="number" min={0} max={30} className="h-7 w-16" value={draft.after} onChange={(e) => setDraft({ ...draft, after: Number(e.target.value) || 0 })} />
+                  <Input
+                    aria-label="Días después"
+                    type="number"
+                    min={0}
+                    max={30}
+                    className="h-7 w-16"
+                    value={draft.after}
+                    onKeyDown={onEnter(addPeak)}
+                    onChange={(e) => setDraft({ ...draft, after: Number(e.target.value) || 0 })}
+                  />
                   <span>días después</span>
                   <InfoTip label="Congelamiento">{FIELD_HELP.freeze}</InfoTip>
                   {draftFreeze ? <span className="text-soft">→ {formatDateRange(draftFreeze.start_date, draftFreeze.end_date)}</span> : null}
                 </>
               ) : null}
             </div>
-            <Button className="mt-3" size="sm" variant="outline" onClick={addPeak}>
+            <Button type="button" className="mt-3" size="sm" variant="outline" onClick={addPeak}>
               <Plus aria-hidden /> Agregar pico
             </Button>
           </div>
@@ -261,7 +356,7 @@ export function StepCalendar({
                 <li key={f.key} className="flex items-center gap-2">
                   <Snowflake className="size-4" aria-hidden /> {f.name} · {formatDateRange(f.start, f.end)}
                   {!readOnly ? (
-                    <Button size="icon-xs" variant="ghost" aria-label={`Quitar ${f.name}`} onClick={() => setExtras((x) => x.filter((y) => y.key !== f.key))}>
+                    <Button type="button" size="icon-xs" variant="ghost" aria-label={`Quitar ${f.name}`} onClick={() => setExtras((x) => x.filter((y) => y.key !== f.key))}>
                       <Trash2 aria-hidden />
                     </Button>
                   ) : null}
@@ -272,7 +367,7 @@ export function StepCalendar({
         ) : null}
       </div>
 
-      <div className="rounded-2xl border bg-paper shadow-card p-5">
+      <div className="rounded-2xl border bg-paper p-5 shadow-card">
         <h2 className="mb-3 flex items-center gap-2 text-lg font-bold">
           <Flag className="size-4" aria-hidden /> Punto de decisión
         </h2>
@@ -280,25 +375,44 @@ export function StepCalendar({
           <HelpLabel htmlFor="decision" help={FIELD_HELP.decision}>
             Fecha
           </HelpLabel>
-          <Input id="decision" type="date" value={decision.date} disabled={readOnly} onChange={(e) => setDecision({ ...decision, date: e.target.value })} />
+          <Input
+            id="decision"
+            type="date"
+            value={decision.date}
+            disabled={readOnly}
+            onChange={(e) => setDecision({ ...decision, date: e.target.value })}
+            aria-invalid={!!outside(decision.date)}
+            aria-describedby="decision-note"
+          />
         </div>
-        {decision.date ? (
-          <p className="mt-2 text-sm text-soft">
-            El {formatDate(decision.date)} se revisa qué funcionó. En el siguiente paso usamos esta fecha para proponerle los horizontes.
-          </p>
-        ) : (
-          <Callout tone="neutral" className="mt-3">
-            Se lo recomendamos: sin punto de decisión, el programa tendrá un solo horizonte y no habrá un momento formal para decidir qué escalar.
-          </Callout>
-        )}
-        {outside(decision.date) ? <p className="mt-2 text-sm">La fecha está fuera del periodo del programa.</p> : null}
-        {decision.date && peaks.some((p) => decision.date >= p.start && decision.date <= addDays(p.end, 0)) ? (
-          <p className="mt-2 text-sm">¡Ave María! El punto de decisión cae dentro de un pico. Mejor páselo a una fecha más tranquila.</p>
-        ) : null}
+        <div id="decision-note">
+          {decision.date ? (
+            <p className="mt-2 text-sm text-soft">El {formatDate(decision.date)} se revisa qué funcionó y se decide qué escalar.</p>
+          ) : (
+            <Callout tone="neutral" className="mt-3">
+              Se lo recomendamos: sin punto de decisión, el programa tendrá un solo horizonte y no habrá un momento formal para decidir qué escalar.
+            </Callout>
+          )}
+          {outside(decision.date) ? <p className="mt-2 text-sm font-medium">La fecha está fuera del periodo del programa.</p> : null}
+          {decision.date && peaks.some((p) => decision.date >= p.start && decision.date <= p.end) ? (
+            <p className="mt-2 text-sm font-medium">¡Ave María! El punto de decisión cae dentro de un pico. Mejor páselo a una fecha más tranquila.</p>
+          ) : null}
+        </div>
       </div>
 
+      <HorizonsSection
+        program={program}
+        decisionDate={decision.date || null}
+        rows={horizonRows}
+        auto={custom === null}
+        onChange={setCustom}
+        onReset={() => setCustom(null)}
+        problems={canEditHorizons ? problems : []}
+        readOnly={readOnly || !canEditHorizons}
+      />
+
       <FormError message={error} />
-      <StepFooter prevHref={prevHref} pending={pending} onNext={next} />
-    </div>
+      <StepFooter prevHref={prevHref} pending={pending} disabled={!readOnly && canEditHorizons && problems.length > 0} />
+    </form>
   );
 }

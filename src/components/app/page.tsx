@@ -58,7 +58,7 @@ export function EmptyState({
       )}
     >
       <div className="relative">
-        {art ? <BrandIcon name={art} className="w-24 opacity-90" /> : <Mule className="w-24 opacity-90" />}
+        {art ? <BrandIcon name={art} className="float-soft w-24 opacity-90" /> : <Mule className="float-soft w-24 opacity-90" />}
         {Icon ? (
           <div className="absolute -right-2 -bottom-1 flex size-8 items-center justify-center rounded-full bg-highlight text-[#111111] ring-4 ring-paper">
             <Icon aria-hidden className="size-4" />

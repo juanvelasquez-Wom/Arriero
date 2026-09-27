@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { JourneyKey, JourneyStage } from "@/domain/journey";
+import { CountUp } from "@/components/app/count-up";
 import { cn } from "@/lib/utils";
 import { BrandIcon, type BrandIconName } from "./icons";
 import { Mule } from "./logo";
@@ -25,7 +26,7 @@ export function JourneyStrip({ programId, stages, note }: { programId: string; s
         </h2>
         <p className="text-xs text-soft">Del dato al camino: dónde está la carga de este programa.</p>
       </div>
-      <ol className="-mx-1 flex snap-x gap-2 overflow-x-auto px-1 pt-7 pb-1">
+      <ol className="stagger -mx-1 flex snap-x gap-2 overflow-x-auto px-1 pt-7 pb-1">
         {stages.map((s, i) => (
           <li key={s.key} className="relative min-w-[128px] flex-1 snap-start">
             {i === furthest ? (
@@ -34,7 +35,7 @@ export function JourneyStrip({ programId, stages, note }: { programId: string; s
             <Link
               href={`/programas/${programId}${s.path}`}
               className={cn(
-                "lift flex h-full flex-col rounded-xl border px-3 py-3",
+                "lift group flex h-full flex-col rounded-xl border px-3 py-3",
                 s.attention ? "border-highlight bg-highlight/20" : "bg-wash/60",
                 s.count === 0 && "opacity-70",
               )}
@@ -52,8 +53,8 @@ export function JourneyStrip({ programId, stages, note }: { programId: string; s
                 {s.label}
               </span>
               <span className="mt-1 flex items-end justify-between gap-2">
-                <span className="font-heading text-3xl font-extrabold tabular-nums">{s.count}</span>
-                <BrandIcon name={ART[s.key]} className="w-9 opacity-80" />
+                <CountUp value={s.count} className="font-heading text-3xl font-extrabold tabular-nums" />
+                <BrandIcon name={ART[s.key]} className="wiggle-on-hover w-9 opacity-80" />
               </span>
               <span className="text-xs text-soft">{s.what}</span>
             </Link>

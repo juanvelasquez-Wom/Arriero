@@ -39,15 +39,15 @@ export function PageSkeleton({ rows = 6, phraseKey = "" }: { rows?: number; phra
         <BrandIcon name="mula-cargada" className="mule-walk w-11" />
         <span>{phrase}</span>
       </div>
-      <Skeleton className="mb-6 h-9 w-80 rounded-xl" />
+      <Skeleton className="shimmer mb-6 h-9 w-80 rounded-xl" />
       <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} className="h-24 rounded-2xl" />
+          <Skeleton key={i} className="shimmer h-24 rounded-2xl" />
         ))}
       </div>
       <div className="space-y-2">
         {Array.from({ length: rows }).map((_, i) => (
-          <Skeleton key={i} className="h-11 rounded-xl" />
+          <Skeleton key={i} className="shimmer h-11 rounded-xl" />
         ))}
       </div>
     </div>

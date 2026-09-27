@@ -1,8 +1,8 @@
-// Arranque rápido: arma en un solo paso todo lo que el asistente completo
-// pide en 7 + 3N pantallas (programa, calendario típico de telco, horizontes,
-// una línea con su métrica norte, eficiencia, árbol y embudo). Aquí solo se
-// planea; la server action persiste el plan tal cual. Todo queda editable
-// después en Configuración.
+// Arranque rápido: arma en una sola pantalla todo lo que el asistente paso a
+// paso pide en 4 + N pantallas (programa, calendario típico de telco,
+// horizontes, y una o más líneas con su métrica norte, eficiencia, árbol y
+// embudo). Aquí solo se planea; la server action persiste el plan tal cual.
+// Todo queda editable después en Configuración.
 import { addDays, daysBetween, parseIsoDate, rangesOverlap, toIsoDate } from "./dates";
 import {
   DEFAULT_STAGES,
@@ -26,12 +26,20 @@ export const CUSTOM_LINE_KEY = GENERIC_TEMPLATE.key;
 /** Margen mínimo (días) entre el punto de decisión y el inicio o el fin del programa. */
 export const DECISION_MARGIN_DAYS = 28;
 
-export interface QuickStartInput {
-  name: string;
+export interface QuickLineInput {
   /** Clave de TELCO_TEMPLATES o CUSTOM_LINE_KEY. */
   templateKey: string;
   /** Nombre de la línea cuando es "Otra línea" (se ignora con plantillas telco). */
   lineName?: string | null;
+}
+
+/** Máximo de líneas en el arranque rápido: las plantillas telco más una propia. */
+export const QUICK_MAX_LINES = TELCO_TEMPLATES.length + 1;
+
+export interface QuickStartInput {
+  name: string;
+  /** Una o más líneas, en el orden en que se crean. */
+  lines: QuickLineInput[];
   startDate: IsoDate;
   months: QuickDuration;
   useTelcoCalendar: boolean;
@@ -56,15 +64,20 @@ export interface PlannedStage {
   metricName: string | null;
 }
 
-export interface QuickStartPlan {
-  program: { name: string; start_date: IsoDate; end_date: IsoDate };
-  events: PlannedEvent[];
-  horizons: ProposedHorizon[];
-  line: { name: string; templateKey: string };
+export interface PlannedLine {
+  name: string;
+  templateKey: string;
   northStar: MetricSuggestion;
   efficiency: MetricSuggestion;
   tree: PlannedTreeMetric[];
   funnel: PlannedStage[];
+}
+
+export interface QuickStartPlan {
+  program: { name: string; start_date: IsoDate; end_date: IsoDate };
+  events: PlannedEvent[];
+  horizons: ProposedHorizon[];
+  lines: PlannedLine[];
 }
 
 // -----------------------------------------------------------------------------
@@ -193,32 +206,71 @@ export function quickFunnel(template: LineTemplate, tree: PlannedTreeMetric[]): 
 // Plan completo
 // -----------------------------------------------------------------------------
 
+const MONTHS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+/** "2026-10-01" → "oct 2026". */
+const monthYear = (d: IsoDate) => `${MONTHS[Number(d.slice(5, 7)) - 1]} ${d.slice(0, 4)}`;
+
+/**
+ * Nombre sugerido para el programa: "Plan digital Pospago oct 2026 – mar 2027".
+ * Con dos líneas las nombra; con más, "Plan digital WOM". Se usa si el nombre
+ * queda vacío.
+ */
+export function suggestProgramName(lineNames: string[], start: IsoDate | null, months: number): string {
+  const names = lineNames.map((n) => n.trim()).filter(Boolean);
+  // Con una línea, su nombre; con varias, un nombre general (evita "Pospago y Recargas y paquetes").
+  const who = names.length === 1 ? names[0] : "WOM";
+  const valid = !!start && /^\d{4}-\d{2}-\d{2}$/.test(start);
+  const period = valid ? ` ${monthYear(start)} – ${monthYear(quickProgramEnd(start, months))}` : "";
+  return `Plan digital ${who}${period}`;
+}
+
+/** Nombre visible de una línea elegida (la plantilla o el nombre propio). */
+export function quickLineName(line: QuickLineInput): string {
+  const template = quickTemplate(line.templateKey);
+  if (!template) return "";
+  return template === GENERIC_TEMPLATE ? (line.lineName ?? "").trim() : template.name;
+}
+
 export type QuickStartPlanResult = { ok: true; plan: QuickStartPlan } | { ok: false; error: string };
 
 export function planQuickStart(input: QuickStartInput): QuickStartPlanResult {
-  const template = quickTemplate(input.templateKey);
-  if (!template) return { ok: false, error: "Elija una de las líneas de la lista." };
-  const lineName = template === GENERIC_TEMPLATE ? (input.lineName ?? "").trim() : template.name;
-  if (lineName.length < 2) return { ok: false, error: "Escriba el nombre de su línea de negocio." };
+  if (!input.lines.length) return { ok: false, error: "Elija al menos una línea de negocio." };
+  if (input.lines.length > QUICK_MAX_LINES) return { ok: false, error: "Son demasiadas líneas para arrancar. Elija las que va a trabajar primero." };
   if (!QUICK_DURATIONS.includes(input.months)) return { ok: false, error: "Elija una duración de 3, 6 o 12 meses." };
+
+  const lines: PlannedLine[] = [];
+  const seen = new Set<string>();
+  for (const l of input.lines) {
+    const template = quickTemplate(l.templateKey);
+    if (!template) return { ok: false, error: "Elija una de las líneas de la lista." };
+    const name = quickLineName(l);
+    if (name.length < 2) return { ok: false, error: "Escriba el nombre de su línea de negocio." };
+    if (seen.has(norm(name))) return { ok: false, error: `La línea ${name} está repetida.` };
+    seen.add(norm(name));
+    const tree = quickTreeMetrics(template);
+    lines.push({
+      name,
+      templateKey: template.key,
+      northStar: template.northStar,
+      efficiency: template.efficiency,
+      tree,
+      funnel: quickFunnel(template, tree),
+    });
+  }
 
   const start = input.startDate;
   const end = quickProgramEnd(start, input.months);
   const events = input.useTelcoCalendar ? typicalTelcoCalendar(start, end) : [];
   const decision = events.find((e) => e.type === "decision")?.start_date ?? null;
-  const tree = quickTreeMetrics(template);
+  const name = input.name.trim() || suggestProgramName(lines.map((l) => l.name), start, input.months);
 
   return {
     ok: true,
     plan: {
-      program: { name: input.name.trim(), start_date: start, end_date: end },
+      program: { name, start_date: start, end_date: end },
       events,
       horizons: proposeHorizons(start, end, decision),
-      line: { name: lineName, templateKey: template.key },
-      northStar: template.northStar,
-      efficiency: template.efficiency,
-      tree,
-      funnel: quickFunnel(template, tree),
+      lines,
     },
   };
 }

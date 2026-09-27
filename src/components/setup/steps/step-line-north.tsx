@@ -1,10 +1,7 @@
 "use client";
 
-import { Gauge, Star } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
-import { FormError } from "@/components/app/form";
-import { Checkbox } from "@/components/ui/checkbox";
+import { ChevronDown, Gauge, Star } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
@@ -13,13 +10,11 @@ import { formatDateRange } from "@/domain/format";
 import type { MetricSuggestion } from "@/domain/growth-templates";
 import { parseDecimal, toInputValue } from "@/domain/metric-tree";
 import type { MetricDirection } from "@/domain/types";
-import { saveNorthStarStep } from "@/server/actions/setup";
 import type { MetricRow } from "@/server/queries/structure";
 import { FIELD_HELP } from "../help-content";
-import { HelpLabel, UseExampleButton } from "../help";
-import { StepFooter } from "../step-footer";
+import { HelpLabel } from "../help";
 
-interface Draft {
+export interface MetricDraft {
   id?: string;
   name: string;
   unit: string;
@@ -29,7 +24,15 @@ interface Draft {
   targets: Record<string, string>;
 }
 
-function toDraft(existing: MetricRow | undefined, suggestion: MetricSuggestion): Draft {
+export interface NorthState {
+  north: MetricDraft;
+  eff: MetricDraft;
+  withEff: boolean;
+}
+
+type HorizonRef = { id: string; name: string; start_date: string; end_date: string };
+
+export function toMetricDraft(existing: MetricRow | undefined, suggestion: MetricSuggestion): MetricDraft {
   if (existing) {
     return {
       id: existing.id,
@@ -44,6 +47,23 @@ function toDraft(existing: MetricRow | undefined, suggestion: MetricSuggestion):
   return { name: suggestion.name, unit: suggestion.unit, direction: suggestion.direction, definition: suggestion.definition, baseline: "", targets: {} };
 }
 
+export const badNumber = (v: string) => v.trim() !== "" && Number.isNaN(parseDecimal(v));
+
+/** Borrador → datos para guardar (línea base y metas vacías quedan en null). */
+export function metricPayload(d: MetricDraft, horizons: HorizonRef[]) {
+  const targets: Record<string, number | null> = {};
+  for (const h of horizons) {
+    const v = parseDecimal(d.targets[h.id] ?? "");
+    targets[h.id] = v != null && !Number.isNaN(v) ? v : null;
+  }
+  const base = parseDecimal(d.baseline);
+  return {
+    metric: { id: d.id, name: d.name, unit: d.unit, direction: d.direction, definition: d.definition, baseline: base != null && !Number.isNaN(base) ? base : null },
+    targets,
+    invalid: [d.baseline, ...Object.values(d.targets)].some(badNumber),
+  };
+}
+
 function MetricFields({
   prefix,
   title,
@@ -53,222 +73,174 @@ function MetricFields({
   onChange,
   horizons,
   readOnly,
-  errors,
+  nameError,
+  autoFocus,
 }: {
   prefix: string;
   title: string;
   icon: typeof Star;
   help: string;
-  draft: Draft;
-  onChange: (d: Draft) => void;
-  horizons: { id: string; name: string; start_date: string; end_date: string }[];
+  draft: MetricDraft;
+  onChange: (d: MetricDraft) => void;
+  horizons: HorizonRef[];
   readOnly?: boolean;
-  errors: Record<string, string>;
+  nameError?: string;
+  autoFocus?: boolean;
 }) {
-  const bad = (v: string) => v.trim() !== "" && Number.isNaN(parseDecimal(v));
   return (
     <fieldset disabled={readOnly} className="space-y-4">
-      <legend className="mb-2 flex items-center gap-2 font-heading text-lg font-bold">
+      <legend className="mb-2 flex items-center gap-2 font-heading text-base font-bold">
         <Icon className="size-4" aria-hidden /> {title}
       </legend>
-      <div className="grid gap-4 sm:grid-cols-[1fr_140px_150px]">
-        <div className="space-y-1.5">
-          <HelpLabel htmlFor={`${prefix}-name`} help={help} required>
-            Nombre
-          </HelpLabel>
-          <Input id={`${prefix}-name`} value={draft.name} onChange={(e) => onChange({ ...draft, name: e.target.value })} aria-invalid={!!errors[`${prefix}.name`]} />
-        </div>
-        <div className="space-y-1.5">
-          <HelpLabel htmlFor={`${prefix}-unit`} help={FIELD_HELP.unit}>
-            Unidad
-          </HelpLabel>
-          <Input id={`${prefix}-unit`} value={draft.unit} placeholder="altas, %, COP" onChange={(e) => onChange({ ...draft, unit: e.target.value })} />
-        </div>
-        <div className="space-y-1.5">
-          <HelpLabel htmlFor={`${prefix}-dir`} help={FIELD_HELP.direction}>
-            Lo bueno es que
-          </HelpLabel>
-          <Select value={draft.direction} onValueChange={(v) => onChange({ ...draft, direction: v as MetricDirection })}>
-            <SelectTrigger id={`${prefix}-dir`} className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="up">Suba</SelectItem>
-              <SelectItem value="down">Baje</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
       <div className="space-y-1.5">
-        <HelpLabel htmlFor={`${prefix}-def`} help="Cómo se calcula, para que todos la midan igual.">
-          Definición
+        <HelpLabel htmlFor={`${prefix}-name`} help={help} required>
+          Nombre
         </HelpLabel>
-        <Textarea id={`${prefix}-def`} rows={2} value={draft.definition} onChange={(e) => onChange({ ...draft, definition: e.target.value })} />
+        <Input
+          id={`${prefix}-name`}
+          value={draft.name}
+          autoFocus={autoFocus}
+          onChange={(e) => onChange({ ...draft, name: e.target.value })}
+          aria-invalid={!!nameError}
+          aria-describedby={nameError ? `${prefix}-name-error` : undefined}
+        />
+        {nameError ? (
+          <p id={`${prefix}-name-error`} className="text-sm font-medium">
+            {nameError}
+          </p>
+        ) : null}
       </div>
       <div className="grid gap-4 sm:grid-cols-[160px_1fr]">
         <div className="space-y-1.5">
           <HelpLabel htmlFor={`${prefix}-base`} help={FIELD_HELP.baseline}>
             Hoy (línea base)
           </HelpLabel>
-          <Input id={`${prefix}-base`} inputMode="decimal" value={draft.baseline} placeholder="420" onChange={(e) => onChange({ ...draft, baseline: e.target.value })} aria-invalid={bad(draft.baseline)} />
+          <Input
+            id={`${prefix}-base`}
+            inputMode="decimal"
+            value={draft.baseline}
+            placeholder="Opcional"
+            onChange={(e) => onChange({ ...draft, baseline: e.target.value })}
+            aria-invalid={badNumber(draft.baseline)}
+          />
+          {badNumber(draft.baseline) ? <p className="text-xs font-medium">Solo cifras, por ejemplo 420 o 185.000.</p> : null}
         </div>
         <div className="space-y-1.5">
           <HelpLabel help={FIELD_HELP.target}>Meta por horizonte</HelpLabel>
           <div className="flex flex-wrap gap-3">
             {horizons.map((h) => (
-              <div key={h.id} className="w-36 space-y-1">
+              <div key={h.id} className="w-32 space-y-1">
                 <label htmlFor={`${prefix}-t-${h.id}`} className="text-xs text-soft" title={formatDateRange(h.start_date, h.end_date)}>
                   {h.name}
                 </label>
                 <Input
                   id={`${prefix}-t-${h.id}`}
                   inputMode="decimal"
+                  placeholder="Opcional"
                   value={draft.targets[h.id] ?? ""}
                   onChange={(e) => onChange({ ...draft, targets: { ...draft.targets, [h.id]: e.target.value } })}
-                  aria-invalid={bad(draft.targets[h.id] ?? "")}
+                  aria-invalid={badNumber(draft.targets[h.id] ?? "")}
                 />
               </div>
             ))}
-            {!horizons.length ? <p className="text-sm text-soft">Defina los horizontes para poder fijar metas.</p> : null}
+            {!horizons.length ? <p className="text-sm text-soft">Defina los horizontes en el paso de calendario para poder fijar metas.</p> : null}
           </div>
         </div>
       </div>
+      <Collapsible>
+        <CollapsibleTrigger className="group inline-flex items-center gap-1 text-xs text-soft underline underline-offset-4 hover:text-ink">
+          Unidad, dirección y definición <ChevronDown className="size-3.5 transition-transform group-data-[state=open]:rotate-180" aria-hidden />
+        </CollapsibleTrigger>
+        <CollapsibleContent className="slide-in mt-3 space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <HelpLabel htmlFor={`${prefix}-unit`} help={FIELD_HELP.unit}>
+                Unidad
+              </HelpLabel>
+              <Input id={`${prefix}-unit`} value={draft.unit} placeholder="altas, %, COP" onChange={(e) => onChange({ ...draft, unit: e.target.value })} />
+            </div>
+            <div className="space-y-1.5">
+              <HelpLabel htmlFor={`${prefix}-dir`} help={FIELD_HELP.direction}>
+                Lo bueno es que
+              </HelpLabel>
+              <Select value={draft.direction} onValueChange={(v) => onChange({ ...draft, direction: v as MetricDirection })}>
+                <SelectTrigger id={`${prefix}-dir`} className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="up">Suba</SelectItem>
+                  <SelectItem value="down">Baje</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <HelpLabel htmlFor={`${prefix}-def`} help="Cómo se calcula, para que todos la midan igual.">
+              Definición
+            </HelpLabel>
+            <Textarea id={`${prefix}-def`} rows={2} value={draft.definition} onChange={(e) => onChange({ ...draft, definition: e.target.value })} />
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
     </fieldset>
   );
 }
 
-export function StepLineNorth({
-  programId,
-  line,
-  lineIndex,
-  lineCount,
-  northSuggestion,
-  efficiencySuggestion,
-  existingNorth,
-  existingEfficiency,
+/** Sección "Métrica norte y eficiencia" de la pantalla de una línea (controlada). */
+export function NorthEditor({
+  value,
+  onChange,
   horizons,
-  prevHref,
-  nextHref,
   readOnly,
+  nameError,
+  autoFocus,
 }: {
-  programId: string;
-  line: { id: string; name: string };
-  lineIndex: number;
-  lineCount: number;
-  northSuggestion: MetricSuggestion;
-  efficiencySuggestion: MetricSuggestion;
-  existingNorth?: MetricRow;
-  existingEfficiency?: MetricRow;
-  horizons: { id: string; name: string; start_date: string; end_date: string }[];
-  prevHref: string;
-  nextHref: string;
+  value: NorthState;
+  onChange: (v: NorthState) => void;
+  horizons: HorizonRef[];
   readOnly?: boolean;
+  nameError?: string;
+  autoFocus?: boolean;
 }) {
-  const router = useRouter();
-  const [north, setNorth] = useState<Draft>(toDraft(existingNorth, northSuggestion));
-  const [eff, setEff] = useState<Draft>(toDraft(existingEfficiency, efficiencySuggestion));
-  const [withEff, setWithEff] = useState(existingEfficiency ? true : !existingNorth);
-  const [later, setLater] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [error, setError] = useState<string>();
-  const [pending, startTransition] = useTransition();
-
-  function toPayload(d: Draft) {
-    const targets: Record<string, number | null> = {};
-    for (const h of horizons) {
-      const v = parseDecimal(d.targets[h.id] ?? "");
-      targets[h.id] = v != null && !Number.isNaN(v) ? v : null;
-    }
-    const base = parseDecimal(d.baseline);
-    return {
-      metric: { id: d.id, name: d.name, unit: d.unit, direction: d.direction, definition: d.definition, baseline: base != null && !Number.isNaN(base) ? base : null },
-      targets,
-      invalid: [d.baseline, ...Object.values(d.targets)].some((v) => v.trim() !== "" && Number.isNaN(parseDecimal(v))),
-      missing: !d.baseline.trim() || horizons.some((h) => !(d.targets[h.id] ?? "").trim()),
-    };
-  }
-
-  function next() {
-    if (readOnly) {
-      router.push(nextHref);
-      return;
-    }
-    setError(undefined);
-    setErrors({});
-    const n = toPayload(north);
-    const e = toPayload(eff);
-    if (north.name.trim().length < 2) {
-      setErrors({ "n.name": "x" });
-      setError("Escriba el nombre de la métrica norte.");
-      return;
-    }
-    if (n.invalid || (withEff && e.invalid)) {
-      setError("Revise los números: escriba solo cifras, por ejemplo 420 o 185.000.");
-      return;
-    }
-    if (!later && (n.missing || (withEff && e.missing))) {
-      setError("Falta la línea base o alguna meta. Complétela o marque \"Lo completo después\".");
-      return;
-    }
-    startTransition(async () => {
-      const r = await saveNorthStarStep(programId, line.id, {
-        northStar: n.metric,
-        efficiency: withEff ? e.metric : null,
-        northTargets: n.targets,
-        efficiencyTargets: withEff ? e.targets : {},
-      });
-      if (!r.ok) {
-        setError(r.error);
-        return;
-      }
-      router.push(nextHref);
-    });
-  }
-
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border bg-wash px-4 py-2 text-sm">
-        <span>
-          Línea {lineIndex + 1} de {lineCount}: <strong>{line.name}</strong>
-        </span>
-        {!readOnly ? (
-          <UseExampleButton
-            label="Usar la sugerencia"
-            onClick={() => {
-              setNorth({ ...toDraft(undefined, northSuggestion), id: north.id, baseline: north.baseline, targets: north.targets });
-              setEff({ ...toDraft(undefined, efficiencySuggestion), id: eff.id, baseline: eff.baseline, targets: eff.targets });
-              setWithEff(true);
-            }}
-          />
-        ) : null}
+      <div className="rounded-xl border border-l-4 border-l-highlight p-4">
+        <MetricFields
+          prefix="n"
+          title="Métrica norte"
+          icon={Star}
+          help={FIELD_HELP.northStar}
+          draft={value.north}
+          onChange={(north) => onChange({ ...value, north })}
+          horizons={horizons}
+          readOnly={readOnly}
+          nameError={nameError}
+          autoFocus={autoFocus}
+        />
       </div>
-
-      <div className="rounded-2xl border border-l-4 border-l-highlight bg-paper shadow-card p-5">
-        <MetricFields prefix="n" title="Métrica norte" icon={Star} help={FIELD_HELP.northStar} draft={north} onChange={setNorth} horizons={horizons} readOnly={readOnly} errors={errors} />
-      </div>
-
-      <div className="rounded-2xl border bg-paper shadow-card p-5">
+      <div className="rounded-xl border p-4">
         <div className="mb-4 flex items-center gap-3">
-          <Switch id="with-eff" checked={withEff} disabled={readOnly} onCheckedChange={setWithEff} />
+          <Switch id="with-eff" checked={value.withEff} disabled={readOnly} onCheckedChange={(withEff) => onChange({ ...value, withEff })} />
           <label htmlFor="with-eff" className="text-sm">
             Medir también la eficiencia (recomendado)
           </label>
         </div>
-        {withEff ? (
-          <MetricFields prefix="e" title="Métrica de eficiencia" icon={Gauge} help={FIELD_HELP.efficiency} draft={eff} onChange={setEff} horizons={horizons} readOnly={readOnly} errors={errors} />
+        {value.withEff ? (
+          <MetricFields
+            prefix="e"
+            title="Métrica de eficiencia"
+            icon={Gauge}
+            help={FIELD_HELP.efficiency}
+            draft={value.eff}
+            onChange={(eff) => onChange({ ...value, eff })}
+            horizons={horizons}
+            readOnly={readOnly}
+          />
         ) : (
           <p className="text-sm text-soft">Sin eficiencia, el programa podría crecer la métrica norte a cualquier costo.</p>
         )}
       </div>
-
-      {!readOnly ? (
-        <label className="flex items-center gap-2 text-sm">
-          <Checkbox checked={later} onCheckedChange={(c) => setLater(!!c)} />
-          Todavía no tengo la línea base o las metas: lo completo después (queda en los pendientes).
-        </label>
-      ) : null}
-      <FormError message={error} />
-      <StepFooter prevHref={prevHref} pending={pending} onNext={next} />
+      <p className="text-xs text-soft">¿No tiene la línea base o las metas? Déjelas vacías: quedan en los pendientes del resumen.</p>
     </div>
   );
 }

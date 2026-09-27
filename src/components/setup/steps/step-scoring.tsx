@@ -144,7 +144,7 @@ export function StepScoring({
       </Collapsible>
 
       <FormError message={error} />
-      <StepFooter prevHref={prevHref} pending={pending} onNext={next} />
+      <StepFooter prevHref={prevHref} prevLabel="Volver al resumen" pending={pending} onNext={next} nextLabel="Guarde y vuelva al resumen" />
     </div>
   );
 }

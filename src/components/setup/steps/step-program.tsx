@@ -16,10 +16,13 @@ export function StepProgram({
   programId,
   defaults,
   readOnly,
+  prevHref,
 }: {
   programId: string | null;
   defaults: { name: string; description: string; start_date: string; end_date: string };
   readOnly?: boolean;
+  /** Solo al crear: volver al arranque rápido. */
+  prevHref?: string;
 }) {
   const router = useRouter();
   const [v, setV] = useState(defaults);
@@ -28,7 +31,8 @@ export function StepProgram({
   const [pending, startTransition] = useTransition();
   const days = v.start_date && v.end_date && v.end_date > v.start_date ? daysBetween(v.start_date, v.end_date) : null;
 
-  function next() {
+  function next(e: React.FormEvent) {
+    e.preventDefault();
     setError(undefined);
     setErrors({});
     if (readOnly && programId) {
@@ -47,7 +51,7 @@ export function StepProgram({
   }
 
   return (
-    <div className="rounded-2xl border bg-paper shadow-card p-5">
+    <form onSubmit={next} noValidate className="rounded-2xl border bg-paper shadow-card p-5">
       <div className="mb-4 flex justify-end">
         {!readOnly ? (
           <UseExampleButton
@@ -68,8 +72,8 @@ export function StepProgram({
           <HelpLabel htmlFor="p-name" help={FIELD_HELP.programName} required>
             Nombre del programa
           </HelpLabel>
-          <Input id="p-name" value={v.name} onChange={(e) => setV({ ...v, name: e.target.value })} placeholder="Plan de acción digital oct 2026 – abr 2027" aria-invalid={!!errors.name} />
-          {errors.name ? <p className="text-sm">{errors.name}</p> : null}
+          <Input id="p-name" autoFocus={!readOnly} value={v.name} onChange={(e) => setV({ ...v, name: e.target.value })} placeholder="Plan de acción digital oct 2026 – abr 2027" aria-invalid={!!errors.name} aria-describedby={errors.name ? "p-name-error" : undefined} />
+          {errors.name ? <p id="p-name-error" className="text-sm font-medium">{errors.name}</p> : null}
         </div>
         <div className="space-y-1.5">
           <HelpLabel htmlFor="p-desc" help="Para qué existe este programa, en una o dos frases. Sirve para que el equipo y la dirección entiendan el objetivo.">
@@ -95,7 +99,7 @@ export function StepProgram({
               <Input id="p-end" type="date" value={v.end_date} onChange={(e) => setV({ ...v, end_date: e.target.value })} aria-invalid={!!errors.end_date} />
             </div>
           </div>
-          {errors.end_date || errors.start_date ? <p className="mt-1 text-sm">{errors.end_date ?? errors.start_date}</p> : null}
+          {errors.end_date || errors.start_date ? <p className="mt-1 text-sm font-medium">{errors.end_date ?? errors.start_date}</p> : null}
           {days ? (
             <p className="mt-2 text-xs text-soft">
               {Math.round(days / 7)} semanas. Con 6 a 9 meses hay tiempo para probar antes de los picos y escalar después.
@@ -103,7 +107,7 @@ export function StepProgram({
           ) : null}
         </div>
       </fieldset>
-      <StepFooter prevHref={null} pending={pending} onNext={next} nextLabel={programId ? "Guarde y siga" : "Cree el programa y siga"} />
-    </div>
+      <StepFooter prevHref={prevHref ?? null} prevLabel="Volver al arranque rápido" pending={pending} nextLabel={programId ? "Guarde y siga" : "Cree el programa y siga"} />
+    </form>
   );
 }

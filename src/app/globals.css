@@ -278,12 +278,111 @@
   }
 }
 
+/* ---------------------------------------------------------------------------
+   Microanimaciones de la marca. Cortas (150–400 ms), con propósito y siempre
+   apagadas con "reducir movimiento" (ver el bloque de abajo).
+   ------------------------------------------------------------------------- */
+/* Entra desde la derecha: cambio de paso en asistentes. */
+.slide-in {
+  animation: slide-in 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+/* Aparece con un pequeño rebote: chips seleccionados, checks, badges nuevos. */
+.pop-in {
+  animation: pop-in 260ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+/* Entrada escalonada de listas: usar con style={{ animationDelay }} o .stagger > *. */
+.stagger > * {
+  animation: rise 380ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.stagger > *:nth-child(2) { animation-delay: 40ms; }
+.stagger > *:nth-child(3) { animation-delay: 80ms; }
+.stagger > *:nth-child(4) { animation-delay: 120ms; }
+.stagger > *:nth-child(5) { animation-delay: 160ms; }
+.stagger > *:nth-child(6) { animation-delay: 200ms; }
+.stagger > *:nth-child(n + 7) { animation-delay: 240ms; }
+/* Íconos que se mueven un poquito al pasar el mouse por su contenedor (.group). */
+.group:hover .wiggle-on-hover {
+  animation: wiggle 420ms ease-in-out;
+}
+@keyframes wiggle {
+  0%, 100% { transform: rotate(0); }
+  25% { transform: rotate(-8deg); }
+  75% { transform: rotate(8deg); }
+}
+/* Ilustraciones que flotan suave (estados vacíos). */
+.float-soft {
+  animation: float-soft 4s ease-in-out infinite;
+}
+@keyframes float-soft {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+/* La campana suena cuando llega un aviso. */
+.bell-ring {
+  animation: bell-ring 700ms ease-in-out;
+  transform-origin: 50% 10%;
+}
+@keyframes bell-ring {
+  0%, 100% { transform: rotate(0); }
+  20% { transform: rotate(14deg); }
+  40% { transform: rotate(-12deg); }
+  60% { transform: rotate(8deg); }
+  80% { transform: rotate(-4deg); }
+}
+/* Barras de progreso que se llenan al cargar. */
+.fill-in {
+  animation: fill-in 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  transform-origin: left center;
+}
+@keyframes fill-in {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+/* Brillo que recorre el esqueleto de carga. */
+.shimmer {
+  background-image: linear-gradient(90deg, transparent 0%, color-mix(in oklab, var(--paper) 55%, transparent) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+@keyframes shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .lift,
   .lift:hover,
   .rise,
   .mule-trek,
-  .mule-walk {
+  .mule-walk,
+  .slide-in,
+  .pop-in,
+  .stagger > *,
+  .group:hover .wiggle-on-hover,
+  .float-soft,
+  .bell-ring,
+  .fill-in,
+  .shimmer {
     animation: none !important;
     transition: none !important;
     transform: none !important;

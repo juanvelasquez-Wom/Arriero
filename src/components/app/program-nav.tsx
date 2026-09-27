@@ -23,6 +23,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Credits } from "@/components/brand/credits";
 import { SLOGAN } from "@/components/brand/phrases";
 import { cn } from "@/lib/utils";
 
@@ -100,12 +101,12 @@ function NavList(props: ProgramNavProps & { onNavigate?: () => void }) {
                     onClick={props.onNavigate}
                     aria-current={active ? "page" : undefined}
                     className={cn(
-                      "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-ink/80 transition-colors hover:bg-wash hover:text-ink",
+                      "group flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-ink/80 transition-colors hover:bg-wash hover:text-ink",
                       active && "bg-highlight font-semibold text-[#111111] hover:bg-highlight hover:text-[#111111]",
                     )}
                   >
-                    <Icon aria-hidden className="size-4 shrink-0" />
-                    <span className="truncate">{item.label}</span>
+                    <Icon aria-hidden className="wiggle-on-hover size-4 shrink-0" />
+                    <span className="truncate transition-transform group-hover:translate-x-0.5">{item.label}</span>
                   </Link>
                 </li>
               );
@@ -122,7 +123,10 @@ export function ProgramSidebar(props: ProgramNavProps) {
     <aside className="hidden w-64 shrink-0 border-r bg-paper px-3 py-5 lg:block">
       <div className="sticky top-20 flex max-h-[calc(100vh-6rem)] flex-col gap-6 overflow-y-auto">
         <NavList {...props} />
-        <p className="mt-auto px-2.5 font-heading text-xs font-semibold text-soft">{SLOGAN}</p>
+        <div className="mt-auto space-y-2 px-2.5">
+          <p className="font-heading text-xs font-semibold text-soft">{SLOGAN}</p>
+          <Credits />
+        </div>
       </div>
     </aside>
   );

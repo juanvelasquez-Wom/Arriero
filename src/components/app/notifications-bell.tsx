@@ -126,11 +126,12 @@ export function NotificationsBell({ userId }: { userId: string }) {
           className="relative"
           aria-label={unread ? `Avisos: ${unread} sin leer` : "Avisos"}
         >
-          <Bell className="size-4" aria-hidden />
+          <Bell key={unread} className={unread ? "bell-ring size-4" : "size-4"} aria-hidden />
           {badge ? (
             <span
               aria-hidden
-              className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-highlight px-1 text-[10px] leading-none font-bold text-[#1F1F1F] tabular-nums ring-2 ring-paper"
+              key={badge}
+              className="pop-in absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-highlight px-1 text-[10px] leading-none font-bold text-[#1F1F1F] tabular-nums ring-2 ring-paper"
             >
               {badge}
             </span>

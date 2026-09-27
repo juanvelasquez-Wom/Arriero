@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { CUSTOM_LINE_KEY } from "@/domain/quick-start";
+import { CUSTOM_LINE_KEY, QUICK_MAX_LINES } from "@/domain/quick-start";
 import { CALENDAR_EVENT_TYPES, METRIC_BRANCHES, METRIC_DIRECTIONS } from "@/domain/types";
 
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Elija una fecha.");
@@ -23,7 +23,7 @@ export const calendarStepSchema = z.object({
         .object({
           id: uuid.optional(),
           type: z.enum(CALENDAR_EVENT_TYPES),
-          name: z.string().trim().min(2, "Ponle nombre al evento.").max(120),
+          name: z.string().trim().min(2, "Póngale nombre al evento.").max(120),
           start_date: date,
           end_date: date,
         })
@@ -75,27 +75,56 @@ export const funnelStepSchema = z.object({
     .array(
       z.object({
         id: uuid,
-        name: z.string().trim().min(2, "Ponle nombre a la etapa.").max(80),
+        name: z.string().trim().min(2, "Póngale nombre a la etapa.").max(80),
         description: z.string().trim().max(600).optional().nullable(),
-        metric_id: uuid.nullable().optional(),
+        /** Nombre de la métrica del árbol que la mide: se resuelve a id al guardar, porque puede ser nueva. */
+        metricName: z.string().trim().max(160).nullable().optional(),
       }),
     )
     .max(12),
 });
 export type FunnelStepInput = z.input<typeof funnelStepSchema>;
 
-/** Arranque rápido: un solo formulario que arma programa, calendario, horizontes y una línea. */
-export const quickStartSchema = z
-  .object({
-    name: z.string().trim().min(3, "Escriba un nombre de al menos 3 caracteres.").max(120),
-    templateKey: z.string().trim().min(1, "Elija una línea de negocio."),
-    lineName: z.string().trim().max(80).optional().nullable(),
-    startDate: date,
-    months: z.union([z.literal(3), z.literal(6), z.literal(12)], { message: "Elija una duración de 3, 6 o 12 meses." }),
-    useTelcoCalendar: z.boolean(),
-  })
-  .refine((v) => v.templateKey !== CUSTOM_LINE_KEY || (v.lineName ?? "").trim().length >= 2, {
-    path: ["lineName"],
-    message: "Escriba el nombre de su línea de negocio.",
-  });
+/** Calendario y horizontes: se guardan juntos en un solo paso. */
+export const scheduleStepSchema = z.object({
+  calendar: calendarStepSchema,
+  /** null: quien guarda no define horizontes (solo owner/admin), se dejan como están. */
+  horizons: horizonsStepSchema.nullable(),
+});
+export type ScheduleStepInput = z.input<typeof scheduleStepSchema>;
+
+/** "Configurar {línea}": métrica norte y eficiencia, árbol y embudo en una sola pantalla. */
+export const lineStepSchema = z.object({
+  north: northStarStepSchema,
+  tree: treeStepSchema.refine((t) => t.metrics.length > 0, {
+    path: ["metrics"],
+    message: "Elija al menos una métrica de entrada: son las que los ejercicios pueden mover.",
+  }),
+  funnel: funnelStepSchema,
+});
+export type LineStepInput = z.input<typeof lineStepSchema>;
+
+/** Arranque rápido: un solo formulario que arma programa, calendario, horizontes y una o más líneas. */
+export const quickStartSchema = z.object({
+  /** Vacío: se usa el nombre sugerido. */
+  name: z
+    .string()
+    .trim()
+    .max(120)
+    .refine((v) => v.length === 0 || v.length >= 3, "Escriba un nombre de al menos 3 caracteres (o déjelo vacío y usamos la sugerencia)."),
+  lines: z
+    .array(
+      z
+        .object({ templateKey: z.string().trim().min(1), lineName: z.string().trim().max(80).optional().nullable() })
+        .refine((l) => l.templateKey !== CUSTOM_LINE_KEY || (l.lineName ?? "").trim().length >= 2, {
+          path: ["lineName"],
+          message: "Escriba el nombre de su línea de negocio.",
+        }),
+    )
+    .min(1, "Elija al menos una línea de negocio.")
+    .max(QUICK_MAX_LINES),
+  startDate: date,
+  months: z.union([z.literal(3), z.literal(6), z.literal(12)], { message: "Elija una duración de 3, 6 o 12 meses." }),
+  useTelcoCalendar: z.boolean(),
+});
 export type QuickStartFormInput = z.input<typeof quickStartSchema>;

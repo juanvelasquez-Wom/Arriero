@@ -20,7 +20,7 @@ export const LOGIN_JOKES = [
   "Del dato al camino, y del camino al BAU.",
 ] as const;
 
-export function LoginJokes({ className, tone = "dark" }: { className?: string; tone?: "dark" | "light" }) {
+export function LoginJokes({ className, tone = "dark", compact = false }: { className?: string; tone?: "dark" | "light"; compact?: boolean }) {
   const [i, setI] = useState(0);
 
   useEffect(() => {
@@ -40,17 +40,24 @@ export function LoginJokes({ className, tone = "dark" }: { className?: string; t
       type="button"
       onClick={() => setI((n) => (n + 1) % LOGIN_JOKES.length)}
       className={cn(
-        "group block w-full rounded-2xl p-4 text-left transition",
+        "group block w-full rounded-2xl text-left transition active:scale-[0.99]",
+        compact ? "px-3.5 py-3" : "px-4 py-[1.6vh]",
         tone === "dark" ? "bg-highlight text-[#111111] hover:brightness-105" : "border border-highlight bg-highlight/15 text-ink hover:bg-highlight/25",
         className,
       )}
       aria-label="Otro chiste de la mula"
     >
       <span className="block text-[11px] font-bold tracking-[0.14em] uppercase opacity-70">La mula dice</span>
-      <span key={i} aria-live="polite" className="rise mt-1 block font-heading text-lg leading-snug font-extrabold">
+      <span
+        key={i}
+        aria-live="polite"
+        className={cn("pop-in mt-1 block font-heading leading-snug font-extrabold", compact ? "text-base" : "text-[clamp(0.95rem,2.3vh,1.2rem)]")}
+      >
         «{LOGIN_JOKES[i]}»
       </span>
-      <span className="mt-2 block text-xs font-semibold opacity-60 group-hover:opacity-90">Toque para otro →</span>
+      <span className="mt-1.5 block text-xs font-semibold opacity-60 group-hover:opacity-90">
+        Toque para otro <span className="inline-block transition-transform group-hover:translate-x-1">→</span>
+      </span>
     </button>
   );
 }

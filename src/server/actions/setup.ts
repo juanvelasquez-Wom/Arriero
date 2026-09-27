@@ -6,30 +6,30 @@ import { fail, failFrom, fromZod, ok, toUserMessage, type ActionResult } from "@
 import { createClient } from "@/lib/supabase/server";
 import {
   calendarStepSchema,
-  funnelStepSchema,
   horizonsStepSchema,
+  lineStepSchema,
   linesStepSchema,
   northStarStepSchema,
   programStepSchema,
   quickStartSchema,
-  treeStepSchema,
-  type CalendarStepInput,
-  type FunnelStepInput,
-  type HorizonsStepInput,
-  type NorthStarStepInput,
+  scheduleStepSchema,
+  type LineStepInput,
   type ProgramStepInput,
   type QuickStartFormInput,
-  type TreeStepInput,
+  type ScheduleStepInput,
 } from "@/lib/validation/setup";
 import { horizonProblems } from "@/domain/growth-templates";
 import { can } from "@/domain/permissions";
-import { planQuickStart } from "@/domain/quick-start";
+import { planQuickStart, type PlannedLine } from "@/domain/quick-start";
 import { getActionActor, getSessionUser } from "@/server/auth";
 
 // Acciones del asistente de configuración. Cada paso guarda en lote con la
-// sesión del usuario (RLS decide) y avanza programs.setup_step.
+// sesión del usuario (RLS decide) y avanza programs.setup_step
+// (ver src/domain/setup-flow.ts: 1 programa · 3 calendario y horizontes ·
+// 4 líneas · 5 cierre).
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
+type DbError = { message?: string; code?: string } | null;
 const uuid = z.string().uuid();
 
 function revalidate(programId: string) {
@@ -77,62 +77,75 @@ export async function saveProgramStep(programId: string | null, input: ProgramSt
   return ok({ id: programId });
 }
 
-// 2 · Calendario ----------------------------------------------------------------
-export async function saveCalendarStep(programId: string, input: CalendarStepInput): Promise<ActionResult> {
-  const ctx = await getActionActor(programId);
-  if (!ctx || !can.editCalendar(ctx.actor)) return fail("No tiene permiso para editar el calendario.");
-  const parsed = calendarStepSchema.safeParse(input);
-  if (!parsed.success) return fromZod(parsed.error);
-  if (parsed.data.events.filter((e) => e.type === "decision").length > 1) return fail("Defina un solo punto de decisión.");
-  const supabase = await createClient();
-  for (const id of parsed.data.removedIds) {
+// 2 · Calendario y horizontes (un solo paso) ------------------------------------
+async function writeCalendar(supabase: Supabase, programId: string, input: z.output<typeof calendarStepSchema>): Promise<ActionResult> {
+  if (input.events.filter((e) => e.type === "decision").length > 1) return fail("Defina un solo punto de decisión.");
+  for (const id of input.removedIds) {
     const { error } = await supabase.rpc("delete_calendar_event", { p_id: id });
     if (error) return failFrom(error);
   }
-  for (const e of parsed.data.events) {
+  for (const e of input.events) {
     const row = { type: e.type, name: e.name, start_date: e.start_date, end_date: e.type === "decision" ? e.start_date : e.end_date };
     const { error } = e.id
       ? await supabase.from("calendar_events").update(row).eq("id", e.id)
       : await supabase.from("calendar_events").insert({ ...row, program_id: programId });
     if (error) return failFrom(error);
   }
-  if (can.editProgramSettings(ctx.actor)) await markStep(supabase, programId, 2);
-  revalidate(programId);
   return ok(undefined);
 }
 
-// 3 · Horizontes ----------------------------------------------------------------
-export async function saveHorizonsStep(programId: string, input: HorizonsStepInput): Promise<ActionResult> {
-  const ctx = await getActionActor(programId);
-  if (!ctx || !can.editProgramSettings(ctx.actor)) return fail("Solo el owner o un admin define los horizontes.");
-  const parsed = horizonsStepSchema.safeParse(input);
-  if (!parsed.success) return fromZod(parsed.error);
-  const supabase = await createClient();
-  const { data: program } = await supabase.from("programs").select("start_date, end_date").eq("id", programId).single();
-  if (!program?.start_date || !program?.end_date) return fail("Primero defina las fechas del programa.");
-  const problems = horizonProblems({ start: program.start_date, end: program.end_date }, parsed.data.horizons);
-  if (problems.length) return fail(problems.join(" "));
-
+async function writeHorizons(supabase: Supabase, programId: string, input: z.output<typeof horizonsStepSchema>): Promise<ActionResult> {
   const { data: existing } = await supabase.from("program_horizons").select("id").eq("program_id", programId);
-  const keep = new Set(parsed.data.horizons.filter((h) => h.id).map((h) => h.id));
+  const keep = new Set(input.horizons.filter((h) => h.id).map((h) => h.id));
   const remove = (existing ?? []).filter((h) => !keep.has(h.id)).map((h) => h.id);
   if (remove.length) {
     const { error } = await supabase.from("program_horizons").delete().in("id", remove);
     if (error) return failFrom(error);
   }
-  for (const [i, h] of parsed.data.horizons.entries()) {
+  for (const [i, h] of input.horizons.entries()) {
     const row = { name: h.name, start_date: h.start_date, end_date: h.end_date, sort_order: i };
     const { error } = h.id
       ? await supabase.from("program_horizons").update(row).eq("id", h.id)
       : await supabase.from("program_horizons").insert({ ...row, program_id: programId });
     if (error) return failFrom(error);
   }
-  await markStep(supabase, programId, 3);
+  return ok(undefined);
+}
+
+/**
+ * Guarda el calendario y, si quien guarda es owner/admin, los horizontes (que la
+ * pantalla propone desde el punto de decisión). Con ambos guardados marca
+ * setup_step 3. Un colaborador solo guarda el calendario.
+ */
+export async function saveScheduleStep(programId: string, input: ScheduleStepInput): Promise<ActionResult> {
+  if (!uuid.safeParse(programId).success) return fail("El programa no existe.");
+  const ctx = await getActionActor(programId);
+  if (!ctx || !can.editCalendar(ctx.actor)) return fail("No tiene permiso para editar el calendario.");
+  const parsed = scheduleStepSchema.safeParse(input);
+  if (!parsed.success) return fromZod(parsed.error);
+  const manage = can.editProgramSettings(ctx.actor);
+  const horizons = manage ? parsed.data.horizons : null;
+  const supabase = await createClient();
+
+  // Primero se validan los horizontes, para no dejar el calendario guardado a medias.
+  if (horizons) {
+    const { data: program } = await supabase.from("programs").select("start_date, end_date").eq("id", programId).single();
+    if (!program?.start_date || !program?.end_date) return fail("Primero defina las fechas del programa.");
+    const problems = horizonProblems({ start: program.start_date, end: program.end_date }, horizons.horizons);
+    if (problems.length) return fail(problems.join(" "));
+  }
+  const cal = await writeCalendar(supabase, programId, parsed.data.calendar);
+  if (!cal.ok) return cal;
+  if (horizons) {
+    const hz = await writeHorizons(supabase, programId, horizons);
+    if (!hz.ok) return hz;
+    await markStep(supabase, programId, 3);
+  }
   revalidate(programId);
   return ok(undefined);
 }
 
-// 4 · Líneas ----------------------------------------------------------------------
+// 3 · Líneas ----------------------------------------------------------------------
 export async function saveLinesStep(programId: string, input: { create: string[] }): Promise<ActionResult> {
   const ctx = await requireEditor(programId);
   if (!ctx) return fail("No tiene permiso para editar las líneas.");
@@ -154,13 +167,13 @@ export async function saveLinesStep(programId: string, input: { create: string[]
   return ok(undefined);
 }
 
-// 5a · Métrica norte y eficiencia ---------------------------------------------------
+// 4 · Configurar {línea}: métrica norte y eficiencia, árbol y embudo -----------------
 async function upsertMetric(
   supabase: Supabase,
   lineId: string,
   type: "north_star" | "efficiency",
   m: NonNullable<z.output<typeof northStarStepSchema>["efficiency"]>,
-): Promise<{ id?: string; error?: { message: string; code?: string } }> {
+): Promise<{ id?: string; error?: DbError }> {
   const row = {
     name: m.name,
     unit: m.unit || null,
@@ -194,43 +207,40 @@ async function saveTargets(supabase: Supabase, metricId: string, targets: Record
   return null;
 }
 
-export async function saveNorthStarStep(programId: string, lineId: string, input: NorthStarStepInput): Promise<ActionResult> {
+/**
+ * Guarda la pantalla de una línea en orden: norte y eficiencia (línea base y
+ * metas son opcionales y quedan en los pendientes), árbol colgado de la norte y
+ * embudo. Las etapas referencian la métrica por nombre porque puede ser nueva en
+ * este mismo guardado.
+ */
+export async function saveLineStep(programId: string, lineId: string, input: LineStepInput): Promise<ActionResult> {
+  if (!uuid.safeParse(lineId).success) return fail("La línea no existe.");
   if (!(await requireEditor(programId))) return fail("No tiene permiso para editar las métricas.");
-  const parsed = northStarStepSchema.safeParse(input);
+  const parsed = lineStepSchema.safeParse(input);
   if (!parsed.success) return fromZod(parsed.error);
+  const { north, tree, funnel } = parsed.data;
   const supabase = await createClient();
-  const ns = await upsertMetric(supabase, lineId, "north_star", parsed.data.northStar);
-  if (ns.error) return failFrom(ns.error);
-  const nsTargets = await saveTargets(supabase, ns.id!, parsed.data.northTargets);
+  const { data: line } = await supabase.from("business_lines").select("id").eq("id", lineId).eq("program_id", programId).maybeSingle();
+  if (!line) return fail("La línea no existe o fue borrada.");
+
+  // Métrica norte y eficiencia.
+  const ns = await upsertMetric(supabase, lineId, "north_star", north.northStar);
+  if (ns.error || !ns.id) return failFrom(ns.error);
+  const nsTargets = await saveTargets(supabase, ns.id, north.northTargets);
   if (nsTargets) return failFrom(nsTargets);
-  if (parsed.data.efficiency) {
-    const eff = await upsertMetric(supabase, lineId, "efficiency", parsed.data.efficiency);
-    if (eff.error) return failFrom(eff.error);
-    const effTargets = await saveTargets(supabase, eff.id!, parsed.data.efficiencyTargets);
+  if (north.efficiency) {
+    const eff = await upsertMetric(supabase, lineId, "efficiency", north.efficiency);
+    if (eff.error || !eff.id) return failFrom(eff.error);
+    const effTargets = await saveTargets(supabase, eff.id, north.efficiencyTargets);
     if (effTargets) return failFrom(effTargets);
   }
-  revalidate(programId);
-  return ok(undefined);
-}
 
-// 5b · Árbol de métricas ------------------------------------------------------------
-export async function saveTreeStep(programId: string, lineId: string, input: TreeStepInput): Promise<ActionResult> {
-  if (!(await requireEditor(programId))) return fail("No tiene permiso para editar las métricas.");
-  const parsed = treeStepSchema.safeParse(input);
-  if (!parsed.success) return fromZod(parsed.error);
-  const supabase = await createClient();
-  const { data: root } = await supabase
-    .from("metrics")
-    .select("id")
-    .eq("line_id", lineId)
-    .eq("type", "north_star")
-    .maybeSingle();
-  if (!root) return fail("Primero defina la métrica norte de esta línea.");
-  for (const id of parsed.data.removedIds) {
+  // Árbol.
+  for (const id of tree.removedIds) {
     const { error } = await supabase.rpc("delete_metric", { p_id: id, p_strategy: null, p_target: null });
     if (error) return failFrom(error);
   }
-  for (const [i, m] of parsed.data.metrics.entries()) {
+  for (const [i, m] of tree.metrics.entries()) {
     const row = {
       name: m.name,
       unit: m.unit || null,
@@ -242,28 +252,24 @@ export async function saveTreeStep(programId: string, lineId: string, input: Tre
     };
     const { error } = m.id
       ? await supabase.from("metrics").update(row).eq("id", m.id)
-      : await supabase.from("metrics").insert({ ...row, line_id: lineId, type: "input", parent_id: root.id });
+      : await supabase.from("metrics").insert({ ...row, line_id: lineId, type: "input", parent_id: ns.id });
     if (error) return failFrom(error);
   }
-  if (!parsed.data.metrics.length) return fail("Agregue al menos una métrica de entrada: son las que los ejercicios pueden mover.");
-  revalidate(programId);
-  return ok(undefined);
-}
 
-// 5c · Embudo ------------------------------------------------------------------------
-export async function saveFunnelStep(programId: string, lineId: string, input: FunnelStepInput): Promise<ActionResult> {
-  if (!(await requireEditor(programId))) return fail("No tiene permiso para editar el embudo.");
-  const parsed = funnelStepSchema.safeParse(input);
-  if (!parsed.success) return fromZod(parsed.error);
-  const supabase = await createClient();
-  for (const s of parsed.data.stages) {
+  // Embudo.
+  const { data: inputs, error: inputsError } = await supabase.from("metrics").select("id, name").eq("line_id", lineId).eq("type", "input");
+  if (inputsError) return failFrom(inputsError);
+  const byName = new Map((inputs ?? []).map((m) => [m.name.trim().toLowerCase(), m.id]));
+  for (const s of funnel.stages) {
+    const metricId = s.metricName ? (byName.get(s.metricName.trim().toLowerCase()) ?? null) : null;
     const { error } = await supabase
       .from("funnel_stages")
-      .update({ name: s.name, description: s.description || null, metric_id: s.metric_id ?? null })
+      .update({ name: s.name, description: s.description || null, metric_id: metricId })
       .eq("id", s.id)
       .eq("line_id", lineId);
     if (error) return failFrom(error);
   }
+
   revalidate(programId);
   return ok(undefined);
 }
@@ -291,11 +297,58 @@ export interface QuickStartResult {
   partialError?: string;
 }
 
+const metricRow = (m: PlannedLine["northStar"]) => ({ name: m.name, unit: m.unit || null, direction: m.direction, definition: m.definition || null });
+
+/** Métrica norte, eficiencia, árbol y embudo de una línea del plan. Devuelve qué falló, si algo falló. */
+async function writePlannedLine(supabase: Supabase, lineId: string, plan: PlannedLine): Promise<{ what: string; error: DbError } | null> {
+  // Métrica norte y eficiencia (sin línea base ni metas todavía).
+  const { data: north, error: northError } = await supabase
+    .from("metrics")
+    .insert({ ...metricRow(plan.northStar), line_id: lineId, type: "north_star", sort_order: 0 })
+    .select("id")
+    .single();
+  if (northError) return { what: "la métrica norte", error: northError };
+  const { error: effError } = await supabase
+    .from("metrics")
+    .insert({ ...metricRow(plan.efficiency), line_id: lineId, type: "efficiency", sort_order: 1 });
+  if (effError) return { what: "la métrica de eficiencia", error: effError };
+
+  // Árbol de métricas.
+  const { data: inputs, error: treeError } = await supabase
+    .from("metrics")
+    .insert(
+      plan.tree.map((m) => ({
+        ...metricRow(m),
+        branch: m.branch,
+        sort_order: m.sort_order,
+        line_id: lineId,
+        type: "input" as const,
+        parent_id: north.id,
+      })),
+    )
+    .select("id, name");
+  if (treeError) return { what: "el árbol de métricas", error: treeError };
+
+  // Embudo: descripción y métrica de cada etapa según la plantilla.
+  const { data: stages, error: stagesError } = await supabase.from("funnel_stages").select("id, name").eq("line_id", lineId);
+  if (stagesError) return { what: "el embudo", error: stagesError };
+  const metricId = new Map((inputs ?? []).map((m) => [m.name.trim().toLowerCase(), m.id]));
+  for (const s of stages ?? []) {
+    const p = plan.funnel.find((f) => f.name.toLowerCase() === s.name.trim().toLowerCase());
+    if (!p) continue;
+    const { error } = await supabase
+      .from("funnel_stages")
+      .update({ description: p.description, metric_id: p.metricName ? (metricId.get(p.metricName.toLowerCase()) ?? null) : null })
+      .eq("id", s.id);
+    if (error) return { what: "el embudo", error };
+  }
+  return null;
+}
+
 /**
- * Crea en una sola pasada lo que el asistente completo arma paso a paso. Escribe
- * en el mismo orden del asistente y avanza setup_step en cada bloque: si algo
- * falla a mitad de camino, el programa queda usable y `resumeStep` retoma donde
- * quedó.
+ * Crea en una sola pasada lo que el asistente arma paso a paso. Escribe en el
+ * mismo orden del asistente y avanza setup_step en cada bloque: si algo falla a
+ * mitad de camino, el programa queda usable y `resumeStep` retoma donde quedó.
  */
 export async function saveQuickStart(input: QuickStartFormInput): Promise<ActionResult<QuickStartResult>> {
   const user = await getSessionUser();
@@ -317,7 +370,7 @@ export async function saveQuickStart(input: QuickStartFormInput): Promise<Action
   const programId = program.id;
   const setStep = (step: number) => supabase.from("programs").update({ setup_step: step }).eq("id", programId);
 
-  const partial = (what: string, error: { message?: string; code?: string } | null): ActionResult<QuickStartResult> => {
+  const partial = (what: string, error: DbError): ActionResult<QuickStartResult> => {
     revalidate(programId);
     return ok({
       programId,
@@ -326,73 +379,34 @@ export async function saveQuickStart(input: QuickStartFormInput): Promise<Action
     });
   };
 
-  // 2 · Calendario típico de telco.
+  // 2 · Calendario típico de telco y horizontes (setup_step 3, como el asistente).
   if (plan.events.length) {
     const { error } = await supabase.from("calendar_events").insert(plan.events.map((e) => ({ ...e, program_id: programId })));
     if (error) return partial("el calendario comercial", error);
   }
-  let { error } = await setStep(2);
-  if (error) return partial("el avance de la configuración", error);
-
-  // 3 · Horizontes.
-  ({ error } = await supabase
+  let { error } = await supabase
     .from("program_horizons")
-    .insert(plan.horizons.map((h, i) => ({ ...h, sort_order: i, program_id: programId }))));
+    .insert(plan.horizons.map((h, i) => ({ ...h, sort_order: i, program_id: programId })));
   if (error) return partial("los horizontes", error);
   ({ error } = await setStep(3));
   if (error) return partial("el avance de la configuración", error);
 
-  // 4 · Línea (el trigger le crea las cuatro etapas del embudo).
-  const { data: line, error: lineError } = await supabase
+  // 3 · Líneas (el trigger le crea a cada una las cuatro etapas del embudo).
+  const { data: lines, error: linesError } = await supabase
     .from("business_lines")
-    .insert({ program_id: programId, name: plan.line.name, sort_order: 0 })
-    .select("id")
-    .single();
-  if (lineError) return partial("la línea de negocio", lineError);
+    .insert(plan.lines.map((l, i) => ({ program_id: programId, name: l.name, sort_order: i })))
+    .select("id, name");
+  if (linesError) return partial("las líneas de negocio", linesError);
   ({ error } = await setStep(4));
   if (error) return partial("el avance de la configuración", error);
+  const lineId = new Map((lines ?? []).map((l) => [l.name.trim().toLowerCase(), l.id]));
 
-  // 5a · Métrica norte y eficiencia (sin línea base ni metas todavía).
-  const metricRow = (m: typeof plan.northStar) => ({ name: m.name, unit: m.unit || null, direction: m.direction, definition: m.definition || null });
-  const { data: north, error: northError } = await supabase
-    .from("metrics")
-    .insert({ ...metricRow(plan.northStar), line_id: line.id, type: "north_star", sort_order: 0 })
-    .select("id")
-    .single();
-  if (northError) return partial("la métrica norte", northError);
-  ({ error } = await supabase
-    .from("metrics")
-    .insert({ ...metricRow(plan.efficiency), line_id: line.id, type: "efficiency", sort_order: 1 }));
-  if (error) return partial("la métrica de eficiencia", error);
-
-  // 5b · Árbol de métricas.
-  const { data: inputs, error: treeError } = await supabase
-    .from("metrics")
-    .insert(
-      plan.tree.map((m) => ({
-        ...metricRow(m),
-        branch: m.branch,
-        sort_order: m.sort_order,
-        line_id: line.id,
-        type: "input" as const,
-        parent_id: north.id,
-      })),
-    )
-    .select("id, name");
-  if (treeError) return partial("el árbol de métricas", treeError);
-
-  // 5c · Embudo: descripción y métrica de cada etapa según la plantilla.
-  const { data: stages, error: stagesError } = await supabase.from("funnel_stages").select("id, name").eq("line_id", line.id);
-  if (stagesError) return partial("el embudo", stagesError);
-  const metricId = new Map((inputs ?? []).map((m) => [m.name.trim().toLowerCase(), m.id]));
-  for (const s of stages ?? []) {
-    const p = plan.funnel.find((f) => f.name.toLowerCase() === s.name.trim().toLowerCase());
-    if (!p) continue;
-    ({ error } = await supabase
-      .from("funnel_stages")
-      .update({ description: p.description, metric_id: p.metricName ? (metricId.get(p.metricName.toLowerCase()) ?? null) : null })
-      .eq("id", s.id));
-    if (error) return partial("el embudo", error);
+  // 4 · Cada línea con su norte, eficiencia, árbol y embudo.
+  for (const planned of plan.lines) {
+    const id = lineId.get(planned.name.trim().toLowerCase());
+    if (!id) return partial(`la línea ${planned.name}`, null);
+    const failed = await writePlannedLine(supabase, id, planned);
+    if (failed) return partial(`${failed.what} de ${planned.name}`, failed.error);
   }
 
   // Cierre, como finishSetup.
@@ -403,8 +417,9 @@ export async function saveQuickStart(input: QuickStartFormInput): Promise<Action
   if (error) return partial("el cierre de la configuración", error);
 
   revalidate(programId);
+  const first = lineId.get(plan.lines[0].name.trim().toLowerCase());
   return ok(
-    { programId, href: `/programas/${programId}/problemas/nuevo?linea=${line.id}&desde=arranque` },
+    { programId, href: `/programas/${programId}/problemas/nuevo?linea=${first}&desde=arranque` },
     "Ya tiene el mapa. Ahora cuéntele a Arriero dónde se pierde valor.",
   );
 }
