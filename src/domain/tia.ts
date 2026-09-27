@@ -20,6 +20,9 @@ export const TIA_FEATURES = [
   "explain_metric", // La Tía le explica los números
   "committee", // La Tía le prepara el comité
   "gossip", // La Tía le tiene un chismecito (semanal)
+  "pilot_diagnosis", // Pilotos: diagnóstico de la línea base e hipótesis
+  "pilot_design", // Pilotos: recomendación de diseño y riesgos
+  "pilot_conclusion", // Pilotos: borrador de conclusión con los números ya calculados
 ] as const;
 export type TiaFeature = (typeof TIA_FEATURES)[number];
 

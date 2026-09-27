@@ -1,4 +1,4 @@
-import { Compass, LogOut, ShieldCheck, Users } from "lucide-react";
+import { Compass, LogOut, Megaphone, ShieldCheck, Users } from "lucide-react";
 import Link from "next/link";
 import { LogoLockup, Mule } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
@@ -58,6 +58,12 @@ export function AppHeader({
         <div className="flex-1 sm:hidden" />
         <CommandSearch programId={programId} canCreateExperiment={canCreateExperiment} />
         <Button asChild variant="ghost" size="sm" className="gap-1.5 px-2 sm:px-2.5">
+          <Link href="/pilotos" aria-label="Pilotos de medios">
+            <Megaphone className="size-4" aria-hidden />
+            <span className="hidden lg:inline">Pilotos</span>
+          </Link>
+        </Button>
+        <Button asChild variant="ghost" size="sm" className="gap-1.5 px-2 sm:px-2.5">
           <Link href="/direccion" aria-label="Resumen ejecutivo">
             <Compass className="size-4" aria-hidden />
             <span className="hidden lg:inline">Resumen ejecutivo</span>
@@ -88,6 +94,11 @@ export function AppHeader({
             <DropdownMenuItem asChild>
               <Link href="/direccion">
                 <Compass className="size-4" aria-hidden /> Vista de dirección
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href="/pilotos">
+                <Megaphone className="size-4" aria-hidden /> Pilotos de medios
               </Link>
             </DropdownMenuItem>
             <ExplanationsMenuItem />

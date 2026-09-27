@@ -45,10 +45,10 @@ export function CopySummaryButton({ text }: { text: string }) {
   );
 }
 
-export function PrintButton() {
+export function PrintButton({ label = "Imprimir", variant = "outline" }: { label?: string; variant?: "outline" | "default" } = {}) {
   return (
-    <Button type="button" variant="outline" onClick={() => window.print()}>
-      <Printer aria-hidden /> Imprimir
+    <Button type="button" variant={variant} onClick={() => window.print()}>
+      <Printer aria-hidden /> {label}
     </Button>
   );
 }

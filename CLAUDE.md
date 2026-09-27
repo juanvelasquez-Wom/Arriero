@@ -16,6 +16,8 @@ Una web app interna para **operar un framework de growth marketing** en un equip
 
 Fuente de verdad del dominio: [`docs/modelo-growth-marketing-wom.pdf`](docs/modelo-growth-marketing-wom.pdf). Especificación funcional completa: [`docs/especificacion.md`](docs/especificacion.md).
 
+**Módulo Pilotos de medios** (`/pilotos`, global, fuera de los programas): pruebas controladas de cambios en medios digitales (Meta CTWA, landings, eCommerce, DOOH, radio…) para medir incrementalidad antes de escalar. Plan, verificación de integraciones y glosario en [`docs/pilotos/plan.md`](docs/pilotos/plan.md); guía de marca y lenguaje en [`docs/marca-y-lenguaje.md`](docs/marca-y-lenguaje.md). Ver §11.
+
 ## 2. Glosario del dominio
 
 | Término | Significado en la app |
@@ -81,7 +83,7 @@ supabase/
                               004 RPC · 005 RLS · 006 Storage y Realtime · 008 mensajes de error en usted
                               009 auditoría V0 (hipótesis obligatoria para diseñar, save_experiment_variants,
                               metrics.unit_value, experiment_comments) · 010 avisos (notifications + job diario)
-                              011 La Tía (tia_messages, tia_usage)
+                              011 La Tía (tia_messages, tia_usage) · 012 Pilotos de medios (ver §11)
 scripts/                      create-admin.mts, drain-storage-queue.mts (usan la secret key)
 src/
   proxy.ts                    refresca la sesión y protege todo salvo login/recuperar/auth/confirm/api/cron
@@ -292,3 +294,16 @@ Línea ejecutiva y sobria: **grises + amarillo como único acento**. Tokens en `
 - No cambiar `status`, `design_locked_at` ni `deleted_at` con `update` directo: usar las RPC.
 - No cargar el programa de ejemplo con SQL suelto: se hace con `server/demo/loader.ts`.
 - No borrar archivos de Storage fuera de la cola (`storage_deletion_queue`) o del borrado del ejemplo.
+- En Pilotos: no cambiar `status`, `design_locked_at`, decisión ni `deleted_at` con `update` directo (RPC `pilot_*`); no calcular resultados con IA (solo el motor de `src/domain/pilots`); no dar a las integraciones herramientas de escritura.
+
+## 11. Módulo Pilotos de medios
+
+- **Migración** `012_pilotos`: tablas `pilot_roles`, catálogos (`media_channels`, `pilot_variables` = matriz de recomendación, `pilot_metrics` con `calc` sum | rate | cost_per), `pilots` y sus hijos (`pilot_media`, `pilot_arms`, `pilot_guardrails`, `pilot_checklist_items`, `pilot_measurements`, `pilot_incidents`, `pilot_reviews`, `pilot_learnings`) y `pilot_audit` (trigger genérico: quién, cuándo, valor anterior y nuevo).
+- **Roles del módulo** (RLS, `private.pilot_role()`; el admin global es Aprobador): Aprobador (aprueba/devuelve, firma decisiones, catálogos, roles, restaura, ejemplos) · Creador (crea y edita borradores, carga datos, incidentes, crea medios y métricas propias de un medio) · Lector (solo ve). Espejo para la UI en `src/domain/pilots/flow.ts`.
+- **Estados** Borrador → En revisión → Aprobado → En prueba → En lectura → Decidido (+ Cancelado), solo por RPC: `pilot_submit` (exige lo de `pilot_missing`), `pilot_return` (comentario), `pilot_approve` (fija `design_locked_at`), `pilot_start` (lista de chequeo completa), `pilot_to_reading`, `pilot_decide` (veredicto, decisión, justificación y aprendizaje), `pilot_cancel`, `pilot_delete`/`pilot_restore`, `merge_media`, `delete_example_pilots`.
+- **Bloqueo:** fuera de Borrador solo se editan responsable y vínculos; grupos, guardrails y medios solo en Borrador (guardas `pilot_design_child_guard`). Los datos se cargan hasta decidir; un dato de integración corregido a mano queda "ajustado" con su valor original.
+- **Estadística determinística** en `src/domain/pilots/` (con tests): `power` (MDE y duración, Bonferroni con N grupos), `bayes` (beta-binomial Monte Carlo con semilla, N variantes), `bootstrap` (costos por unidad), `geo` (DiD, placebo, control sintético), `holdout`, `decision-rules`, `analysis` (`analyzePilot`). La lectura en pantalla sale de `src/server/pilot-reading.ts`. La IA nunca calcula.
+- **Datos manuales y CSV** (`data-import.ts`): solo métricas `sum`; plantilla según las métricas del piloto; validación de fechas, grupos, ciudades, negativos y coherencia.
+- **Cruces entre pilotos** (`overlap.ts`): mismas fechas y misma cuenta, campaña, audiencia, ciudad o destino.
+- **Ejemplos:** 3 pilotos (`domain/pilots/examples.ts`, `server/demo/pilots.ts`) que carga un aprobador y se borran con un clic.
+- **Pendiente (fases siguientes):** La Tía para el módulo (necesita `ANTHROPIC_API_KEY`) e integraciones por MCP (Meta primero; tokens en Supabase Vault; ver `docs/pilotos/plan.md` §2).
