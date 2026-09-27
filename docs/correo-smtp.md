@@ -59,7 +59,7 @@ Guarde.
 
 Para cambiar un texto, edite `scripts/build-email-templates.mjs`, corra `node scripts/build-email-templates.mjs` y vuelva a pegar la plantilla que cambió.
 
-**El logo** se carga desde `{{ .SiteURL }}/brand/arriero-logo.png`: se ve cuando la app ya está publicada en Vercel. Probando en local, el correo llega bien pero sin el logo.
+**Las imágenes** (el nombre ARRIERO arriba y la ilustración de cada correo) se cargan desde `{{ .SiteURL }}/brand/…`: se ven cuando la app ya está publicada en Vercel. Probando en local, el correo llega bien pero sin imágenes.
 
 ## 7. Probar
 
