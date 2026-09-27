@@ -1,32 +1,21 @@
-import {
-  AlertTriangle,
-  ArrowRight,
-  BookOpenCheck,
-  CircleDollarSign,
-  FlaskConical,
-  Gavel,
-  ListOrdered,
-  Trophy,
-  TrendingDown,
-  TrendingUp,
-  type LucideIcon,
-} from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { BrandIcon, type BrandIconName } from "@/components/brand/icons";
 import type { BriefKey, BriefTone, ExecutiveBrief } from "@/domain/executive";
 import { formatDate } from "@/domain/format";
 import type { ReportPeriodKey } from "@/domain/report";
 import { cn } from "@/lib/utils";
 
-const ICON: Record<BriefKey, LucideIcon> = {
-  growing: TrendingUp,
-  falling: TrendingDown,
-  running: FlaskConical,
-  results: Trophy,
-  learned: BookOpenCheck,
-  value: CircleDollarSign,
-  decide: Gavel,
-  next: ListOrdered,
-  risks: AlertTriangle,
+const ART: Record<BriefKey, BrandIconName> = {
+  growing: "cafe-crecimiento",
+  falling: "embudo",
+  running: "mula-cargada",
+  results: "diana",
+  learned: "tinto",
+  value: "portatil",
+  decide: "arriero",
+  next: "mapa",
+  risks: "camino",
 };
 
 // Punto de estado: forma + color, nunca solo color (el texto dice el resto).
@@ -77,14 +66,13 @@ export function ExecutiveBriefView({ brief, periodKey }: { brief: ExecutiveBrief
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {brief.sections.map((s) => {
-          const Icon = ICON[s.key];
           return (
             <article
               key={s.key}
               className={cn("rounded-2xl border bg-paper p-4 shadow-card", needsAttention(s.key) && "border-highlight")}
             >
               <h3 className="flex items-center gap-2 text-base font-bold">
-                <Icon aria-hidden className="size-4 shrink-0" />
+                <BrandIcon name={ART[s.key]} className="w-9 shrink-0" />
                 {s.question}
                 {s.items.length ? (
                   <span className="ml-auto rounded-full bg-wash px-2 py-0.5 text-xs font-semibold tabular-nums">{s.items.length}</span>

@@ -4,7 +4,7 @@ import { EmptyState } from "@/components/app/page";
 export function DatabaseNotReady() {
   return (
     <div className="flex min-h-screen flex-1 items-center justify-center bg-wash px-4">
-      <EmptyState
+      <EmptyState art="mula-sombrero"
         icon={Database}
         className="max-w-xl"
         title="¡Ave María! La base de datos todavía no está creada"

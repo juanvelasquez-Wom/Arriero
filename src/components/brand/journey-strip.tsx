@@ -1,7 +1,18 @@
 import Link from "next/link";
-import type { JourneyStage } from "@/domain/journey";
+import type { JourneyKey, JourneyStage } from "@/domain/journey";
 import { cn } from "@/lib/utils";
+import { BrandIcon, type BrandIconName } from "./icons";
 import { Mule } from "./logo";
+
+const ART: Record<JourneyKey, BrandIconName> = {
+  ver: "portatil",
+  entender: "embudo",
+  decidir: "diana",
+  experimentar: "carriel-experimentos",
+  ejecutar: "mula-cargada",
+  aprender: "tinto",
+  crecer: "montana-cima",
+};
 
 /** "El camino del arriero": las 7 etapas con su conteo. La mula va en la etapa más avanzada con algo. */
 export function JourneyStrip({ programId, stages, note }: { programId: string; stages: JourneyStage[]; note?: string }) {
@@ -40,7 +51,10 @@ export function JourneyStrip({ programId, stages, note }: { programId: string; s
                 </span>
                 {s.label}
               </span>
-              <span className="mt-1 font-heading text-3xl font-extrabold tabular-nums">{s.count}</span>
+              <span className="mt-1 flex items-end justify-between gap-2">
+                <span className="font-heading text-3xl font-extrabold tabular-nums">{s.count}</span>
+                <BrandIcon name={ART[s.key]} className="w-9 opacity-80" />
+              </span>
               <span className="text-xs text-soft">{s.what}</span>
             </Link>
             {i < stages.length - 1 ? (

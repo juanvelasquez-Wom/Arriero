@@ -73,7 +73,7 @@ export default async function ProblemsPage({ params, searchParams }: PageProps<"
       />
 
       {problems.length === 0 ? (
-        <EmptyState
+        <EmptyState art="embudo"
           icon={ClipboardList}
           title="¿Y por dónde es? Aún no hay problemas"
           description={

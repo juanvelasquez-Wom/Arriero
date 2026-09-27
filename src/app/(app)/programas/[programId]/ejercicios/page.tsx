@@ -148,7 +148,7 @@ export default async function BacklogPage({ params, searchParams }: PageProps<"/
         }
       />
       {experiments.length === 0 ? (
-        <EmptyState
+        <EmptyState art="carriel-experimentos"
           icon={ListOrdered}
           title="Los ejercicios son los atajos. Todavía no hay ninguno."
           description="Cada ejercicio nace de un problema con evidencia. Cree uno desde un problema y priorícelo con ICE."

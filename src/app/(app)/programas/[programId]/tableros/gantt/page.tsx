@@ -114,7 +114,7 @@ export default async function GanttPage({ params, searchParams }: PageProps<"/pr
       query={data.query}
     >
       {data.lines.length === 0 ? (
-        <EmptyState
+        <EmptyState art="mapa"
           icon={CalendarRange}
           title="Todavía no hay líneas de negocio"
           description="El Gantt agrupa los ejercicios por línea. Cree las líneas del programa en la configuración para empezar."
@@ -125,7 +125,7 @@ export default async function GanttPage({ params, searchParams }: PageProps<"/pr
           }
         />
       ) : data.filtered.length === 0 ? (
-        <EmptyState
+        <EmptyState art="camino"
           icon={CalendarRange}
           title="Camino despejado: todavía no hay ejercicios"
           description={

@@ -105,7 +105,7 @@ export default async function ResultsPage({ params, searchParams }: PageProps<"/
       query={data.query}
     >
       {closed.length === 0 ? (
-        <EmptyState
+        <EmptyState art="cafe-crecimiento"
           icon={ChartColumn}
           title="Todavía no hay ejercicios cerrados"
           description={

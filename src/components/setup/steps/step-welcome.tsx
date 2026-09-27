@@ -1,9 +1,12 @@
 import { ArrowRight, ListChecks, Zap } from "lucide-react";
 import Link from "next/link";
+import { BrandIcon, type BrandIconName } from "@/components/brand/icons";
 import { Mule } from "@/components/brand/logo";
 import { SLOGAN } from "@/components/brand/phrases";
 import { Button } from "@/components/ui/button";
 import { START_PATHS, WELCOME_IDEAS } from "../help-content";
+
+const IDEA_ART: BrandIconName[] = ["montana-cima", "mula-datos", "embudo", "carriel-experimentos", "camino"];
 
 /** Recorrido guiado inicial: el modelo de growth en cinco ideas y los dos caminos para arrancar. */
 export function StepWelcome({ quickHref, startHref }: { quickHref: string; startHref: string }) {
@@ -25,8 +28,11 @@ export function StepWelcome({ quickHref, startHref }: { quickHref: string; start
       <ol className="rise rise-delay-2 mt-6 grid gap-3 sm:grid-cols-2">
         {WELCOME_IDEAS.map((idea, i) => (
           <li key={idea.title} className="flex gap-3 rounded-2xl border bg-paper p-4 shadow-card">
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-ink font-heading text-sm font-bold text-paper">
-              {i + 1}
+            <span className="relative shrink-0">
+              <BrandIcon name={IDEA_ART[i] ?? "mapa"} className="w-12" />
+              <span className="absolute -top-1 -left-1 flex size-5 items-center justify-center rounded-full bg-ink font-heading text-[10px] font-bold text-paper">
+                {i + 1}
+              </span>
             </span>
             <div>
               <h2 className="text-base font-bold">{idea.title}</h2>
@@ -42,6 +48,7 @@ export function StepWelcome({ quickHref, startHref }: { quickHref: string; start
           <span className="mb-2 inline-flex w-fit items-center gap-1 rounded-full bg-highlight px-2 py-0.5 text-xs font-semibold text-[#1F1F1F]">
             <Zap className="size-3" aria-hidden /> {START_PATHS.quick.badge}
           </span>
+          <BrandIcon name="mula-cargada" className="mb-2 w-14" />
           <h3 id="path-quick" className="text-lg font-bold">
             {START_PATHS.quick.title}
           </h3>
@@ -56,6 +63,7 @@ export function StepWelcome({ quickHref, startHref }: { quickHref: string; start
           <span className="mb-2 inline-flex w-fit items-center gap-1 rounded-full bg-wash px-2 py-0.5 text-xs font-semibold text-soft">
             <ListChecks className="size-3" aria-hidden /> {START_PATHS.full.badge}
           </span>
+          <BrandIcon name="mapa" className="mb-2 w-14" />
           <h3 id="path-full" className="text-lg font-bold">
             {START_PATHS.full.title}
           </h3>

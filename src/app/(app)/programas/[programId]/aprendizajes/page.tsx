@@ -67,7 +67,7 @@ export default async function LearningsPage({ params, searchParams }: PageProps<
         }
       />
       {learnings.length === 0 ? (
-        <EmptyState
+        <EmptyState art="tinto"
           icon={BookOpenCheck}
           title="Todavía no hay aprendizajes"
           description="Cada ejercicio decidido deja un aprendizaje. Aquí los va a encontrar para buscarlos y reutilizarlos. ¡Eso es oro en el carriel!"

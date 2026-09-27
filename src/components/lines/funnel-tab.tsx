@@ -39,7 +39,7 @@ export function FunnelTab({ programId, lineId, stages, problems, experiments, me
         }
       >
         {stages.length === 0 ? (
-          <EmptyState
+          <EmptyState art="embudo"
             icon={Filter}
             title="El embudo no tiene etapas"
             description="Las etapas ordenan el recorrido del cliente (adquisición, activación, conversión, recuperación). Cada problema se ubica en una etapa."

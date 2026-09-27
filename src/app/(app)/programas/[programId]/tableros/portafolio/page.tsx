@@ -68,7 +68,7 @@ export default async function PortfolioPage({ params, searchParams }: PageProps<
         current={data.current}
         query={data.query}
       >
-        <EmptyState
+        <EmptyState art="mapa"
           icon={Grid3x3}
           title="Todavía no hay líneas de negocio"
           description="La matriz cruza las líneas con las etapas de su embudo. Cree las líneas y sus etapas para verla."

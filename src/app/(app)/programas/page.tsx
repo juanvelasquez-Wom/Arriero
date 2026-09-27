@@ -81,7 +81,7 @@ export default async function ProgramsPage() {
         ) : null}
 
         {programs.length === 0 ? (
-          <EmptyState
+          <EmptyState art="mapa"
             icon={FolderKanban}
             title="Todavía no hay programas por aquí"
             description={

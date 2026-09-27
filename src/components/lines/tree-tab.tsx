@@ -72,7 +72,7 @@ export function TreeTab(props: Props) {
 
   if (!metrics.length) {
     return (
-      <EmptyState
+      <EmptyState art="mula-datos"
         icon={Network}
         title="El árbol está vacío"
         description="El árbol parte de la métrica norte y la descompone en métricas de entrada por rama: volumen de demanda, conversión, eficiencia, y recuperación y recurrencia. Empiece por definir la métrica norte: ¿y por dónde es?"

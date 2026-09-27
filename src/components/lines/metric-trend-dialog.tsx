@@ -47,7 +47,7 @@ export function MetricTrendDialog({
             {series.length ? (
               <MetricEvolutionChart name={name} values={series} baseline={baseline} targets={targets} unit={unit} />
             ) : (
-              <EmptyState
+              <EmptyState art="portatil"
                 icon={CalendarPlus}
                 className="py-6"
                 title="Todavía no hay valores semanales"

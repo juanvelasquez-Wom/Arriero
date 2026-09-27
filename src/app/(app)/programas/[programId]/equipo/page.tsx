@@ -105,7 +105,7 @@ export default async function TeamPage({ params }: PageProps<"/programas/[progra
       />
 
       {!hasWork ? (
-        <EmptyState
+        <EmptyState art="arriero"
           icon={Users}
           title="Todavía no hay ejercicios asignados"
           description="Cuando el equipo cree y asigne ejercicios, aquí va a ver la carga de cada persona."

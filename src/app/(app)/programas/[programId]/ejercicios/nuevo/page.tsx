@@ -26,7 +26,7 @@ export default async function NewExperimentPage({ params, searchParams }: PagePr
     return (
       <div className="mx-auto max-w-3xl">
         <PageHeader title="Nuevo ejercicio" />
-        <EmptyState
+        <EmptyState art="embudo"
           icon={ClipboardList}
           title="Primero, un problema con evidencia"
           description="Aquí no hay ejercicios sueltos: cada uno nace de un problema ubicado en el embudo y apunta a una métrica del árbol. ¿Y por dónde es? Por el problema."

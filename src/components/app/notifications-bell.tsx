@@ -17,7 +17,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Mule } from "@/components/brand/logo";
+import { BrandIcon } from "@/components/brand/icons";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { badgeText, relativeTime, safeHref, type NotificationItem } from "@/domain/notifications";
@@ -144,8 +144,8 @@ export function NotificationsBell({ userId }: { userId: string }) {
         </div>
         {items.length === 0 ? (
           <div className="flex flex-col items-center gap-2 px-6 py-8 text-center">
-            <Mule className="w-16 opacity-90" />
-            <div className="text-sm font-semibold">Todo en orden. La mula descansa.</div>
+            <BrandIcon name="tinto" className="w-16 opacity-90" />
+            <div className="text-sm font-semibold">Todo en orden. Tómese un tinto, que la mula descansa.</div>
             <p className="text-xs text-soft">Aquí le avisamos cuando le asignen algo, lo mencionen o haya un ejercicio listo para leer.</p>
           </div>
         ) : (

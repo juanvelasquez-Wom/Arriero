@@ -43,7 +43,7 @@ export function NorthStarTab(props: Props) {
       {northStar ? (
         <MetricOverview {...props} metric={northStar} />
       ) : (
-        <EmptyState
+        <EmptyState art="montana-cima"
           icon={Star}
           title="Esta línea todavía no tiene métrica norte"
           description="La métrica norte representa el valor que la línea quiere crecer (p. ej. altas digitales por semana). El árbol, el embudo y los ejercicios se ordenan alrededor de ella: sin norte no hay camino."
@@ -73,7 +73,7 @@ export function NorthStarTab(props: Props) {
       ))}
 
       {efficiency.length === 0 ? (
-        <EmptyState
+        <EmptyState art="diana"
           icon={Gauge}
           className="py-6"
           title="Sin métrica de eficiencia"
@@ -263,7 +263,7 @@ function MetricOverview({
               unit={metric.unit}
             />
           ) : (
-            <EmptyState
+            <EmptyState art="portatil"
               icon={CalendarPlus}
               className="py-8"
               title="Todavía no hay valores semanales"

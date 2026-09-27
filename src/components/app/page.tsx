@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
+import { BrandIcon, type BrandIconName } from "@/components/brand/icons";
 import { Mule } from "@/components/brand/logo";
 import { cn } from "@/lib/utils";
 
@@ -35,12 +36,15 @@ export function PageHeader({
 /** Estado vacío útil: qué va aquí y cuál es el siguiente paso. La mula acompaña. */
 export function EmptyState({
   icon: Icon,
+  art,
   title,
   description,
   action,
   className,
 }: {
   icon?: LucideIcon;
+  /** Ilustración de la marca; sin ella aparece la mula. */
+  art?: BrandIconName;
   title: string;
   description: ReactNode;
   action?: ReactNode;
@@ -54,7 +58,7 @@ export function EmptyState({
       )}
     >
       <div className="relative">
-        <Mule className="w-24 opacity-90" />
+        {art ? <BrandIcon name={art} className="w-24 opacity-90" /> : <Mule className="w-24 opacity-90" />}
         {Icon ? (
           <div className="absolute -right-2 -bottom-1 flex size-8 items-center justify-center rounded-full bg-highlight text-[#111111] ring-4 ring-paper">
             <Icon aria-hidden className="size-4" />

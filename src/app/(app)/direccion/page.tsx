@@ -229,7 +229,7 @@ export default async function DirectionPage({ searchParams }: PageProps<"/direcc
         />
 
         {programs.length === 0 ? (
-          <EmptyState
+          <EmptyState art="diana"
             icon={Compass}
             title="Todavía no hay programas para mostrar"
             description="Cuando lo agreguen a un programa, aquí va a ver su estado de un vistazo."

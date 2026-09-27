@@ -1,0 +1,6 @@
+invite: Su equipo le abrió un campo en Arriero: ¿arrancamos?
+recovery: Recupere su contraseña de Arriero
+magic_link: Su enlace para entrar a Arriero
+email_change: Confirme su nuevo correo en Arriero
+reauthentication: Su código de verificación de Arriero
+confirmation: Confirme su correo en Arriero

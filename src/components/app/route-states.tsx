@@ -1,7 +1,7 @@
 "use client";
 
 import { RotateCcw } from "lucide-react";
-import { Mule } from "@/components/brand/logo";
+import { BrandIcon } from "@/components/brand/icons";
 import { LOADING_PHRASES, pickPhrase } from "@/components/brand/phrases";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -18,7 +18,7 @@ export function RouteError({
 }) {
   return (
     <div role="alert" className="rise mx-auto flex max-w-xl flex-col items-center rounded-2xl border bg-paper p-8 text-center shadow-card">
-      <Mule className="w-24 -scale-x-100 opacity-90" />
+      <BrandIcon name="mula-sombrero" className="w-24 opacity-90" />
       <h2 className="mt-3 text-xl font-extrabold">Ese camino no era</h2>
       <p className="mt-1 text-sm text-soft">
         ¡Juepucha! Esta vista no quiso cargar. Puede ser la conexión o los permisos. Si sigue igual, avísele a un admin
@@ -36,7 +36,7 @@ export function PageSkeleton({ rows = 6, phraseKey = "" }: { rows?: number; phra
   return (
     <div className="mx-auto max-w-6xl" aria-busy="true" aria-live="polite">
       <div className="mb-6 flex items-center gap-3 text-sm font-medium text-soft">
-        <Mule className="mule-walk w-10" />
+        <BrandIcon name="mula-cargada" className="mule-walk w-11" />
         <span>{phrase}</span>
       </div>
       <Skeleton className="mb-6 h-9 w-80 rounded-xl" />

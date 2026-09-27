@@ -42,7 +42,7 @@ export default async function KanbanPage({ params, searchParams }: PageProps<"/p
       query={data.query}
     >
       {data.experiments.length === 0 ? (
-        <EmptyState
+        <EmptyState art="mula-cargada"
           icon={Columns3}
           title="Los ejercicios son los atajos. Todavía no hay ninguno."
           description="Cada ejercicio aparece como tarjeta en la columna de su estado. Cree el primero desde un problema con evidencia."
@@ -66,7 +66,7 @@ export default async function KanbanPage({ params, searchParams }: PageProps<"/p
             </p>
           )}
           {cards.length === 0 ? (
-            <EmptyState
+            <EmptyState art="celular-ruta"
               icon={Columns3}
               title="Ningún ejercicio coincide"
               description={

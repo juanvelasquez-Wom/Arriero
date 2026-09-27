@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>Ya casi: confirme su correo</title>
+</head>
+<body style="margin:0;padding:0;background:#F6F6F4;font-family:Inter,Segoe UI,Helvetica,Arial,sans-serif;color:#111111;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;">Confirme su correo para empezar.</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F6F6F4;">
+  <tr><td align="center" style="padding:32px 16px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#FFFFFF;border:1px solid #E2E2DF;border-radius:16px;overflow:hidden;">
+      <tr><td style="padding:28px 32px 8px 32px;">
+        <img src="{{ .SiteURL }}/brand/arriero-logo.png" width="120" alt="Arriero · Growth Engine" style="display:block;width:120px;height:auto;border:0;">
+      </td></tr>
+      <tr><td style="padding:8px 32px 0 32px;">
+        <h1 style="margin:0;font-size:26px;line-height:1.2;font-weight:800;letter-spacing:-0.02em;color:#111111;">Ya casi: confirme su correo</h1>
+      </td></tr>
+      <tr><td style="padding:12px 32px 0 32px;font-size:15px;line-height:1.6;color:#111111;"><p style="margin:0;">Confirme <strong>{{ .Email }}</strong> para terminar de crear su cuenta en Arriero.</p></td></tr>
+      <tr><td style="padding:24px 32px 8px 32px;">
+        <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=email" style="display:inline-block;background:#F2C200;color:#111111;text-decoration:none;font-weight:700;font-size:15px;padding:13px 22px;border-radius:10px;">Confirmar mi correo</a>
+      </td></tr>
+      <tr><td style="padding:8px 32px 0 32px;font-size:12px;line-height:1.5;color:#595959;">
+        Si el botón no abre, copie este enlace en el navegador:<br>
+        <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=email" style="color:#595959;word-break:break-all;">{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=email</a>
+      </td></tr>
+      
+      <tr><td style="padding:24px 32px 28px 32px;">
+        <p style="margin:0;padding-top:16px;border-top:1px solid #E2E2DF;font-size:12px;line-height:1.5;color:#595959;">
+          Si usted no creó esta cuenta, ignore este correo.<br>
+          <strong style="color:#111111;">Arriero</strong> · Menos carreta, más crecimiento.
+        </p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>

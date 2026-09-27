@@ -51,7 +51,7 @@ export default async function WeeklyLoadPage({ params, searchParams }: PageProps
     return (
       <div className="mx-auto max-w-5xl">
         {header}
-        <EmptyState
+        <EmptyState art="portatil"
           icon={CalendarPlus}
           title="Todavía no hay métricas para cargar"
           description={
