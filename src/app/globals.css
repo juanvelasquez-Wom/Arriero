@@ -182,6 +182,11 @@
   .dark .brand-ink {
     filter: invert(1);
   }
+  /* Sobre fondo negro (panel del login): siempre en blanco, en claro y en oscuro. */
+  .brand-on-dark,
+  .dark .brand-on-dark {
+    filter: invert(1);
+  }
   /* Tarjeta que se eleva al pasar el mouse. */
   .lift {
     transition:
@@ -217,6 +222,20 @@
 /* Quien ya conoce el modelo puede ocultar las explicaciones básicas (menú de usuario). */
 .explain-off [data-explain] {
   display: none !important;
+}
+
+/* La mula sube la montaña en el login. */
+@keyframes mule-trek {
+  0% {
+    transform: translateX(-10%) translateY(0);
+  }
+  100% {
+    transform: translateX(110%) translateY(-40%);
+  }
+}
+
+.mule-trek {
+  animation: mule-trek 18s linear infinite;
 }
 
 @keyframes rise {
@@ -263,6 +282,7 @@
   .lift,
   .lift:hover,
   .rise,
+  .mule-trek,
   .mule-walk {
     animation: none !important;
     transition: none !important;

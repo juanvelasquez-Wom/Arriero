@@ -30,14 +30,14 @@ export function LogoLockup({ className, compact = false }: { className?: string;
 }
 
 /** Logo completo (mula, montaña y nombre). */
-export function LogoFull({ className }: { className?: string }) {
+export function LogoFull({ className, onDark = false }: { className?: string; onDark?: boolean }) {
   return (
     <Image
       src="/brand/arriero-logo.png"
       alt="Arriero Growth Engine"
       width={1024}
       height={896}
-      className={cn("brand-ink h-auto select-none", className)}
+      className={cn(onDark ? "brand-on-dark" : "brand-ink", "h-auto select-none", className)}
       priority
     />
   );
