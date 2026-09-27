@@ -18,6 +18,10 @@ import { DECISIONS, VERDICTS, type Decision, type Verdict } from "@/domain/types
 import { cn } from "@/lib/utils";
 import { CELEBRATIONS, celebrate } from "@/components/brand/celebrate";
 import { decideExperiment } from "@/server/actions/experiments";
+import { readResult } from "@/server/actions/tia-recommendations";
+import { matchLineIds } from "@/domain/tia-recommendations";
+import { TiaSuggest } from "@/components/tia/tia-suggest";
+import { TiaText } from "@/components/tia/tia-ui";
 
 export interface DecideDialogProps {
   open: boolean;
@@ -130,6 +134,55 @@ export function DecideDialog(props: DecideDialogProps) {
             </>
           )}
         </div>
+
+        <TiaSuggest
+          label="La Tía le lee el resultado"
+          title="La Tía le lee el resultado"
+          run={() =>
+            readResult(props.programId, {
+              experiment_id: props.experimentId,
+              evidence: props.evidence,
+              durationWarning: props.durationWarning,
+              missingResults: props.missingResults,
+              decisionRule: props.decisionRule,
+            })
+          }
+          render={(r, close) => {
+            const lineIds = matchLineIds(r.applies_to, props.lines, props.ownLineId);
+            const lineNames = props.lines.filter((l) => lineIds.includes(l.id)).map((l) => l.name);
+            return (
+              <div className="space-y-2 text-sm">
+                <TiaText text={r.summary} />
+                {r.points.length ? <TiaText text={r.points.map((p) => `- ${p}`).join("\n")} /> : null}
+                {r.learning_draft ? (
+                  <div className="rounded-xl border bg-paper p-3">
+                    <div className="mb-1 text-xs font-medium text-soft">Borrador del aprendizaje</div>
+                    <p>{r.learning_draft}</p>
+                    {lineNames.length ? <p className="mt-1 text-xs text-soft">Podría aplicar a: {lineNames.join(", ")}</p> : null}
+                  </div>
+                ) : null}
+                <p className="text-xs text-soft">El veredicto y la decisión los marca usted: la Tía solo le cuenta lo que ve.</p>
+                {r.learning_draft ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={learning.trim().length > 0}
+                    title={learning.trim() ? "Solo se usa con el campo del aprendizaje vacío" : undefined}
+                    onClick={() => {
+                      setLearning((prev) => (prev.trim() ? prev : r.learning_draft));
+                      if (lineIds.length) setAppliesTo((prev) => (prev.length ? prev : lineIds));
+                      if (r.suggested_hypothesis) setSuggested((prev) => (prev.trim() ? prev : r.suggested_hypothesis));
+                      toast.success("Borrador puesto en el aprendizaje", { description: "Complete los [corchetes] con lo que ustedes saben." });
+                      close();
+                    }}
+                  >
+                    Usar el borrador
+                  </Button>
+                ) : null}
+              </div>
+            );
+          }}
+        />
 
         <fieldset className="space-y-2">
           <legend className="text-sm font-medium">

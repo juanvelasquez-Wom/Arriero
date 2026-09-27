@@ -25,7 +25,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <TooltipProvider delayDuration={200}>
             {children}
-            <Toaster position="bottom-right" />
+            <Toaster position="top-center" />
           </TooltipProvider>
         </ThemeProvider>
       </body>

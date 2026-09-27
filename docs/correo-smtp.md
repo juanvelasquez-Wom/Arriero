@@ -1,28 +1,25 @@
 # Correo de Arriero (SMTP propio en Supabase)
 
-Sin SMTP propio, Supabase manda muy pocos correos por hora y con su diseño genérico. Con esto, las invitaciones y la recuperación de contraseña salen con la marca Arriero y desde su dominio.
+Sin SMTP propio, Supabase manda muy pocos correos por hora y con su diseño genérico. Con esto, las invitaciones y la recuperación de contraseña salen con la marca Arriero.
 
-**Proveedor recomendado:** [Resend](https://resend.com). Es simple, tiene plan gratis (3.000 correos al mes) y funciona bien con Supabase. Si WOM ya tiene un SMTP corporativo (Microsoft 365, Google Workspace, SendGrid), sirve igual: solo cambian el servidor, el puerto y el usuario.
+**Camino elegido: una cuenta de Gmail para Arriero.** No necesita dominio propio, ni DNS, ni TI. Los correos salen desde Google, así que llegan bien a la bandeja de entrada. El límite es de unos 500 correos al día, de sobra para un equipo interno.
 
-> Las contraseñas y llaves se escriben solo en los paneles de Resend y Supabase. No se pegan en el chat, en el código ni en este repositorio.
+> La contraseña de aplicación se escribe solo en el panel de Supabase. No se pega en el chat, en el código ni en este repositorio.
 
-## 1. Elegir el remitente
+## 1. Crear la cuenta de Gmail
 
-Decida desde qué correo sale Arriero, por ejemplo `arriero@movilpt.co` o `hola@arriero.<dominio>`. Necesita acceso al DNS de ese dominio (o a alguien de TI que lo tenga).
+1. Cree una cuenta nueva en [accounts.google.com](https://accounts.google.com), por ejemplo `arriero.growth@gmail.com` (la que esté libre). En el nombre ponga **Arriero** para que los correos digan "Arriero" como remitente.
+2. Opcional: póngale como foto de perfil la mula (`public/brand/arriero-mark.png`). Gmail la muestra al lado de los correos.
 
-Recomendación: use un subdominio (`mail.movilpt.co`) para no tocar la reputación del correo corporativo.
+## 2. Activar la verificación en dos pasos
 
-## 2. Verificar el dominio en Resend
+En esa cuenta: **Gestionar tu cuenta de Google → Seguridad → Verificación en dos pasos → Activar**. Google la exige para el paso siguiente.
 
-1. Cree la cuenta en resend.com con un correo del equipo.
-2. **Domains → Add domain** y escriba el dominio o subdominio.
-3. Resend le muestra 3 o 4 registros DNS (SPF en TXT, DKIM, y opcional MX para rebotes). Pídale a TI que los cree tal cual.
-4. Agregue también un registro **DMARC** si el dominio no tiene: `TXT _dmarc.<dominio>` con `v=DMARC1; p=none;`.
-5. Vuelva a Resend y pulse **Verify**. Puede tardar de minutos a unas horas.
+## 3. Crear una contraseña de aplicación
 
-## 3. Crear la llave SMTP
-
-En Resend: **API Keys → Create API key**, con nombre `arriero-supabase` y permiso "Sending access" para ese dominio. Copie la llave (empieza por `re_`): solo se muestra una vez.
+1. Entre a [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) con la cuenta de Arriero.
+2. Nombre: `Supabase Arriero` → **Crear**.
+3. Google muestra una contraseña de 16 letras. Cópiela (sin espacios): solo se muestra una vez. Esta es la contraseña del SMTP; **no** es la contraseña normal de la cuenta.
 
 ## 4. Configurar el SMTP en Supabase
 
@@ -30,21 +27,21 @@ Proyecto `orehfqgrohqdoxmboczu` → **Authentication → Emails → SMTP Setting
 
 | Campo | Valor |
 |---|---|
-| Sender email | el remitente del paso 1 (`arriero@…`) |
+| Sender email | la cuenta de Gmail (`arriero.growth@gmail.com`) |
 | Sender name | `Arriero` |
-| Host | `smtp.resend.com` |
+| Host | `smtp.gmail.com` |
 | Port | `465` |
-| Username | `resend` |
-| Password | la llave `re_…` del paso 3 (escríbala usted en el panel) |
+| Username | la misma cuenta de Gmail |
+| Password | la contraseña de aplicación del paso 3 (escríbala usted en el panel) |
 | Minimum interval between emails | `10` segundos (el valor por defecto está bien) |
 
 Guarde.
 
 ## 5. Límites y direcciones
 
-- **Authentication → Rate Limits → Rate limit for sending emails:** súbalo a lo que necesite el equipo (por ejemplo, 100 por hora).
+- **Authentication → Rate Limits → Rate limit for sending emails:** por ejemplo, 100 por hora (Gmail permite ~500 al día).
 - **Authentication → URL Configuration:**
-  - **Site URL:** la dirección de producción de Arriero en Vercel (por ejemplo `https://arriero.vercel.app`). Los correos usan esta dirección para el botón y para mostrar el logo.
+  - **Site URL:** la dirección de producción de Arriero en Vercel (por ejemplo `https://arriero.vercel.app`). Los correos la usan para el botón y para mostrar el logo.
   - **Redirect URLs:** agregue `https://<producción>/auth/confirm` y `http://localhost:3000/auth/confirm`.
 
 ## 6. Pegar las plantillas con la marca
@@ -60,7 +57,7 @@ Guarde.
 | Reauthentication | `supabase/templates/reauthentication.html` |
 | Confirm signup | `supabase/templates/confirmation.html` |
 
-Para cambiar un texto, edite `scripts/build-email-templates.mjs`, corra `node scripts/build-email-templates.mjs` y vuelva a pegar la plantilla que cambió. (Si algún día se hace `npx supabase login`, `supabase/config.toml` ya apunta a estos archivos.)
+Para cambiar un texto, edite `scripts/build-email-templates.mjs`, corra `node scripts/build-email-templates.mjs` y vuelva a pegar la plantilla que cambió.
 
 **El logo** se carga desde `{{ .SiteURL }}/brand/arriero-logo.png`: se ve cuando la app ya está publicada en Vercel. Probando en local, el correo llega bien pero sin el logo.
 
@@ -68,10 +65,14 @@ Para cambiar un texto, edite `scripts/build-email-templates.mjs`, corra `node sc
 
 1. En Arriero, **Usuarios → Crear usuario** con un correo suyo de prueba. Debe llegar "Su equipo le abrió un campo en Arriero".
 2. En el login, **Se me olvidó la contraseña** con ese correo. Debe llegar "Recupere su contraseña de Arriero".
-3. Revise también la carpeta de spam. Si el correo cae ahí, casi siempre es SPF, DKIM o DMARC sin verificar.
+3. Si no llega: revise spam, confirme que la contraseña de aplicación no tenga espacios y que el usuario sea la cuenta de Gmail completa.
 
-Cuando el SMTP funcione, la app deja de mostrar el enlace para copiar a mano en las invitaciones, porque el correo ya llega solo.
+Cuando el SMTP funcione, las invitaciones llegan solas por correo y ya no hace falta copiar el enlace a mano.
+
+## Si algún día quiere un dominio propio
+
+Se cambia solo el paso 4 (host, puerto, usuario y contraseña del proveedor, por ejemplo Resend o Brevo) después de verificar el dominio en ese proveedor. Las plantillas siguen iguales.
 
 ## Siguiente paso (opcional): avisos por correo
 
-Los avisos de Arriero (asignaciones, "ya se puede leer", recordatorio del lunes) hoy son dentro de la app. Para mandarlos también por correo, la app necesita su propia llave de Resend (`RESEND_API_KEY` en `.env.local` y en Vercel) y un resumen diario por persona. Se construye cuando el SMTP esté andando.
+Los avisos de Arriero hoy son dentro de la app. Para mandarlos también por correo se puede usar esta misma cuenta de Gmail desde la app (con la contraseña de aplicación en `.env.local` y en Vercel). Se construye cuando el SMTP esté andando.

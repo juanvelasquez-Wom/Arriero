@@ -1,4 +1,4 @@
-import { Map as MapIcon, Sparkles } from "lucide-react";
+import { Coffee, Map as MapIcon, Sparkles } from "lucide-react";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Callout, PageHeader, Section } from "@/components/app/page";
@@ -6,6 +6,7 @@ import { ProblemForm } from "@/components/problems/problem-form";
 import { todayIso } from "@/domain/dates";
 import { draftProblemFromMetric, EVIDENCE_MAX_WEEKS, pickHorizon } from "@/domain/evidence";
 import { can } from "@/domain/permissions";
+import { parseProblemPrefill } from "@/domain/tia-insights";
 import type { MetricDirection } from "@/domain/types";
 import type { ProblemInput } from "@/lib/validation/problems";
 import { createClient } from "@/lib/supabase/server";
@@ -89,8 +90,33 @@ export default async function NewProblemPage({ params, searchParams }: PageProps
     listStages({ programId }),
     metricId ? metricDraft(programId, metricId) : Promise.resolve(null),
   ]);
-  const lineParam = typeof sp.linea === "string" && lines.some((l) => l.id === sp.linea) ? sp.linea : undefined;
+  // Borrador desde la URL (p. ej. "Convertir en problema" de La Tía): textos recortados y
+  // solo línea y etapa que existan en el programa.
+  const prefill = parseProblemPrefill(sp, { lines, stages });
+  const lineParam = prefill.lineId ?? undefined;
   const fromQuickStart = sp.desde === "arranque";
+  const fromTia = sp.desde === "tia" && !!(prefill.title || prefill.evidence);
+  const hasPrefill = !!(prefill.title || prefill.evidence || prefill.stageId);
+  const base: ProblemInput = fromMetric?.defaults ?? {
+    stage_id: "",
+    channel: "",
+    title: "",
+    evidence: "",
+    root_cause: "",
+    impact: "medium",
+    control: "ours",
+    status: "to_validate",
+  };
+  // Si viene línea explícita y la etapa de la métrica es de otra línea, manda la etapa pedida (o ninguna).
+  const baseStageOk = !prefill.lineId || stages.some((st) => st.id === base.stage_id && st.line_id === prefill.lineId);
+  const defaults: ProblemInput | undefined = hasPrefill
+    ? {
+        ...base,
+        stage_id: prefill.stageId ?? (baseStageOk ? base.stage_id : ""),
+        title: prefill.title ?? base.title,
+        evidence: [prefill.evidence, fromMetric?.defaults.evidence].filter(Boolean).join("\n\n").slice(0, 4000),
+      }
+    : fromMetric?.defaults;
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -102,6 +128,12 @@ export default async function NewProblemPage({ params, searchParams }: PageProps
         <Callout icon={MapIcon} className="mb-4">
           ¡Listo pues, ya tiene el mapa! Ahora cuéntele a Arriero dónde se pierde valor: un problema con los datos que lo muestran.
           Después puede completar líneas base y metas en Configuración.
+        </Callout>
+      ) : null}
+      {fromTia ? (
+        <Callout icon={Coffee} tone="neutral" className="mb-4">
+          La Tía le dejó el borrador con lo que vio en los datos. Revíselo, complete la causa que sospecha y ajuste lo que haga falta:
+          ella propone, usted decide. Nada se guarda hasta que usted lo diga.
         </Callout>
       ) : null}
       {fromMetric ? (
@@ -119,8 +151,8 @@ export default async function NewProblemPage({ params, searchParams }: PageProps
           programId={programId}
           lines={lines}
           stages={stages}
-          defaults={fromMetric?.defaults}
-          defaultLineId={fromMetric?.lineId ?? lineParam}
+          defaults={defaults}
+          defaultLineId={lineParam ?? fromMetric?.lineId}
         />
       </Section>
     </div>

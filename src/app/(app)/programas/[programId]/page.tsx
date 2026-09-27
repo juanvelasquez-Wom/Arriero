@@ -20,6 +20,7 @@ import { PageHeader, Section } from "@/components/app/page";
 import { StatusBadge } from "@/components/app/status-badge";
 import { JourneyStrip } from "@/components/brand/journey-strip";
 import { TargetStatusSummary } from "@/components/lines/target-status";
+import { TiaOpportunities } from "@/components/tia/tia-opportunities";
 import { Button } from "@/components/ui/button";
 import { CALENDAR_EVENT_LABEL } from "@/domain/labels";
 import { formatDate, formatDateRange, formatPercent } from "@/domain/format";
@@ -34,6 +35,7 @@ import { getProgramContext } from "@/server/auth";
 import { listExperiments, listVariants } from "@/server/queries/experiments";
 import { listCalendar, listHorizons, listLines, onboardingCounts } from "@/server/queries/programs";
 import { listLearnings, listMetrics, listMetricValues } from "@/server/queries/structure";
+import { tiaConfigured } from "@/server/tia/client";
 
 const HOME_ICON: Record<HomeItemKind, LucideIcon> = {
   north_star_off_track: OctagonAlert,
@@ -224,6 +226,12 @@ export default async function ProgramOverviewPage({ params }: PageProps<"/progra
           </p>
         )}
       </Section>
+
+      {counts.problems > 0 || northStars.length > 0 ? (
+        <div className="mb-6">
+          <TiaOpportunities programId={programId} configured={tiaConfigured()} canCreateProblem={can.createProblem(ctx.actor)} />
+        </div>
+      ) : null}
 
       <div className="mb-6">
         <JourneyStrip

@@ -185,6 +185,8 @@ function NodeCard({
                 problemHref={`/programas/${programId}${problemFromMetricPath(node.id)}`}
               />
               <MetricTrendDialog
+                programId={programId}
+                metricId={node.id}
                 name={node.name}
                 unit={node.unit}
                 baseline={node.baseline}

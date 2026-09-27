@@ -7,6 +7,7 @@ import {
   CalendarClock,
   CheckCheck,
   ClipboardList,
+  Coffee,
   Hourglass,
   MessageSquare,
   RefreshCw,
@@ -34,6 +35,7 @@ const KIND_ICON: Record<string, LucideIcon> = {
   stale: Hourglass,
   freeze: Snowflake,
   load_reminder: ClipboardList,
+  gossip: Coffee, // La Tía le tiene un chismecito
 };
 
 /**

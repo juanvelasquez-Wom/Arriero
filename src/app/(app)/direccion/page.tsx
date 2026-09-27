@@ -10,6 +10,7 @@ import { Term } from "@/components/app/info-tip";
 import { Callout, EmptyState, PageHeader, Section } from "@/components/app/page";
 import { DemoBadge } from "@/components/app/status-badge";
 import { TargetStatusSummary } from "@/components/lines/target-status";
+import { TiaCommittee } from "@/components/tia/tia-committee";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toCsv } from "@/domain/csv";
@@ -23,6 +24,7 @@ import { formatCop } from "@/domain/value";
 import { cn } from "@/lib/utils";
 import { requireUser } from "@/server/auth";
 import { listVisiblePrograms, loadSnapshots } from "@/server/queries/management";
+import { tiaConfigured } from "@/server/tia/client";
 
 export const metadata: Metadata = { title: "Resumen ejecutivo" };
 
@@ -282,6 +284,8 @@ export default async function DirectionPage({ searchParams }: PageProps<"/direcc
             </div>
 
             <ExecutiveBriefView brief={brief} periodKey={periodKey} />
+
+            <TiaCommittee briefText={briefText} configured={tiaConfigured()} />
 
             <h2 className="pt-4 text-2xl font-extrabold">Por programa</h2>
 

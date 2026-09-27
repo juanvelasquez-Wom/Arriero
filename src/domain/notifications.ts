@@ -9,6 +9,7 @@ export const NOTIFICATION_KINDS = [
   "stale",
   "freeze",
   "load_reminder",
+  "gossip",
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
@@ -21,6 +22,7 @@ export const NOTIFICATION_KIND_LABEL: Record<NotificationKind, string> = {
   stale: "Idea quieta",
   freeze: "Congelamiento",
   load_reminder: "Carga semanal",
+  gossip: "Chismecito de La Tía",
 };
 
 export function isNotificationKind(k: string): k is NotificationKind {

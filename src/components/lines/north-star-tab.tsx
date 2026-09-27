@@ -8,6 +8,8 @@ import { changeVsBaseline } from "@/domain/metric-tree";
 import { evaluateTarget } from "@/domain/targets";
 import { problemFromMetricPath } from "@/domain/home";
 import { Term } from "@/components/app/info-tip";
+import { TiaExplainMetric } from "@/components/tia/tia-explain-metric";
+import { tiaConfigured } from "@/server/tia/client";
 import { cn } from "@/lib/utils";
 import type { Horizon } from "@/server/queries/programs";
 import type { MetricHistoryRow, MetricRow, MetricValueRow } from "@/server/queries/structure";
@@ -192,6 +194,7 @@ function MetricOverview({
               problemHref={`/programas/${programId}${problemFromMetricPath(metric.id)}`}
             />
           </div>
+          {series.length ? <TiaExplainMetric programId={programId} metricId={metric.id} configured={tiaConfigured()} /> : null}
           {change.ratio != null || change.favorable != null ? (
             <p className="flex items-center gap-1.5 text-sm">
               <ChangeIcon aria-hidden className="size-4" />
