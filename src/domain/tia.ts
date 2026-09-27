@@ -3,6 +3,13 @@
 
 export const TIA_NAME = "La Tía";
 
+/**
+ * Interruptor de La Tía. Apagada por defecto: se prende con NEXT_PUBLIC_TIA_ENABLED=true
+ * (en .env.local y en Vercel) además de la llave ANTHROPIC_API_KEY. Apagada, no aparece
+ * ningún botón y el servidor no llama a Claude.
+ */
+export const TIA_ENABLED = process.env.NEXT_PUBLIC_TIA_ENABLED === "true";
+
 /** Funciones de La Tía (se registran en tia_usage.feature). */
 export const TIA_FEATURES = [
   "chat", // Pregúntele a la Tía

@@ -1,12 +1,14 @@
 # La Tía · copiloto de Arriero con Claude
 
+> **Estado: apagada.** Todo el código está listo, pero no aparece en la app ni llama a Claude hasta que se prenda con `NEXT_PUBLIC_TIA_ENABLED=true` (ver el paso 4).
+
 La Tía lee los datos del programa (métricas, problemas, ejercicios, aprendizajes, calendario) y **propone**. Las decisiones siempre son del equipo: nunca pone veredictos, nunca califica por nadie y cita de dónde saca lo que dice.
 
 ## Qué hace
 
 | Función | Dónde aparece |
 |---|---|
-| **Pregúntele a la Tía** | Botón flotante en cada programa: chat con los datos del programa |
+| **Pregúntele a la Tía** | Botón amarillo en la barra superior de cada programa: chat con los datos del programa |
 | **La Tía detectó una oportunidad** | Resumen del programa, junto a "Lo que toca hoy": hasta 3 oportunidades con evidencia y "Convertir en problema" |
 | **La Tía tiene una recomendación** | Asistente de ejercicios: hipótesis, calificación ICE sugerida y diseño de la prueba |
 | **La Tía le revisa la hipótesis** | Paso de hipótesis: dice si se puede medir, si es concreta y cómo mejorarla |
@@ -26,12 +28,13 @@ Todo se pide con un botón (menos el chismecito del lunes), así no se gastan co
 3. **Crear la llave.** En **API Keys → Create Key**, con nombre `arriero-produccion`. Copie la llave (empieza por `sk-ant-`): solo se muestra una vez.
 4. **Ponerla en local.** Abra el archivo `.env.local` del proyecto y agregue, usted mismo:
    ```
+   NEXT_PUBLIC_TIA_ENABLED=true
    ANTHROPIC_API_KEY=<su llave>
    TIA_MODEL=claude-sonnet-5
    TIA_DAILY_LIMIT=60
    ```
    Reinicie el servidor de desarrollo.
-5. **Ponerla en Vercel** cuando publique: **Project → Settings → Environment Variables**, las mismas tres variables (Production y Preview).
+5. **Ponerla en Vercel** cuando publique: **Project → Settings → Environment Variables**, las mismas cuatro variables (Production y Preview). `NEXT_PUBLIC_TIA_ENABLED` se lee al compilar: después de cambiarla hay que volver a desplegar.
 6. **Base de datos.** Pegue `Descargas/arriero-la-tia.sql` en el SQL Editor de Supabase. Crea el historial del chat y el registro de consumo.
 7. **Probar.** Entre a un programa, abra **Pregúntele a la Tía** y pregunte "¿Qué métrica va peor y por qué?".
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { TIA_ENABLED } from "@/domain/tia";
 import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { SendHorizontalIcon, Trash2Icon, XIcon } from "lucide-react";
 import { toast } from "sonner";
@@ -27,7 +28,7 @@ const nextId = () => `local-${Date.now()}-${++seq}`;
  * "Pregúntele a la Tía": botón flotante y panel lateral de chat del programa.
  * Solo presenta y conversa; la respuesta la arma el servidor (/api/tia/chat).
  */
-export function TiaChat({ programId, programName, configured, left }: { programId: string; programName: string; configured: boolean; left: number | null }) {
+function TiaChatInner({ programId, programName, configured, left }: { programId: string; programName: string; configured: boolean; left: number | null }) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Bubble[]>([]);
   const [historyState, setHistoryState] = useState<"idle" | "loading" | "ready">("idle");
@@ -315,4 +316,9 @@ export function TiaChat({ programId, programName, configured, left }: { programI
       </SheetContent>
     </Sheet>
   );
+}
+
+/** Se muestra solo si La Tía está prendida (NEXT_PUBLIC_TIA_ENABLED). */
+export function TiaChat(props: Parameters<typeof TiaChatInner>[0]) {
+  return TIA_ENABLED ? <TiaChatInner {...props} /> : null;
 }

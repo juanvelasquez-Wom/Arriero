@@ -1,5 +1,6 @@
 "use client";
 
+import { TIA_ENABLED } from "@/domain/tia";
 import { FilePlus2, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { useState, useTransition } from "react";
@@ -12,7 +13,7 @@ import { TiaAvatar, TiaCard, TiaDisclaimer, TiaText, TiaThinking } from "./tia-u
 type State = { kind: "idle" } | { kind: "error"; message: string } | { kind: "done"; items: OpportunityCard[]; text: string | null };
 
 /** "La Tía detectó una oportunidad": bajo demanda, para no gastar consultas en cada visita. */
-export function TiaOpportunities({ programId, configured, canCreateProblem }: { programId: string; configured: boolean; canCreateProblem: boolean }) {
+function TiaOpportunitiesInner({ programId, configured, canCreateProblem }: { programId: string; configured: boolean; canCreateProblem: boolean }) {
   const [state, setState] = useState<State>({ kind: "idle" });
   const [pending, startTransition] = useTransition();
 
@@ -104,4 +105,9 @@ export function TiaOpportunities({ programId, configured, canCreateProblem }: { 
       ) : null}
     </div>
   );
+}
+
+/** Se muestra solo si La Tía está prendida (NEXT_PUBLIC_TIA_ENABLED). */
+export function TiaOpportunities(props: Parameters<typeof TiaOpportunitiesInner>[0]) {
+  return TIA_ENABLED ? <TiaOpportunitiesInner {...props} /> : null;
 }

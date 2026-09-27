@@ -40,7 +40,7 @@ export class TiaError extends Error {
 }
 
 export function tiaConfigured(): boolean {
-  return !!process.env.ANTHROPIC_API_KEY;
+  return process.env.NEXT_PUBLIC_TIA_ENABLED === "true" && !!process.env.ANTHROPIC_API_KEY;
 }
 
 export function tiaModel(): string {

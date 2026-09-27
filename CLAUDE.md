@@ -146,7 +146,7 @@ tests/
 - Ayudas: panel "¿Qué es esto?" y textos en `src/components/setup/help-content.ts`; burbujas ⓘ (`InfoTip`) por campo; botones "Usar ejemplo". Plantillas y sugerencias en `src/domain/growth-templates.ts`.
 - Se mantiene el término de la metodología, **horizonte** (H1, H2), siempre explicado como "tramo del programa con su propia meta".
 
-**La Tía (copiloto con Claude)** — ver [`docs/la-tia.md`](docs/la-tia.md)
+**La Tía (copiloto con Claude)** — ver [`docs/la-tia.md`](docs/la-tia.md). **Apagada por ahora:** solo aparece con `NEXT_PUBLIC_TIA_ENABLED=true` (`TIA_ENABLED` en `domain/tia.ts`; cada componente de `components/tia` se oculta solo y `tiaConfigured()` devuelve false).
 
 - Llamada a la API de Claude con `fetch` en `src/server/tia/client.ts` (sin SDK). Llave solo en `ANTHROPIC_API_KEY` (servidor); modelo `TIA_MODEL` (por defecto `claude-sonnet-5`); tope por persona `TIA_DAILY_LIMIT`.
 - `runTia` (`src/server/tia/run.ts`) verifica llave y tope, arma el contexto del programa con RLS (`context.ts`) y registra el consumo en `tia_usage`.

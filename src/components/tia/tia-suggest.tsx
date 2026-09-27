@@ -1,5 +1,6 @@
 "use client";
 
+import { TIA_ENABLED } from "@/domain/tia";
 import { RotateCcw, X } from "lucide-react";
 import { useState, useTransition, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
@@ -13,7 +14,7 @@ import { TiaAvatar, TiaCard, TiaDisclaimer, TiaThinking } from "./tia-ui";
  * El resultado lo pinta `render`, que recibe `close` para cerrar la tarjeta
  * (p. ej. después de "Usar esta"). Nada se guarda solo.
  */
-export function TiaSuggest<T>({
+function TiaSuggestInner<T>({
   label,
   title,
   run,
@@ -100,4 +101,9 @@ export function TiaSuggest<T>({
       </div>
     </TiaCard>
   );
+}
+
+/** Se muestra solo si La Tía está prendida (NEXT_PUBLIC_TIA_ENABLED). */
+export function TiaSuggest<T>(props: Parameters<typeof TiaSuggestInner<T>>[0]) {
+  return TIA_ENABLED ? <TiaSuggestInner<T> {...props} /> : null;
 }

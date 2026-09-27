@@ -1,5 +1,6 @@
 "use client";
 
+import { TIA_ENABLED } from "@/domain/tia";
 import { RefreshCw } from "lucide-react";
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,7 @@ type State = { kind: "idle" } | { kind: "error"; message: string } | { kind: "do
  * conoce (p. ej. dentro de un componente de cliente), la acción responde con el
  * aviso de que La Tía no está conectada.
  */
-export function TiaExplainMetric({
+function TiaExplainMetricInner({
   programId,
   metricId,
   configured,
@@ -80,4 +81,9 @@ export function TiaExplainMetric({
       {state.kind === "error" ? <p className="text-xs text-soft">{state.message}</p> : null}
     </div>
   );
+}
+
+/** Se muestra solo si La Tía está prendida (NEXT_PUBLIC_TIA_ENABLED). */
+export function TiaExplainMetric(props: Parameters<typeof TiaExplainMetricInner>[0]) {
+  return TIA_ENABLED ? <TiaExplainMetricInner {...props} /> : null;
 }

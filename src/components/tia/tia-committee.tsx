@@ -1,5 +1,6 @@
 "use client";
 
+import { TIA_ENABLED } from "@/domain/tia";
 import { RefreshCw } from "lucide-react";
 import { useState, useTransition } from "react";
 import { CopySummaryButton } from "@/components/app/report-actions";
@@ -16,7 +17,7 @@ function plain(text: string): string {
 }
 
 /** "La Tía le prepara el comité": narrativa lista para leer, desde el resumen ejecutivo. */
-export function TiaCommittee({ briefText, configured }: { briefText: string; configured: boolean }) {
+function TiaCommitteeInner({ briefText, configured }: { briefText: string; configured: boolean }) {
   const [state, setState] = useState<State>({ kind: "idle" });
   const [pending, startTransition] = useTransition();
 
@@ -77,4 +78,9 @@ export function TiaCommittee({ briefText, configured }: { briefText: string; con
       </Button>
     </div>
   );
+}
+
+/** Se muestra solo si La Tía está prendida (NEXT_PUBLIC_TIA_ENABLED). */
+export function TiaCommittee(props: Parameters<typeof TiaCommitteeInner>[0]) {
+  return TIA_ENABLED ? <TiaCommitteeInner {...props} /> : null;
 }
