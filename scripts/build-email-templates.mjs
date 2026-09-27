@@ -10,7 +10,7 @@ const WASH = "#F6F6F4";
 const LINE = "#E2E2DF";
 const YELLOW = "#F2C200";
 
-function layout({ preheader, title, body, button, after, footnote }) {
+function layout({ preheader, title, body, button, after, footnote, art }) {
   return `<!doctype html>
 <html lang="es">
 <head>
@@ -25,9 +25,12 @@ function layout({ preheader, title, body, button, after, footnote }) {
   <tr><td align="center" style="padding:32px 16px;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#FFFFFF;border:1px solid ${LINE};border-radius:16px;overflow:hidden;">
       <tr><td style="padding:28px 32px 8px 32px;">
-        <img src="{{ .SiteURL }}/brand/arriero-logo.png" width="120" alt="Arriero · Growth Engine" style="display:block;width:120px;height:auto;border:0;">
+        <img src="{{ .SiteURL }}/brand/arriero-wordmark.png" width="150" alt="Arriero · Growth Engine" style="display:block;width:150px;height:auto;border:0;">
       </td></tr>
-      <tr><td style="padding:8px 32px 0 32px;">
+      <tr><td style="padding:16px 32px 0 32px;">
+        <img src="{{ .SiteURL }}/brand/icons/${art}.png" width="88" alt="" style="display:block;width:88px;height:auto;border:0;">
+      </td></tr>
+      <tr><td style="padding:12px 32px 0 32px;">
         <h1 style="margin:0;font-size:26px;line-height:1.2;font-weight:800;letter-spacing:-0.02em;color:${INK};">${title}</h1>
       </td></tr>
       <tr><td style="padding:12px 32px 0 32px;font-size:15px;line-height:1.6;color:${INK};">${body}</td></tr>
@@ -46,7 +49,7 @@ function layout({ preheader, title, body, button, after, footnote }) {
       <tr><td style="padding:24px 32px 28px 32px;">
         <p style="margin:0;padding-top:16px;border-top:1px solid ${LINE};font-size:12px;line-height:1.5;color:${SOFT};">
           ${footnote}<br>
-          <strong style="color:${INK};">Arriero</strong> · Menos carreta, más crecimiento.
+          <strong style="color:${INK};">Arriero</strong> · Menos carreta, más crecimiento.<br>El que sabe por dónde es.
         </p>
       </td></tr>
     </table>
@@ -61,66 +64,72 @@ const confirm = (type) => `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash 
 
 const templates = {
   invite: {
-    subject: "Su equipo le abrió un campo en Arriero: ¿arrancamos?",
+    subject: "¡Ave María! Ya ensillaron la mula y solo falta usted",
     html: layout({
-      preheader: "Cree su contraseña y entre al programa de growth de su equipo.",
-      title: "¡Hágale pues, que su equipo ya arrancó!",
-      body: `<p style="margin:0 0 12px 0;">Le abrieron una cuenta en <strong>Arriero</strong>, donde su equipo organiza el crecimiento: métricas, problemas, ejercicios y lo que se va aprendiendo, todo en un solo lugar.</p>
-<p style="margin:0;">Para entrar solo tiene que crear su contraseña. Son dos minutos, sin carreta.</p>`,
-      button: { href: confirm("invite"), label: "Crear mi contraseña" },
-      after: `<p style="margin:0;font-size:13px;color:${SOFT};">El enlace sirve una sola vez y vence en 24 horas. Si vence, pídale a quien le mandó la invitación que la envíe de nuevo.</p>`,
-      footnote: "Si no esperaba esta invitación, puede ignorar este correo: sin la contraseña nadie entra con su cuenta.",
+      art: "mula-cargada",
+      preheader: "Cree su contraseña y arranque: menos carreta, más crecimiento.",
+      title: "¡Hágale pues, que la mula ya está ensillada!",
+      body: `<p style="margin:0 0 12px 0;">Su equipo le abrió un puesto en <strong>Arriero</strong>, el carriel donde se guarda todo lo del crecimiento: las métricas, los problemas, los ejercicios y lo que se va aprendiendo. Aquí nadie carga por cargar.</p>
+<p style="margin:0;">Para arrancar solo le falta crear su contraseña. Es más rápido que tomarse un tinto.</p>`,
+      button: { href: confirm("invite"), label: "Crear mi contraseña y arrancar" },
+      after: `<p style="margin:0;font-size:13px;color:${SOFT};">Ojo: el enlace sirve una sola vez y se vence en 24 horas, como el pandebono de la tienda. Si se le vence, pídale a quien le mandó la invitación que se la reenvíe.</p>`,
+      footnote: "¿No esperaba esta invitación? Tranquilidad: ignore este correo, que sin la contraseña nadie entra con su cuenta.",
     }),
   },
   recovery: {
-    subject: "Recupere su contraseña de Arriero",
+    subject: "¿Se le embolató la contraseña? Aquí le tenemos otra",
     html: layout({
-      preheader: "Un enlace para crear una contraseña nueva.",
-      title: "Sin afán, eso le pasa a cualquiera",
-      body: `<p style="margin:0 0 12px 0;">Recibimos una solicitud para cambiar la contraseña de <strong>{{ .Email }}</strong> en Arriero.</p>
-<p style="margin:0;">Con este botón crea una nueva y sigue andando.</p>`,
+      art: "mapa",
+      preheader: "Un enlace para crear una contraseña nueva y seguir el camino.",
+      title: "¡Uy, se le embolató la contraseña!",
+      body: `<p style="margin:0 0 12px 0;">No se preocupe, que eso le pasa hasta al arriero más berraco. Pidieron cambiar la contraseña de <strong>{{ .Email }}</strong> en Arriero.</p>
+<p style="margin:0;">Con este botón crea una nueva y sigue andando, sin afán.</p>`,
       button: { href: confirm("recovery"), label: "Crear una contraseña nueva" },
-      after: `<p style="margin:0;font-size:13px;color:${SOFT};">El enlace sirve una sola vez y vence en una hora.</p>`,
-      footnote: "¿No fue usted? Ignore este correo: su contraseña sigue igual. Si le pasa seguido, avísele a un admin.",
+      after: `<p style="margin:0;font-size:13px;color:${SOFT};">El enlace sirve una sola vez y vence en una hora: no lo deje enfriar como el tinto.</p>`,
+      footnote: "¿No fue usted? Ignore este correo, que su contraseña sigue igualita. Si le llegan muchos de estos, avísele a un admin.",
     }),
   },
   magic_link: {
-    subject: "Su enlace para entrar a Arriero",
+    subject: "Su enlace para entrar de una a Arriero, sin tanta vuelta",
     html: layout({
-      preheader: "Entre a Arriero con un clic, sin contraseña.",
-      title: "Entre de una",
-      body: `<p style="margin:0;">Este es su enlace para entrar a Arriero como <strong>{{ .Email }}</strong>. Un clic y ya está adentro.</p>`,
+      art: "celular-ruta",
+      preheader: "Un clic y ya está adentro.",
+      title: "¡Entre de una, sin tanta vuelta!",
+      body: `<p style="margin:0;">Aquí está su enlace para entrar a Arriero como <strong>{{ .Email }}</strong>. Un clic y ya está adentro, más rápido que mula en bajada.</p>`,
       button: { href: confirm("email"), label: "Entrar a Arriero" },
       after: `<p style="margin:0;font-size:13px;color:${SOFT};">Sirve una sola vez y vence en una hora.</p>`,
-      footnote: "Si usted no pidió este enlace, ignore este correo.",
+      footnote: "Si usted no pidió este enlace, ignórelo sin pena.",
     }),
   },
   email_change: {
-    subject: "Confirme su nuevo correo en Arriero",
+    subject: "¿Nos mudamos de correo? Confírmelo aquí",
     html: layout({
+      art: "camino",
       preheader: "Confirme el cambio de correo de su cuenta.",
-      title: "¿Cambiamos de correo?",
-      body: `<p style="margin:0;">Pidieron cambiar el correo de su cuenta de <strong>{{ .Email }}</strong> a <strong>{{ .NewEmail }}</strong>. Confírmelo para que los avisos le lleguen al lugar correcto.</p>`,
-      button: { href: confirm("email_change"), label: "Confirmar el cambio" },
-      footnote: "Si usted no pidió este cambio, no haga nada y avísele a un admin.",
+      title: "¿Cambiamos de casa?",
+      body: `<p style="margin:0;">Pidieron cambiar el correo de su cuenta de <strong>{{ .Email }}</strong> a <strong>{{ .NewEmail }}</strong>. Confírmelo para que los avisos, los chismecitos de La Tía y todo lo demás le lleguen al lugar correcto.</p>`,
+      button: { href: confirm("email_change"), label: "Sí, confirmar el cambio" },
+      footnote: "Si usted no pidió este cambio, no toque nada y avísele a un admin, que eso está como raro.",
     }),
   },
   reauthentication: {
-    subject: "Su código de verificación de Arriero",
+    subject: "Su código de Arriero (pa' saber que sí es usted)",
     html: layout({
+      art: "diana",
       preheader: "Código para confirmar que sí es usted.",
-      title: "¿Sí es usted?",
+      title: "¿Sí es usted o es un colado?",
       body: `<p style="margin:0 0 12px 0;">Para seguir, escriba este código en Arriero:</p>
 <p style="margin:0;font-size:32px;font-weight:800;letter-spacing:0.2em;background:${WASH};border-radius:12px;padding:16px;text-align:center;">{{ .Token }}</p>`,
-      footnote: "Si no fue usted, ignore este correo y cambie su contraseña.",
+      footnote: "Si no fue usted, ignore este correo y cambie su contraseña de una.",
     }),
   },
   confirmation: {
-    subject: "Confirme su correo en Arriero",
+    subject: "Ya casi: confirme su correo y arrancamos pa' la montaña",
     html: layout({
+      art: "montana-cima",
       preheader: "Confirme su correo para empezar.",
-      title: "Ya casi: confirme su correo",
-      body: `<p style="margin:0;">Confirme <strong>{{ .Email }}</strong> para terminar de crear su cuenta en Arriero.</p>`,
+      title: "Ya casi, falta el último empujoncito",
+      body: `<p style="margin:0;">Confirme <strong>{{ .Email }}</strong> para terminar de ensillar su cuenta en Arriero. Después, a subir la montaña.</p>`,
       button: { href: confirm("email"), label: "Confirmar mi correo" },
       footnote: "Si usted no creó esta cuenta, ignore este correo.",
     }),

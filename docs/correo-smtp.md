@@ -63,8 +63,8 @@ Para cambiar un texto, edite `scripts/build-email-templates.mjs`, corra `node sc
 
 ## 7. Probar
 
-1. En Arriero, **Usuarios → Crear usuario** con un correo suyo de prueba. Debe llegar "Su equipo le abrió un campo en Arriero".
-2. En el login, **Se me olvidó la contraseña** con ese correo. Debe llegar "Recupere su contraseña de Arriero".
+1. En Arriero, **Usuarios → Crear usuario** con un correo suyo de prueba. Debe llegar "¡Ave María! Ya ensillaron la mula y solo falta usted".
+2. En el login, **Se me olvidó la contraseña** con ese correo. Debe llegar "¿Se le embolató la contraseña? Aquí le tenemos otra".
 3. Si no llega: revise spam, confirme que la contraseña de aplicación no tenga espacios y que el usuario sea la cuenta de Gmail completa.
 
 Cuando el SMTP funcione, las invitaciones llegan solas por correo y ya no hace falta copiar el enlace a mano.

@@ -1,6 +1,6 @@
-invite: Su equipo le abrió un campo en Arriero: ¿arrancamos?
-recovery: Recupere su contraseña de Arriero
-magic_link: Su enlace para entrar a Arriero
-email_change: Confirme su nuevo correo en Arriero
-reauthentication: Su código de verificación de Arriero
-confirmation: Confirme su correo en Arriero
+invite: ¡Ave María! Ya ensillaron la mula y solo falta usted
+recovery: ¿Se le embolató la contraseña? Aquí le tenemos otra
+magic_link: Su enlace para entrar de una a Arriero, sin tanta vuelta
+email_change: ¿Nos mudamos de correo? Confírmelo aquí
+reauthentication: Su código de Arriero (pa' saber que sí es usted)
+confirmation: Ya casi: confirme su correo y arrancamos pa' la montaña
