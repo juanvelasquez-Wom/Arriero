@@ -93,6 +93,10 @@ export const experimentDraftSchema = experimentOriginSchema
     planned_start: isoDate,
     planned_end: isoDate,
     variants: variantsSchema.optional(),
+    /** true: la persona cambió a mano el filtro de calendario; si no, lo calcula el servidor. */
+    fits_calendar_override: z.boolean().optional(),
+    /** updated_at que tenía el ejercicio al abrirlo (concurrencia optimista al editar). */
+    expected_updated_at: z.string().min(1).max(64).optional().nullable(),
   });
 
 export type ExperimentDraftInput = z.input<typeof experimentDraftSchema>;

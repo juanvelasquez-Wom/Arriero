@@ -1,4 +1,10 @@
 // Programa de ejemplo "Programa demo · Telco Andina". TODOS LOS DATOS SON INVENTADOS.
+//
+// Las fechas NO son fijas: salen del día en que se carga el ejemplo (`today`),
+// para que siempre se vea "en curso": el programa arrancó hace 12 semanas, dos
+// ejercicios ya se decidieron (hace unas 3 y 1 semanas), uno lleva 10 días en
+// prueba y los picos, congelamientos y el punto de decisión están por venir.
+import { addDays, weekStart } from "@/domain/dates";
 import type {
   CalendarEventType,
   ControlLevel,
@@ -10,27 +16,17 @@ import type {
   OwnerType,
   TestType,
   Verdict,
+  IsoDate,
 } from "@/domain/types";
 
-export const DEMO_PROGRAM = {
+export const DEMO_PROGRAM_TEXT = {
   name: "Programa demo · Telco Andina",
   description:
     "Programa de ejemplo con datos inventados: tres líneas, calendario de picos y tres ejercicios en estados distintos para recorrer la app.",
-  start_date: "2026-08-01",
-  end_date: "2027-04-30",
-  horizons: [
-    { name: "H1", start_date: "2026-08-01", end_date: "2027-01-24" },
-    { name: "H2", start_date: "2027-01-25", end_date: "2027-04-30" },
-  ],
 };
 
-export const DEMO_CALENDAR: { type: CalendarEventType; name: string; start_date: string; end_date: string }[] = [
-  { type: "peak", name: "Black Friday–Cyber", start_date: "2026-11-27", end_date: "2026-11-30" },
-  { type: "freeze", name: "Congelamiento pico 1", start_date: "2026-11-23", end_date: "2026-12-06" },
-  { type: "peak", name: "Temporada decembrina", start_date: "2026-12-14", end_date: "2026-12-31" },
-  { type: "freeze", name: "Congelamiento decembrino", start_date: "2026-12-14", end_date: "2027-01-03" },
-  { type: "decision", name: "Punto de decisión", start_date: "2027-01-18", end_date: "2027-01-18" },
-];
+/** Semanas de valores cargados (terminan en la última semana completa). */
+export const DEMO_WEEKS = 12;
 
 /** Usuarios ficticios del ejemplo (se crean y se borran con el programa). */
 export const DEMO_USERS = [
@@ -71,11 +67,9 @@ export interface DemoMetric {
   source: string;
   baseline: number;
   targetH1: number;
-  /** 12 valores semanales: 3 ago – 19 oct 2026. */
+  /** 12 valores semanales, desde el inicio del programa hasta la última semana completa. */
   weekly: number[];
 }
-
-export const DEMO_WEEKS_FROM = "2026-08-03";
 
 export const DEMO_METRICS: DemoMetric[] = [
   {
@@ -91,7 +85,7 @@ export const DEMO_METRICS: DemoMetric[] = [
     source: "CRM de ventas",
     baseline: 420,
     targetH1: 520,
-    weekly: [425, 418, 410, 402, 398, 395, 390, 392, 396, 408, 421, 433],
+    weekly: [425, 418, 410, 402, 398, 395, 390, 392, 390, 393, 405, 418],
   },
   {
     key: "pos_eff",
@@ -106,7 +100,7 @@ export const DEMO_METRICS: DemoMetric[] = [
     source: "Plataformas de medios + CRM",
     baseline: 185000,
     targetH1: 160000,
-    weekly: [184000, 186500, 189000, 192000, 195500, 198000, 201000, 200500, 199000, 193000, 187500, 181000],
+    weekly: [184000, 186500, 189000, 192000, 195500, 198000, 201000, 200500, 201500, 200000, 194000, 188500],
   },
   {
     key: "pos_cpc",
@@ -122,7 +116,7 @@ export const DEMO_METRICS: DemoMetric[] = [
     source: "Meta Ads",
     baseline: 9800,
     targetH1: 8000,
-    weekly: [9800, 10200, 10700, 11300, 11900, 12600, 13200, 13300, 13250, 12400, 11500, 10900],
+    weekly: [9800, 10200, 10700, 11300, 11900, 12600, 13200, 13300, 13250, 13300, 12600, 11900],
   },
   {
     key: "rec_ns",
@@ -137,7 +131,7 @@ export const DEMO_METRICS: DemoMetric[] = [
     source: "Plataforma de recargas",
     baseline: 12000,
     targetH1: 15000,
-    weekly: [12000, 12050, 11980, 12100, 12080, 12150, 12400, 12900, 13300, 13700, 14050, 14300],
+    weekly: [12000, 12050, 11980, 12100, 12080, 12150, 12200, 12260, 12300, 12800, 13350, 13900],
   },
   {
     key: "rec_second",
@@ -153,7 +147,7 @@ export const DEMO_METRICS: DemoMetric[] = [
     source: "Plataforma de recargas",
     baseline: 18,
     targetH1: 22,
-    weekly: [18.0, 17.8, 18.2, 18.1, 17.9, 18.3, 18.1, 19.6, 20.4, 21.1, 21.6, 22.0],
+    weekly: [18.0, 17.8, 18.2, 18.1, 18.6, 18.9, 19.1, 18.9, 19.0, 20.4, 21.3, 22.0],
   },
   {
     key: "eq_ns",
@@ -263,10 +257,6 @@ export interface DemoExperiment {
   control_metrics: string[];
   min_duration_days: number;
   decision_rule: string;
-  planned_start: string;
-  planned_end: string;
-  actual_start: string;
-  actual_end: string | null;
   variants: {
     name: string;
     is_control: boolean;
@@ -285,7 +275,17 @@ export interface DemoExperiment {
     appliesTo: LineKey[];
     suggestedHypothesis: string | null;
   };
-  /** Marcas de tiempo históricas (se ajustan después de las transiciones). */
+}
+
+export type DemoExperimentKey = DemoExperiment["key"];
+
+/** Fechas de un ejercicio del ejemplo, ya resueltas para el día de carga. */
+export interface DemoExperimentDates {
+  planned_start: IsoDate;
+  planned_end: IsoDate;
+  actual_start: IsoDate;
+  actual_end: IsoDate | null;
+  /** Marcas de tiempo históricas (se fijan después de las transiciones). */
   timestamps: { design_locked_at: string; status_changed_at: string; decided_at: string | null };
 }
 
@@ -311,10 +311,6 @@ export const DEMO_EXPERIMENTS: DemoExperiment[] = [
     control_metrics: ["Tasa de bloqueo del número de WhatsApp (no debe superar el 1,5%)"],
     min_duration_days: 28,
     decision_rule: "Escalar si la variante supera al control en al menos 10% relativo y el bloqueo no pasa de 1,5%.",
-    planned_start: "2026-08-10",
-    planned_end: "2026-09-13",
-    actual_start: "2026-08-10",
-    actual_end: "2026-09-13",
     variants: [
       { name: "Control", is_control: true, description: "Sin recordatorio", sample: 5000, conversions: 900, notes: null },
       {
@@ -335,11 +331,6 @@ export const DEMO_EXPERIMENTS: DemoExperiment[] = [
         "Un recordatorio oportuno con una oferta concreta mueve la recurrencia sin desgastar el canal. El momento (día 25) importa más que el descuento.",
       appliesTo: ["pospago"],
       suggestedHypothesis: "Recordatorio oportuno por WhatsApp en Pospago, como recordatorio de pago o de beneficios.",
-    },
-    timestamps: {
-      design_locked_at: "2026-08-10T13:00:00Z",
-      decided_at: "2026-09-14T15:00:00Z",
-      status_changed_at: "2026-09-15T15:00:00Z",
     },
   },
   {
@@ -363,10 +354,6 @@ export const DEMO_EXPERIMENTS: DemoExperiment[] = [
     min_duration_days: 21,
     decision_rule:
       "Escalar si el costo por conversación de la variante es al menos 12% menor que el del control y la conversación a venta no cae más de 5%.",
-    planned_start: "2026-10-05",
-    planned_end: "2026-11-01",
-    actual_start: "2026-10-05",
-    actual_end: null,
     variants: [
       { name: "Control", is_control: true, description: "Creativos actuales (50% del presupuesto)", sample: null, conversions: null, notes: null },
       {
@@ -379,7 +366,6 @@ export const DEMO_EXPERIMENTS: DemoExperiment[] = [
       },
     ],
     target: "in_test",
-    timestamps: { design_locked_at: "2026-10-05T13:00:00Z", status_changed_at: "2026-10-05T13:00:00Z", decided_at: null },
   },
   {
     key: "e3",
@@ -401,10 +387,6 @@ export const DEMO_EXPERIMENTS: DemoExperiment[] = [
     control_metrics: ["Tasa de agregar al carrito"],
     min_duration_days: 21,
     decision_rule: "Escalar si la conversión de carrito a compra sube al menos 8% relativo.",
-    planned_start: "2026-08-31",
-    planned_end: "2026-09-27",
-    actual_start: "2026-08-31",
-    actual_end: "2026-09-27",
     variants: [
       { name: "Control · Ciudad Sur", is_control: true, description: "Precio total", sample: 2400, conversions: 600, notes: null },
       {
@@ -426,10 +408,85 @@ export const DEMO_EXPERIMENTS: DemoExperiment[] = [
       appliesTo: ["pospago"],
       suggestedHypothesis: "Mostrar cuota y total juntos desde la ficha.",
     },
-    timestamps: {
-      design_locked_at: "2026-08-31T13:00:00Z",
-      decided_at: "2026-09-28T15:00:00Z",
-      status_changed_at: "2026-09-28T15:00:00Z",
-    },
   },
 ];
+
+// ---------------------------------------------------------------------------
+// Fechas relativas al día de carga
+
+const at = (date: IsoDate, hourUtc: number) => `${date}T${String(hourUtc).padStart(2, "0")}:00:00Z`;
+
+export interface DemoPlan {
+  program: {
+    name: string;
+    description: string;
+    start_date: IsoDate;
+    end_date: IsoDate;
+    horizons: { name: string; start_date: IsoDate; end_date: IsoDate }[];
+  };
+  calendar: { type: CalendarEventType; name: string; start_date: IsoDate; end_date: IsoDate }[];
+  /** Lunes de la primera semana con valores (= inicio del programa). */
+  weeksFrom: IsoDate;
+  experimentDates: Record<DemoExperimentKey, DemoExperimentDates>;
+}
+
+/**
+ * Todas las fechas del ejemplo a partir de `today` (YYYY-MM-DD, Bogotá):
+ *  · Programa: arrancó el lunes de hace 12 semanas; los 12 valores semanales
+ *    terminan en la última semana completa.
+ *  · Ejercicio 1 (escalado): corrió 35 días y se decidió hace ~3 semanas.
+ *  · Ejercicio 3 (perdedor): corrió 28 días y se decidió hace ~9 días.
+ *  · Ejercicio 2 (en prueba): empezó hace 10 días; mínimo 21, termina en 4
+ *    semanas, antes del primer congelamiento.
+ *  · Picos y congelamientos en los próximos meses; el punto de decisión después.
+ */
+export function buildDemoPlan(today: IsoDate): DemoPlan {
+  const start = addDays(weekStart(today), -7 * DEMO_WEEKS);
+  const d = (offset: number) => addDays(today, offset);
+  const decisionPoint = weekStart(d(112));
+  const h1End = addDays(decisionPoint, 6);
+  const end = addDays(decisionPoint, 100);
+
+  return {
+    program: {
+      ...DEMO_PROGRAM_TEXT,
+      start_date: start,
+      end_date: end,
+      horizons: [
+        { name: "H1", start_date: start, end_date: h1End },
+        { name: "H2", start_date: addDays(h1End, 1), end_date: end },
+      ],
+    },
+    calendar: [
+      { type: "peak", name: "Pico de descuentos (tipo Black Friday–Cyber)", start_date: d(56), end_date: d(59) },
+      { type: "freeze", name: "Congelamiento pico 1", start_date: d(52), end_date: d(65) },
+      { type: "peak", name: "Temporada alta de ventas", start_date: d(77), end_date: d(94) },
+      { type: "freeze", name: "Congelamiento de temporada alta", start_date: d(77), end_date: d(97) },
+      { type: "decision", name: "Punto de decisión", start_date: decisionPoint, end_date: decisionPoint },
+    ],
+    weeksFrom: start,
+    experimentDates: {
+      e1: {
+        planned_start: d(-56),
+        planned_end: d(-22),
+        actual_start: d(-56),
+        actual_end: d(-22),
+        timestamps: { design_locked_at: at(d(-56), 13), decided_at: at(d(-20), 15), status_changed_at: at(d(-19), 15) },
+      },
+      e2: {
+        planned_start: d(-10),
+        planned_end: d(17),
+        actual_start: d(-10),
+        actual_end: null,
+        timestamps: { design_locked_at: at(d(-10), 13), status_changed_at: at(d(-10), 13), decided_at: null },
+      },
+      e3: {
+        planned_start: d(-38),
+        planned_end: d(-11),
+        actual_start: d(-38),
+        actual_end: d(-11),
+        timestamps: { design_locked_at: at(d(-38), 13), decided_at: at(d(-9), 15), status_changed_at: at(d(-9), 15) },
+      },
+    },
+  };
+}

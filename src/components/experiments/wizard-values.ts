@@ -3,11 +3,14 @@
 import type {
   CalendarEvent,
   ControlLevel,
+  ExperimentStatus,
+  MetricDirection,
   MetricType,
   OwnerType,
   ProgramRole,
   ScoringConfig,
   TestType,
+  Verdict,
 } from "@/domain/types";
 
 export interface WizardVariant {
@@ -29,6 +32,8 @@ export interface WizardValues {
   confidence: number | null;
   ease: number | null;
   fits_calendar: boolean;
+  /** true cuando la persona cambió a mano el filtro de calendario (si no, se calcula con las fechas). */
+  fits_calendar_override: boolean;
   control: ControlLevel;
   test_type: TestType | null;
   primary_metric: string;
@@ -45,13 +50,39 @@ export interface WizardValues {
 export interface WizardData {
   programId: string;
   lines: { id: string; name: string }[];
-  problems: { id: string; line_id: string; title: string; stage_name: string; status: string }[];
-  metrics: { id: string; line_id: string; name: string; type: MetricType; parent_id: string | null }[];
+  problems: { id: string; line_id: string; title: string; stage_name: string; status: string; control: ControlLevel }[];
+  metrics: { id: string; line_id: string; name: string; type: MetricType; parent_id: string | null; direction: MetricDirection }[];
   members: { user_id: string; name: string; role: ProgramRole }[];
   calendar: CalendarEvent[];
   scoring: ScoringConfig;
   canScore: boolean;
   isAgency: boolean;
+  /** Ejercicios y aprendizajes del programa, para el aviso "Esto se parece a…". */
+  similar: {
+    experiments: SimilarExperimentCandidate[];
+    learnings: SimilarLearningCandidate[];
+  };
+}
+
+export interface SimilarExperimentCandidate {
+  id: string;
+  title: string;
+  /** Título + hipótesis, para comparar. */
+  text: string;
+  line_name: string;
+  status: ExperimentStatus;
+  verdict: Verdict | null;
+  /** Fecha de la decisión o de creación. */
+  date: string | null;
+}
+
+export interface SimilarLearningCandidate {
+  id: string;
+  text: string;
+  experiment_id: string;
+  experiment_title: string;
+  line_name: string;
+  verdict: Verdict | null;
 }
 
 export function emptyWizardValues(): WizardValues {
@@ -67,6 +98,7 @@ export function emptyWizardValues(): WizardValues {
     confidence: null,
     ease: null,
     fits_calendar: false,
+    fits_calendar_override: false,
     control: "ours",
     test_type: null,
     primary_metric: "",

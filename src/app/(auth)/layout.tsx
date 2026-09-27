@@ -1,6 +1,9 @@
 import { LogoFull, Mule } from "@/components/brand/logo";
 import { phraseOfTheDay, SLOGAN } from "@/components/brand/phrases";
 
+/** Qué hace la app, en una línea (visible en todos los tamaños bajo el lema). */
+const TAGLINE = "Del dato al experimento: priorice, pruebe y aprenda con su equipo.";
+
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <main className="grid min-h-screen flex-1 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
@@ -10,9 +13,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         <div className="rise">
           <LogoFull className="w-full max-w-md invert" />
           <p className="mt-8 font-heading text-4xl font-extrabold tracking-tight">{SLOGAN}</p>
-          <p className="mt-3 max-w-md text-[#f6f6f4]/70">
-            Del dato al camino: métricas, problemas, ejercicios y aprendizajes en un solo lugar para que el equipo sepa por dónde es.
-          </p>
+          <p className="mt-3 max-w-md text-lg text-[#f6f6f4]/80">{TAGLINE}</p>
         </div>
         <p className="font-heading text-lg font-semibold text-highlight">«{phraseOfTheDay("login")}»</p>
         <div aria-hidden className="pointer-events-none absolute -right-24 -bottom-24 size-96 rounded-full bg-highlight/10 blur-3xl" />
@@ -23,7 +24,8 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <div className="mb-8 flex flex-col items-center gap-2 lg:hidden">
             <Mule className="w-20" />
             <div className="font-heading text-2xl font-extrabold">Arriero</div>
-            <div className="text-sm text-soft">{SLOGAN}</div>
+            <div className="text-sm font-semibold text-soft">{SLOGAN}</div>
+            <p className="max-w-xs text-center text-sm text-soft">{TAGLINE}</p>
           </div>
           {children}
           <p className="mt-6 text-xs text-soft">Solo se entra por invitación.</p>

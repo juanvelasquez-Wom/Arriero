@@ -1,8 +1,9 @@
 // Cálculos de los tableros (resultados, portafolio y velocidad). Funciones puras.
 import { addDays, mondaysBetween, weekStart } from "./dates";
 import { isActive, isClosed } from "./lifecycle";
-import { computeVariantResults, headlineDiff } from "./results";
-import type { Decision, ExperimentStatus, IsoDate, Variant, Verdict } from "./types";
+import { computeVariantResults, headlineDiff, readExperiment } from "./results";
+import type { Decision, ExperimentStatus, IsoDate, TestType, Variant, Verdict } from "./types";
+import type { MetricEconomics } from "./value";
 
 export interface ClosedExperimentInput {
   id: string;
@@ -10,15 +11,30 @@ export interface ClosedExperimentInput {
   verdict: Verdict | null;
   decision: Decision | null;
   variants: Variant[];
+  test_type?: TestType | null;
+  /** Datos económicos de la métrica del árbol (para el valor estimado). */
+  metric?: Pick<MetricEconomics, "unit" | "baseline" | "latest_value" | "unit_value" | "direction"> | null;
+}
+
+export interface WinnerValueSummary {
+  /** Suma del valor semanal estimado de los ganadores que se pudieron calcular. */
+  weekly: number;
+  monthly: number;
+  /** Ganadores incluidos en la suma. */
+  counted: number;
+  /** Ganadores sin valor por unidad en su métrica. */
+  missingUnitValue: number;
 }
 
 export interface ResultsSummary {
   closed: number;
   winners: number;
-  /** ganadores / cerrados (0–1); null si no hay cerrados. */
+  /** Tasa de acierto: ganadores / cerrados (0–1); null si no hay cerrados. */
   winRate: number | null;
   /** Promedio de la diferencia vs control de los ganadores. */
   avgWinnerDiff: number | null;
+  /** Valor estimado de los ganadores si se escalan; null si ninguno se pudo calcular. */
+  winnerValue: WinnerValueSummary | null;
   verdicts: Record<Verdict, number>;
   decisions: Record<Decision, number>;
 }
@@ -35,11 +51,22 @@ export function summarizeResults(experiments: ClosedExperimentInput[]): ResultsS
     if (e.verdict) verdicts[e.verdict] += 1;
     if (e.decision) decisions[e.decision] += 1;
   }
+  let weekly = 0;
+  let counted = 0;
+  let missingUnitValue = 0;
+  for (const e of winners) {
+    const h = readExperiment({ variants: e.variants, testType: e.test_type, metric: e.metric }).headline;
+    if (h?.value_estimate) {
+      weekly += h.value_estimate.weekly;
+      counted += 1;
+    } else if (h?.value_missing === "unit_value") missingUnitValue += 1;
+  }
   return {
     closed: closed.length,
     winners: winners.length,
     winRate: closed.length ? winners.length / closed.length : null,
     avgWinnerDiff: winnerDiffs.length ? winnerDiffs.reduce((a, b) => a + b, 0) / winnerDiffs.length : null,
+    winnerValue: counted ? { weekly, monthly: (weekly * 52) / 12, counted, missingUnitValue } : null,
     verdicts,
     decisions,
   };

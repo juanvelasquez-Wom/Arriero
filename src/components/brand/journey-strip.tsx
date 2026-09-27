@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { Mule } from "./logo";
 
 /** "El camino del arriero": las 7 etapas con su conteo. La mula va en la etapa más avanzada con algo. */
-export function JourneyStrip({ programId, stages }: { programId: string; stages: JourneyStage[] }) {
+export function JourneyStrip({ programId, stages, note }: { programId: string; stages: JourneyStage[]; note?: string }) {
   const furthest = stages.reduce((acc, s, i) => (s.count > 0 ? i : acc), 0);
   return (
     <section aria-labelledby="camino-titulo" className="rise rounded-2xl border bg-paper p-5 shadow-card">
@@ -49,6 +49,7 @@ export function JourneyStrip({ programId, stages }: { programId: string; stages:
           </li>
         ))}
       </ol>
+      {note ? <p className="mt-3 text-xs font-medium text-soft tabular-nums">{note}</p> : null}
     </section>
   );
 }

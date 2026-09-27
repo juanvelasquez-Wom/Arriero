@@ -1,6 +1,8 @@
 import { BookOpenCheck, Sparkles } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ExportCsvButton } from "@/components/app/export-csv-button";
+import { Term } from "@/components/app/info-tip";
 import { EmptyState, PageHeader } from "@/components/app/page";
 import { DecisionBadge, VerdictBadge } from "@/components/app/status-badge";
 import { UrlFilters } from "@/components/app/url-filters";
@@ -12,8 +14,10 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { toCsv } from "@/domain/csv";
+import { todayIso } from "@/domain/dates";
 import { formatDate } from "@/domain/format";
-import { VERDICT_LABEL } from "@/domain/labels";
+import { DECISION_LABEL, VERDICT_LABEL, labelOf } from "@/domain/labels";
 import { can } from "@/domain/permissions";
 import { VERDICTS, type Decision, type Verdict } from "@/domain/types";
 import { getProgramContext } from "@/server/auth";
@@ -39,12 +43,28 @@ export default async function LearningsPage({ params, searchParams }: PageProps<
   const stageNames = [...new Set(learnings.map((l) => l.stage_name).filter((s): s is string => !!s))];
   const lineName = (id: string) => lines.find((l) => l.id === id)?.name ?? "—";
   const base = `/programas/${programId}`;
+  const csv = toCsv(filtered, [
+    { header: "Ejercicio", value: (l) => l.experiment_title },
+    { header: "Línea", value: (l) => l.line_name },
+    { header: "Etapa", value: (l) => l.stage_name },
+    { header: "Veredicto", value: (l) => labelOf(VERDICT_LABEL, l.verdict as Verdict | null, "") },
+    { header: "Decisión", value: (l) => labelOf(DECISION_LABEL, l.decision as Decision | null, "") },
+    { header: "Aprendizaje", value: (l) => l.text },
+    { header: "Aplica también a", value: (l) => l.applies_to_line_ids.map(lineName).join(", ") },
+    { header: "Hipótesis derivada", value: (l) => l.suggested_hypothesis },
+    { header: "Fecha", value: (l) => l.created_at.slice(0, 10) },
+  ]);
 
   return (
     <div className="mx-auto max-w-5xl">
       <PageHeader
         title="Aprendizajes"
         description="Lo que dejó cada ejercicio cerrado. Lo que se aprende en una línea puede volverse hipótesis en las otras."
+        actions={
+          learnings.length ? (
+            <ExportCsvButton csv={csv} name={["aprendizajes", todayIso()]} label={filtered.length === learnings.length ? "Exportar a Excel" : "Exportar filtrados"} />
+          ) : null
+        }
       />
       {learnings.length === 0 ? (
         <EmptyState
@@ -96,7 +116,9 @@ export default async function LearningsPage({ params, searchParams }: PageProps<
                   ) : null}
                   {l.suggested_hypothesis ? (
                     <p className="mt-1 text-xs">
-                      <span className="text-soft">Hipótesis derivada: </span>
+                      <span className="text-soft">
+                        <Term k="hypothesis">Hipótesis derivada</Term>:{" "}
+                      </span>
                       {l.suggested_hypothesis}
                     </p>
                   ) : null}

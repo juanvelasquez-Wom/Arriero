@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { availableTransitions, checkTransition, missingRequirements, type TransitionContext } from "./lifecycle";
+import {
+  availableTransitions,
+  checkTransition,
+  isHypothesisComplete,
+  missingHypothesisParts,
+  missingRequirements,
+  type HypothesisParts,
+  type TransitionContext,
+} from "./lifecycle";
 import type { Actor, CalendarEvent, ExperimentCore } from "./types";
 
 const owner: Actor = { userId: "u-owner", isAdmin: false, role: "owner" };
@@ -16,7 +24,9 @@ const freeze: CalendarEvent = {
   end_date: "2026-12-06",
 };
 
-function experiment(overrides: Partial<ExperimentCore> = {}): ExperimentCore {
+type Exp = ExperimentCore & HypothesisParts;
+
+function experiment(overrides: Partial<Exp> = {}): Exp {
   return {
     id: "e1",
     status: "idea",
@@ -38,11 +48,17 @@ function experiment(overrides: Partial<ExperimentCore> = {}): ExperimentCore {
     design_locked_at: null,
     verdict: null,
     decision: null,
+    hypothesis_if: null,
+    hypothesis_then: null,
+    hypothesis_because: null,
     ...overrides,
   };
 }
 
-const readyDesign: Partial<ExperimentCore> = {
+const readyDesign: Partial<Exp> = {
+  hypothesis_if: "enviamos un recordatorio por WhatsApp",
+  hypothesis_then: "sube la segunda recarga",
+  hypothesis_because: "el cliente se acuerda a tiempo",
   impact: 8,
   confidence: 7,
   ease: 8,
@@ -59,7 +75,7 @@ const variants = [
   { is_control: false, sample: null, conversions: null, metric_value: null },
 ];
 
-function ctx(e: Partial<ExperimentCore>, extra: Partial<TransitionContext> = {}): TransitionContext {
+function ctx(e: Partial<Exp>, extra: Partial<TransitionContext> = {}): TransitionContext {
   return { experiment: experiment(e), variants: [], hasLearning: false, calendar: [freeze], ...extra };
 }
 
@@ -95,6 +111,33 @@ describe("Priorizado", () => {
     const c = ctx({ impact: 8, confidence: 7, ease: 8, owner_id: "u-agency" });
     expect(checkTransition("prioritized", c, agency).ok).toBe(false);
     expect(checkTransition("prioritized", c, viewer).ok).toBe(false);
+  });
+});
+
+describe("En diseño", () => {
+  const ice = { impact: 8, confidence: 7, ease: 8 };
+
+  it("exige la hipótesis completa, con el mismo texto que la base", () => {
+    const missing = missingRequirements("in_design", ctx({ status: "prioritized", ...ice, hypothesis_if: "cambiamos X" }));
+    expect(missing).toEqual(["hipótesis completa (SI, ENTONCES y PORQUE)"]);
+    const r = checkTransition("in_design", ctx({ status: "prioritized", ...ice, hypothesis_if: "cambiamos X" }), collaborator);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.reasons[0]).toBe("Para pasar a En diseño falta: hipótesis completa (SI, ENTONCES y PORQUE).");
+  });
+
+  it("los espacios en blanco no cuentan como hipótesis", () => {
+    const h = { hypothesis_if: "a", hypothesis_then: "  ", hypothesis_because: "c" };
+    expect(missingHypothesisParts(h)).toEqual(["ENTONCES"]);
+    expect(isHypothesisComplete(h)).toBe(false);
+    expect(missingHypothesisParts({})).toEqual(["SI", "ENTONCES", "PORQUE"]);
+  });
+
+  it("pasa con ICE e hipótesis completos", () => {
+    expect(checkTransition("in_design", ctx({ status: "prioritized", ...readyDesign }), collaborator).ok).toBe(true);
+  });
+
+  it("Priorizado no exige hipótesis", () => {
+    expect(checkTransition("prioritized", ctx({ ...ice }), collaborator).ok).toBe(true);
   });
 });
 

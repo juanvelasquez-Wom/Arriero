@@ -214,6 +214,11 @@
   }
 }
 
+/* Quien ya conoce el modelo puede ocultar las explicaciones básicas (menú de usuario). */
+.explain-off [data-explain] {
+  display: none !important;
+}
+
 @keyframes rise {
   from {
     opacity: 0;

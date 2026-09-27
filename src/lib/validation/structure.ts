@@ -66,6 +66,8 @@ export const metricSchema = z
     direction: z.enum(METRIC_DIRECTIONS),
     source: optionalText(300),
     baseline: optionalDecimal,
+    /** Valor en COP de una unidad. Opcional; si no viene, no se toca. */
+    unit_value: optionalDecimal.refine((v) => v == null || v >= 0, "El valor por unidad no puede ser negativo."),
     owner_id: optionalUuid,
   })
   .superRefine((m, ctx) => {

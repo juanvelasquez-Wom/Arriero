@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeVariantResults, conversionRate, hasCompleteResults, headlineDiff, relativeDiff } from "./results";
+import { computeVariantResults, conversionRate, draftLearning, hasCompleteResults, headlineDiff, readExperiment, relativeDiff } from "./results";
 import type { Variant } from "./types";
 
 const v = (o: Partial<Variant>): Variant => ({
@@ -88,5 +88,62 @@ describe("hasCompleteResults", () => {
     expect(hasCompleteResults([])).toBe(false);
     expect(hasCompleteResults([v({ sample: 1, conversions: 1 }), v({ sample: 1 })])).toBe(false);
     expect(hasCompleteResults([v({ sample: 1, conversions: 1 }), v({ sample: 1, metric_value: 3 })])).toBe(true);
+  });
+});
+
+describe("readExperiment", () => {
+  const variants = [
+    v({ id: "c", name: "Control", is_control: true, sample: 5000, conversions: 900 }),
+    v({ id: "t", name: "Checkout corto", sample: 5000, conversions: 1150 }),
+  ];
+  const metric = { unit: "altas", direction: "up" as const, baseline: 1000, latest_value: null, unit_value: 100_000 };
+
+  it("junta tasa, probabilidad y valor estimado", () => {
+    const r = readExperiment({ variants, testType: "ab", metric });
+    expect(r.kind).toBe("probabilistic");
+    expect(r.rows[0].stats.probability).toBeNull();
+    expect(r.rows[0].value_estimate).toBeNull();
+    expect(r.headline?.id).toBe("t");
+    expect(r.headline!.stats.probability).toBeGreaterThan(0.99);
+    expect(r.headline!.value_estimate!.weekly).toBeCloseTo((0.23 / 0.18 - 1) * 1000 * 100_000, 0);
+  });
+
+  it("sin valor por unidad avisa qué falta", () => {
+    const r = readExperiment({ variants, testType: "ab", metric: { ...metric, unit_value: null } });
+    expect(r.headline!.value_missing).toBe("unit_value");
+  });
+
+  it("en geo es direccional y el titular es la mayor diferencia", () => {
+    const r = readExperiment({ variants, testType: "geo", metric });
+    expect(r.kind).toBe("directional");
+    expect(r.headline?.id).toBe("t");
+    expect(r.headline!.stats.probability).toBeNull();
+  });
+});
+
+describe("draftLearning", () => {
+  it("arma el borrador con la variante, la dirección y la probabilidad", () => {
+    const reading = readExperiment({
+      variants: [
+        v({ id: "c", name: "Control", is_control: true, sample: 5000, conversions: 900 }),
+        v({ id: "t", name: "Checkout corto", sample: 5000, conversions: 1150 }),
+      ],
+      testType: "ab",
+    });
+    const d = draftLearning({ reading, metricName: "la conversión" })!;
+    expect(d).toMatch(/^La variante "Checkout corto" subió la conversión 27,8 % frente al control \(probabilidad de ganar > 99 %\)/);
+  });
+  it("bajó y direccional", () => {
+    const reading = readExperiment({
+      variants: [
+        v({ id: "c", is_control: true, sample: 2400, conversions: 600 }),
+        v({ id: "t", name: "B", sample: 3100, conversions: 651 }),
+      ],
+      testType: "before_after",
+    });
+    expect(draftLearning({ reading, metricName: "X" })).toMatch(/bajó X 16 % frente al control \(evidencia direccional/);
+  });
+  it("sin datos no propone nada", () => {
+    expect(draftLearning({ reading: readExperiment({ variants: [], testType: "ab" }), metricName: "X" })).toBeNull();
   });
 });

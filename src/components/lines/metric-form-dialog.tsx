@@ -20,6 +20,7 @@ import { FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Term } from "@/components/app/info-tip";
 import { METRIC_BRANCH_LABEL, METRIC_TYPE_LABEL } from "@/domain/labels";
 import { toInputValue } from "@/domain/metric-tree";
 import { METRIC_BRANCHES, type MetricBranch, type MetricDirection, type MetricType } from "@/domain/types";
@@ -38,6 +39,7 @@ export interface MetricFormMetric {
   direction: MetricDirection;
   source: string | null;
   baseline: number | null;
+  unit_value?: number | null;
   owner_id: string | null;
 }
 
@@ -101,6 +103,7 @@ export function MetricFormDialog({
     direction: metric?.direction ?? "up",
     source: metric?.source ?? "",
     baseline: toInputValue(metric?.baseline),
+    unit_value: toInputValue(metric?.unit_value),
     owner_id: metric?.owner_id ?? "none",
   });
 
@@ -251,7 +254,7 @@ export function MetricFormDialog({
               </FormField>
               <FormField
                 id={`${idp}-baseline`}
-                label="Línea base"
+                label={<Term k="baseline" />}
                 description="Valor de partida. Acepta 1234,5."
                 error={errors.baseline?.message}
               >
@@ -261,6 +264,21 @@ export function MetricFormDialog({
                   className="tabular-nums"
                   aria-invalid={!!errors.baseline}
                   {...form.register("baseline")}
+                />
+              </FormField>
+              <FormField
+                id={`${idp}-unit-value`}
+                label={<Term k="unitValue">Valor por unidad (COP)</Term>}
+                description="Opcional. Ej. una alta ≈ 250.000."
+                error={errors.unit_value?.message}
+              >
+                <Input
+                  id={`${idp}-unit-value`}
+                  inputMode="decimal"
+                  className="tabular-nums"
+                  placeholder="Ej. 250.000"
+                  aria-invalid={!!errors.unit_value}
+                  {...form.register("unit_value")}
                 />
               </FormField>
               <FormField id={`${idp}-owner`} label="Responsable" error={errors.owner_id?.message}>

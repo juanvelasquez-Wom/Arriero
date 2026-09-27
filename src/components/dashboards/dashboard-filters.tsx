@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
+import { MobileFiltersToggle } from "@/components/app/url-filters";
 
 export interface FilterField {
   /** Nombre del search param (`linea`, `estado`, …). */
@@ -56,10 +57,11 @@ export function DashboardFilters({
   }
 
   return (
+    <MobileFiltersToggle activeCount={active.length} className={className}>
     <div
       role="search"
       aria-label="Filtros del tablero"
-      className={cn("flex flex-wrap items-end gap-3 rounded-2xl border bg-paper p-3 shadow-card", className)}
+      className="flex flex-wrap items-end gap-3 rounded-2xl border bg-paper p-3 shadow-card"
     >
       {fields.map((f) => {
         const id = `${baseId}-${f.key}`;
@@ -100,5 +102,6 @@ export function DashboardFilters({
         </span>
       </div>
     </div>
+    </MobileFiltersToggle>
   );
 }

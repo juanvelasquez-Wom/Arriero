@@ -6,6 +6,7 @@ import { Callout, EmptyState, PageHeader } from "@/components/app/page";
 import { ExperimentWizard } from "@/components/experiments/experiment-wizard";
 import { emptyWizardValues, type WizardValues } from "@/components/experiments/wizard-values";
 import { Button } from "@/components/ui/button";
+import { hypothesisFromLearning, inferControl } from "@/domain/experiment-inference";
 import { can } from "@/domain/permissions";
 import { getProgramContext } from "@/server/auth";
 import { listLearnings } from "@/server/queries/structure";
@@ -52,8 +53,9 @@ export default async function NewExperimentPage({ params, searchParams }: PagePr
     const learning = (await listLearnings(programId)).find((l) => l.id === learningId);
     if (learning) {
       initial.derived_from_learning_id = learning.id;
-      initial.title = learning.suggested_hypothesis ?? "";
-      initial.hypothesis_because = learning.text;
+      initial.title = (learning.suggested_hypothesis ?? "").slice(0, 200);
+      // La hipótesis sugerida se separa en SI / ENTONCES / PORQUE; el aprendizaje queda como PORQUE si falta.
+      Object.assign(initial, hypothesisFromLearning(initial, learning));
       learningNote = { text: learning.text, source: `${learning.experiment_title} (${learning.line_name})` };
       const targetLine = typeof sp.linea === "string" ? sp.linea : undefined;
       if (!initial.problem_id && targetLine) {
@@ -62,6 +64,10 @@ export default async function NewExperimentPage({ params, searchParams }: PagePr
       }
     }
   }
+
+  // El control parte del problema elegido (se puede cambiar en Priorización).
+  const chosen = data.problems.find((p) => p.id === initial.problem_id);
+  if (chosen) initial.control = inferControl(chosen.control);
 
   return (
     <div className="mx-auto max-w-4xl">

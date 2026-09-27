@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CUSTOM_LINE_KEY } from "@/domain/quick-start";
 import { CALENDAR_EVENT_TYPES, METRIC_BRANCHES, METRIC_DIRECTIONS } from "@/domain/types";
 
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Elija una fecha.");
@@ -82,3 +83,19 @@ export const funnelStepSchema = z.object({
     .max(12),
 });
 export type FunnelStepInput = z.input<typeof funnelStepSchema>;
+
+/** Arranque rápido: un solo formulario que arma programa, calendario, horizontes y una línea. */
+export const quickStartSchema = z
+  .object({
+    name: z.string().trim().min(3, "Escriba un nombre de al menos 3 caracteres.").max(120),
+    templateKey: z.string().trim().min(1, "Elija una línea de negocio."),
+    lineName: z.string().trim().max(80).optional().nullable(),
+    startDate: date,
+    months: z.union([z.literal(3), z.literal(6), z.literal(12)], { message: "Elija una duración de 3, 6 o 12 meses." }),
+    useTelcoCalendar: z.boolean(),
+  })
+  .refine((v) => v.templateKey !== CUSTOM_LINE_KEY || (v.lineName ?? "").trim().length >= 2, {
+    path: ["lineName"],
+    message: "Escriba el nombre de su línea de negocio.",
+  });
+export type QuickStartFormInput = z.input<typeof quickStartSchema>;

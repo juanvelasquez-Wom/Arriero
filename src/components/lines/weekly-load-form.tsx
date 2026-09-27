@@ -1,6 +1,6 @@
 "use client";
 
-import { CircleCheck, CircleDashed, Eye, PencilLine, Save } from "lucide-react";
+import { CircleCheck, CircleDashed, Eye, PencilLine, Save, TriangleAlert } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -8,9 +8,11 @@ import { Callout } from "@/components/app/page";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
-import { formatMetricValue } from "@/domain/format";
+import { formatMetricValue, formatSignedPercent } from "@/domain/format";
+import { outlierChange } from "@/domain/paste-import";
 import {
   diffWeeklyLoad,
+  parseDecimal,
   pendingMetricIds,
   toInputValue,
   type WeeklyDraft,
@@ -20,6 +22,7 @@ import type { MetricBranch, MetricDirection, MetricType } from "@/domain/types";
 import { cn } from "@/lib/utils";
 import { saveWeeklyValues } from "@/server/actions/metric-values";
 import { BranchBadge, DirectionLabel, MetricTypeBadge } from "./metric-badges";
+import { PasteImportDialog } from "./paste-import-dialog";
 import { WeekPicker } from "./week-picker";
 
 export interface LoadMetric {
@@ -98,6 +101,22 @@ export function WeeklyLoadForm({
     });
   }
 
+  const pasteMetrics = useMemo(() => groups.flatMap((g) => g.metrics.map((m) => ({ id: m.id, name: m.name }))), [groups]);
+
+  function applyPasted(values: Record<string, string>) {
+    const n = Object.keys(values).length;
+    setDraft((d) => {
+      const next = { ...d };
+      for (const [id, value] of Object.entries(values)) next[id] = { ...(next[id] ?? { value: "", note: "" }), value };
+      return next;
+    });
+    setServerErrors({});
+    setOnlyPending(false);
+    toast.success(n === 1 ? "¡Eso! Se llenó 1 valor" : `¡Eso! Se llenaron ${n} valores`, {
+      description: "Revíselos y haga clic en “Guardar todo”.",
+    });
+  }
+
   function onSave() {
     if (errors.size) {
       setError("Corrija las filas marcadas antes de guardar.");
@@ -141,6 +160,7 @@ export function WeeklyLoadForm({
               ? `${pendingIds.length} de ${allIds.length} ${pendingIds.length === 1 ? "métrica pendiente" : "métricas pendientes"}`
               : "¡Eso! Semana completa"}
           </span>
+          {canLoad ? <PasteImportDialog metrics={pasteMetrics} week={week} onApply={applyPasted} /> : null}
           <Button
             variant="outline"
             size="sm"
@@ -191,6 +211,8 @@ export function WeeklyLoadForm({
                 const changed = changedIds.has(m.id);
                 const isSaved = !!saved[m.id];
                 const valueId = `v-${m.id}`;
+                const typed = parseDecimal(d.value);
+                const jump = !rowError && typed != null ? outlierChange(typed, prev?.value) : null;
                 const noteId = `n-${m.id}`;
                 return (
                   <li
@@ -256,6 +278,11 @@ export function WeeklyLoadForm({
                     {rowError ? (
                       <p id={`${valueId}-error`} role="alert" className="text-xs font-medium text-ink md:col-span-5">
                         {rowError}
+                      </p>
+                    ) : jump != null && (changed || !isSaved) ? (
+                      <p className="flex items-center gap-1 text-xs text-ink md:col-span-5">
+                        <TriangleAlert aria-hidden className="size-3.5 shrink-0" />
+                        ¿Seguro? Es {formatSignedPercent(jump)} frente a la semana pasada. Si es correcto, deje una nota que lo explique.
                       </p>
                     ) : null}
                   </li>

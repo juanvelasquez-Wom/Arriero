@@ -49,8 +49,13 @@ async function loadLineMetrics(supabase: Supabase, lineId: string) {
   } as const;
 }
 
-function metricRow(v: z.output<typeof metricSchema>) {
+/**
+ * Columnas a escribir. `unit_value` solo se escribe si el formulario lo envió:
+ * otros flujos (p. ej. el asistente) no lo conocen y no deben borrarlo.
+ */
+function metricRow(v: z.output<typeof metricSchema>, input: MetricInput) {
   return {
+    ...(input.unit_value !== undefined ? { unit_value: v.unit_value } : {}),
     type: v.type,
     branch: v.branch,
     parent_id: v.parent_id,
@@ -95,7 +100,7 @@ export async function createMetric(programId: string, input: MetricInput): Promi
 
   const { data, error } = await supabase
     .from("metrics")
-    .insert({ ...metricRow(v), line_id: v.line_id, sort_order: nextSortOrder(siblings.data) })
+    .insert({ ...metricRow(v, input), line_id: v.line_id, sort_order: nextSortOrder(siblings.data) })
     .select("id")
     .single();
   if (error) return failFrom(error);
@@ -142,7 +147,7 @@ export async function updateMetric(
     });
   }
 
-  const row: Record<string, unknown> = metricRow(v);
+  const row: Record<string, unknown> = metricRow(v, input);
   const parentChanged = (current.parent_id ?? null) !== v.parent_id;
   if (parentChanged) {
     const siblings = await loadSiblings(supabase, current.line_id as string, v.parent_id);

@@ -5,12 +5,17 @@ import { EmptyState, Section } from "@/components/app/page";
 import { Button } from "@/components/ui/button";
 import { formatDate, formatDateRange, formatMetricValue, formatSignedPercent } from "@/domain/format";
 import { changeVsBaseline } from "@/domain/metric-tree";
+import { evaluateTarget } from "@/domain/targets";
+import { problemFromMetricPath } from "@/domain/home";
+import { Term } from "@/components/app/info-tip";
 import { cn } from "@/lib/utils";
 import type { Horizon } from "@/server/queries/programs";
-import type { MetricRow, MetricValueRow } from "@/server/queries/structure";
+import type { MetricHistoryRow, MetricRow, MetricValueRow } from "@/server/queries/structure";
 import { DirectionLabel, MetricTypeBadge } from "./metric-badges";
 import { MetricEvolutionChart } from "./metric-evolution-chart";
 import { MetricFormDialog, type Option } from "./metric-form-dialog";
+import { MetricHistoryList } from "./metric-history";
+import { TargetStatusSummary } from "./target-status";
 import { TargetsDialog } from "./targets-dialog";
 
 interface Props {
@@ -18,8 +23,11 @@ interface Props {
   lineId: string;
   metrics: MetricRow[];
   values: MetricValueRow[];
+  history: MetricHistoryRow[];
   horizons: Horizon[];
   currentHorizonId: string | null;
+  today: string;
+  programStart: string | null;
   members: Option[];
   canEdit: boolean;
 }
@@ -97,8 +105,11 @@ function MetricOverview({
   lineId,
   metric,
   values,
+  history,
   horizons,
   currentHorizonId,
+  today,
+  programStart,
   members,
   canEdit,
 }: Props & { metric: MetricRow }) {
@@ -110,6 +121,15 @@ function MetricOverview({
     .filter((h) => targetBy.has(h.id))
     .map((h) => ({ label: `Objetivo ${h.name}`, value: targetBy.get(h.id)!, current: h.id === currentHorizonId }));
   const isNorth = metric.type === "north_star";
+  const evaluation = evaluateTarget({
+    baseline: metric.baseline,
+    direction: metric.direction,
+    targets: metric.targets,
+    horizons,
+    values: series,
+    today,
+    programStart,
+  });
   const ChangeIcon = change.favorable == null ? Minus : (change.ratio ?? 0) >= 0 ? TrendingUp : TrendingDown;
 
   return (
@@ -155,11 +175,21 @@ function MetricOverview({
       <div className="grid gap-6 lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
-            <Fact label="Línea base" value={formatMetricValue(metric.baseline, metric.unit)} />
+            <Fact label={<Term k="baseline" />} value={formatMetricValue(metric.baseline, metric.unit)} />
             <Fact
               label="Último valor"
               value={formatMetricValue(last?.value, metric.unit)}
               hint={last ? `Semana del ${formatDate(last.week_start)}` : "Sin valores cargados"}
+            />
+          </div>
+          <div className="rounded-xl border px-3 py-2">
+            <div className="mb-1 text-xs text-soft">
+              <Term k="targetStatus" />
+            </div>
+            <TargetStatusSummary
+              evaluation={evaluation}
+              unit={metric.unit}
+              problemHref={`/programas/${programId}${problemFromMetricPath(metric.id)}`}
             />
           </div>
           {change.ratio != null || change.favorable != null ? (
@@ -174,7 +204,9 @@ function MetricOverview({
           ) : null}
 
           <div>
-            <h3 className="mb-1.5 text-xs font-medium text-soft">Objetivos por horizonte</h3>
+            <h3 className="mb-1.5 text-xs font-medium text-soft">
+              <Term k="target">Objetivos por horizonte</Term>
+            </h3>
             {horizons.length === 0 ? (
               <p className="text-sm text-soft">El programa no tiene horizontes definidos.</p>
             ) : (
@@ -207,6 +239,9 @@ function MetricOverview({
               <DirectionLabel direction={metric.direction} />
             </Detail>
             <Detail label="Unidad">{metric.unit ?? "—"}</Detail>
+            <Detail label={<Term k="unitValue" />}>
+              {metric.unit_value != null ? formatMetricValue(metric.unit_value, "COP") : "—"}
+            </Detail>
             <Detail label="Responsable">{metric.owner_name ?? "Sin responsable"}</Detail>
             <Detail label="Canal">{metric.channel ?? "—"}</Detail>
             <Detail label="Fuente" className="col-span-2">
@@ -240,13 +275,16 @@ function MetricOverview({
               }
             />
           )}
+          <div className="mt-5">
+            <MetricHistoryList rows={history.filter((h) => h.metric_id === metric.id)} unit={metric.unit} />
+          </div>
         </div>
       </div>
     </Section>
   );
 }
 
-function Fact({ label, value, hint }: { label: string; value: string; hint?: string }) {
+function Fact({ label, value, hint }: { label: ReactNode; value: string; hint?: string }) {
   return (
     <div className="rounded-xl border bg-wash px-3 py-2">
       <div className="text-xs text-soft">{label}</div>
@@ -256,7 +294,7 @@ function Fact({ label, value, hint }: { label: string; value: string; hint?: str
   );
 }
 
-function Detail({ label, children, className }: { label: string; children: ReactNode; className?: string }) {
+function Detail({ label, children, className }: { label: ReactNode; children: ReactNode; className?: string }) {
   return (
     <div className={cn("min-w-0", className)}>
       <dt className="text-xs text-soft">{label}</dt>

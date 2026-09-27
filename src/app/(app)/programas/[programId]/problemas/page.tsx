@@ -2,13 +2,17 @@ import { ClipboardList, Plus, Sparkles } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { DeleteButton } from "@/components/app/delete-button";
+import { ExportCsvButton } from "@/components/app/export-csv-button";
 import { EmptyState, PageHeader } from "@/components/app/page";
 import { ImpactBadge, ProblemStatusBadge } from "@/components/app/status-badge";
 import { UrlFilters } from "@/components/app/url-filters";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CONTROL_LABEL, IMPACT_LABEL, PROBLEM_STATUS_LABEL } from "@/domain/labels";
+import { toCsv } from "@/domain/csv";
+import { todayIso } from "@/domain/dates";
 import { can } from "@/domain/permissions";
+import { normalizeText } from "@/domain/search";
 import { IMPACT_LEVELS, PROBLEM_STATUSES } from "@/domain/types";
 import { getProgramContext } from "@/server/auth";
 import { listLines } from "@/server/queries/programs";
@@ -31,8 +35,20 @@ export default async function ProblemsPage({ params, searchParams }: PageProps<"
       (!f.canal || (p.channel ?? "") === f.canal) &&
       (!f.estado || p.status === f.estado) &&
       (!f.impacto || p.impact === f.impacto) &&
-      (!f.q || `${p.title} ${p.evidence} ${p.root_cause ?? ""}`.toLowerCase().includes(f.q.toLowerCase())),
+      (!f.q || normalizeText(`${p.title} ${p.evidence} ${p.root_cause ?? ""}`).includes(normalizeText(f.q))),
   );
+  const csv = toCsv(filtered, [
+    { header: "Problema", value: (p) => p.title },
+    { header: "Línea", value: (p) => p.line_name },
+    { header: "Etapa", value: (p) => p.stage_name },
+    { header: "Canal", value: (p) => p.channel },
+    { header: "Evidencia", value: (p) => p.evidence },
+    { header: "Causa raíz hipotética", value: (p) => p.root_cause },
+    { header: "Impacto", value: (p) => IMPACT_LABEL[p.impact] },
+    { header: "Control", value: (p) => CONTROL_LABEL[p.control] },
+    { header: "Estado", value: (p) => PROBLEM_STATUS_LABEL[p.status] },
+    { header: "Ejercicios", value: (p) => p.experiments },
+  ]);
   const stageNames = [...new Set(stages.map((s) => s.name))];
   const channels = [...new Set(problems.map((p) => p.channel).filter((c): c is string => !!c))].sort();
   const base = `/programas/${programId}`;
@@ -43,13 +59,16 @@ export default async function ProblemsPage({ params, searchParams }: PageProps<"
         title="Problemas"
         description="Pérdidas de valor con evidencia, ubicadas en la línea, la etapa del embudo y el canal. Todo ejercicio nace de un problema."
         actions={
-          can.createProblem(ctx.actor) && lines.length ? (
-            <Button asChild>
-              <Link href={`${base}/problemas/nuevo`}>
-                <Plus aria-hidden /> Nuevo problema
-              </Link>
-            </Button>
-          ) : null
+          <>
+            {problems.length ? <ExportCsvButton csv={csv} name={["problemas", ctx.program.name, todayIso()]} /> : null}
+            {can.createProblem(ctx.actor) && lines.length ? (
+              <Button asChild>
+                <Link href={`${base}/problemas/nuevo`}>
+                  <Plus aria-hidden /> Nuevo problema
+                </Link>
+              </Button>
+            ) : null}
+          </>
         }
       />
 

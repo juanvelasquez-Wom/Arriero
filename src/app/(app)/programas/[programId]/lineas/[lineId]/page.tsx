@@ -13,7 +13,7 @@ import { can } from "@/domain/permissions";
 import { getProgramContext } from "@/server/auth";
 import { listExperiments } from "@/server/queries/experiments";
 import { listHorizons, listLines, listMembers } from "@/server/queries/programs";
-import { listMetrics, listMetricValues, listProblems, listStages } from "@/server/queries/structure";
+import { listMetricHistory, listMetrics, listMetricValues, listProblems, listStages } from "@/server/queries/structure";
 
 export async function generateMetadata({ params }: PageProps<"/programas/[programId]/lineas/[lineId]">): Promise<Metadata> {
   const { programId, lineId } = await params;
@@ -42,25 +42,32 @@ export default async function LinePage({ params, searchParams }: PageProps<"/pro
   ]);
   const today = todayIso();
   const currentHorizonId = horizons.find((h) => isWithin(today, h.start_date, h.end_date))?.id ?? null;
+  const programStart = ctx.program.start_date;
   const memberOptions = members.map((m) => ({ id: m.user_id, label: `${m.name} · ${ROLE_LABEL[m.role]}` }));
 
   let content: ReactNode;
   if (tab === "norte") {
     const headline = metrics.filter((m) => m.type === "north_star" || m.type === "efficiency");
     const values = headline.length ? await listMetricValues({ metricIds: headline.map((m) => m.id) }) : [];
+    const history = await listMetricHistory(values);
     content = (
       <NorthStarTab
         programId={programId}
         lineId={lineId}
         metrics={headline}
         values={values}
+        history={history}
         horizons={horizons}
         currentHorizonId={currentHorizonId}
+        today={today}
+        programStart={programStart}
         members={memberOptions}
         canEdit={canEdit}
       />
     );
   } else if (tab === "arbol") {
+    const values = metrics.length ? await listMetricValues({ metricIds: metrics.map((m) => m.id) }) : [];
+    const history = await listMetricHistory(values);
     content = (
       <TreeTab
         programId={programId}
@@ -71,6 +78,10 @@ export default async function LinePage({ params, searchParams }: PageProps<"/pro
         members={memberOptions}
         horizons={horizons}
         currentHorizonId={currentHorizonId}
+        values={values}
+        history={history}
+        today={today}
+        programStart={programStart}
         canEdit={canEdit}
         canDelete={canDelete}
       />

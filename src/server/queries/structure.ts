@@ -22,6 +22,8 @@ export interface MetricRow {
   direction: MetricDirection;
   source: string | null;
   baseline: number | null;
+  /** Valor en COP de una unidad (opcional). */
+  unit_value: number | null;
   owner_id: string | null;
   owner_name: string | null;
   sort_order: number;
@@ -33,7 +35,7 @@ export async function listMetrics(filter: { programId?: string; lineId?: string 
   let q = supabase
     .from("metrics")
     .select(
-      "id, line_id, parent_id, type, branch, name, definition, channel, unit, direction, source, baseline, owner_id, sort_order, owner:profiles!metrics_owner_id_fkey(name, email), metric_targets(horizon_id, target)",
+      "id, line_id, parent_id, type, branch, name, definition, channel, unit, direction, source, baseline, unit_value, owner_id, sort_order, owner:profiles!metrics_owner_id_fkey(name, email), metric_targets(horizon_id, target)",
     )
     .order("sort_order")
     .order("created_at");
@@ -56,6 +58,7 @@ export async function listMetrics(filter: { programId?: string; lineId?: string 
       direction: m.direction as MetricDirection,
       source: m.source,
       baseline: m.baseline == null ? null : Number(m.baseline),
+      unit_value: m.unit_value == null ? null : Number(m.unit_value),
       owner_id: m.owner_id,
       owner_name: owner ? owner.name || owner.email : null,
       sort_order: m.sort_order,
@@ -88,6 +91,55 @@ export async function listMetricValues(filter: {
   const { data, error } = await q;
   if (error) throw new Error(error.message);
   return (data ?? []).map((v) => ({ ...v, value: Number(v.value) }));
+}
+
+export interface MetricHistoryRow {
+  id: string;
+  metric_id: string;
+  week_start: string;
+  old_value: number | null;
+  new_value: number | null;
+  old_note: string | null;
+  new_note: string | null;
+  changed_by_name: string | null;
+  changed_at: string;
+}
+
+/**
+ * Correcciones de valores semanales (las escribe un trigger al actualizar un
+ * valor ya cargado). RLS: cualquier miembro del programa puede leerlas.
+ */
+export async function listMetricHistory(values: Pick<MetricValueRow, "id" | "metric_id" | "week_start">[]): Promise<MetricHistoryRow[]> {
+  if (!values.length) return [];
+  const supabase = await createClient();
+  const byId = new Map(values.map((v) => [v.id, v]));
+  const { data, error } = await supabase
+    .from("metric_value_history")
+    .select(
+      "id, metric_value_id, old_value, new_value, old_note, new_note, changed_at, changed_by_profile:profiles!metric_value_history_changed_by_fkey(name, email)",
+    )
+    .in("metric_value_id", [...byId.keys()])
+    .order("changed_at", { ascending: false })
+    .limit(500);
+  if (error) throw new Error(error.message);
+  return (data ?? []).flatMap((h) => {
+    const v = byId.get(h.metric_value_id as string);
+    if (!v) return [];
+    const by = h.changed_by_profile as unknown as { name: string; email: string } | null;
+    return [
+      {
+        id: h.id as string,
+        metric_id: v.metric_id,
+        week_start: v.week_start,
+        old_value: h.old_value == null ? null : Number(h.old_value),
+        new_value: h.new_value == null ? null : Number(h.new_value),
+        old_note: (h.old_note as string | null) ?? null,
+        new_note: (h.new_note as string | null) ?? null,
+        changed_by_name: by ? by.name || by.email : null,
+        changed_at: h.changed_at as string,
+      },
+    ];
+  });
 }
 
 export interface StageRow {

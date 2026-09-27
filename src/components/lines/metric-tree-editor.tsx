@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDown, ArrowUp, Pencil, Plus, Star, Target, User } from "lucide-react";
+import { ArrowDown, ArrowUp, ChartLine, Pencil, Plus, Star, Target, User } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { toast } from "sonner";
@@ -11,10 +11,20 @@ import { formatMetricValue } from "@/domain/format";
 import { buildMetricTree, parentCandidates, reassignCandidates, type MetricTreeNode } from "@/domain/metric-tree";
 import { cn } from "@/lib/utils";
 import { moveMetric } from "@/server/actions/metrics";
-import type { MetricRow } from "@/server/queries/structure";
+import { problemFromMetricPath } from "@/domain/home";
+import type { TargetEvaluation } from "@/domain/targets";
+import type { MetricHistoryRow, MetricRow } from "@/server/queries/structure";
 import { BRANCH_STYLE, BranchBadge, DirectionLabel, MetricTypeBadge, metricOptionLabel } from "./metric-badges";
 import { MetricFormDialog, type Option } from "./metric-form-dialog";
+import { MetricTrendDialog } from "./metric-trend-dialog";
+import { TargetStatusSummary } from "./target-status";
 import { TargetsDialog, type HorizonOption } from "./targets-dialog";
+
+export interface MetricInsight {
+  evaluation: TargetEvaluation;
+  series: { week_start: string; value: number }[];
+  history: MetricHistoryRow[];
+}
 
 type Node = MetricTreeNode<MetricRow>;
 
@@ -27,6 +37,7 @@ interface EditorProps {
   currentHorizonId: string | null;
   canEdit: boolean;
   canDelete: boolean;
+  insights: Record<string, MetricInsight>;
 }
 
 /** Editor visual del árbol: nodos anidados con conectores dibujados con bordes. */
@@ -104,7 +115,9 @@ function NodeCard({
   currentHorizonId,
   canEdit,
   canDelete,
+  insights,
 }: EditorProps & { node: Node; isFirst: boolean; isLast: boolean }) {
+  const insight = insights[node.id];
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const isRoot = node.type === "north_star";
@@ -163,6 +176,37 @@ function NodeCard({
               </span>
             ) : null}
           </div>
+          {insight ? (
+            <div className="mt-1.5 flex flex-wrap items-center gap-2">
+              <TargetStatusSummary
+                evaluation={insight.evaluation}
+                unit={node.unit}
+                compact
+                problemHref={`/programas/${programId}${problemFromMetricPath(node.id)}`}
+              />
+              <MetricTrendDialog
+                name={node.name}
+                unit={node.unit}
+                baseline={node.baseline}
+                series={insight.series}
+                targets={horizons
+                  .filter((h) => node.targets.some((t) => t.horizon_id === h.id))
+                  .map((h) => ({
+                    label: `Objetivo ${h.name}`,
+                    value: node.targets.find((t) => t.horizon_id === h.id)!.target,
+                    current: h.id === currentHorizonId,
+                  }))}
+                evaluation={insight.evaluation}
+                history={insight.history}
+                trigger={
+                  <Button variant="ghost" size="sm" className="h-6 px-1.5 text-xs">
+                    <ChartLine aria-hidden /> Tendencia
+                    {insight.history.length ? ` · ${insight.history.length} cambio${insight.history.length === 1 ? "" : "s"}` : ""}
+                  </Button>
+                }
+              />
+            </div>
+          ) : null}
         </div>
 
         {canEdit ? (

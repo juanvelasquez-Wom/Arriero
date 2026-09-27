@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { fail, failFrom, fromZod, ok, type ActionResult } from "@/lib/action-result";
+import { fail, failFrom, fromZod, ok, toUserMessage, type ActionResult } from "@/lib/action-result";
 import { createClient } from "@/lib/supabase/server";
 import {
   calendarStepSchema,
@@ -11,16 +11,19 @@ import {
   linesStepSchema,
   northStarStepSchema,
   programStepSchema,
+  quickStartSchema,
   treeStepSchema,
   type CalendarStepInput,
   type FunnelStepInput,
   type HorizonsStepInput,
   type NorthStarStepInput,
   type ProgramStepInput,
+  type QuickStartFormInput,
   type TreeStepInput,
 } from "@/lib/validation/setup";
 import { horizonProblems } from "@/domain/growth-templates";
 import { can } from "@/domain/permissions";
+import { planQuickStart } from "@/domain/quick-start";
 import { getActionActor, getSessionUser } from "@/server/auth";
 
 // Acciones del asistente de configuración. Cada paso guarda en lote con la
@@ -277,4 +280,131 @@ export async function finishSetup(programId: string): Promise<ActionResult> {
   if (error) return failFrom(error);
   revalidate(programId);
   return ok(undefined, "¡Ave María, qué belleza! Programa configurado.");
+}
+
+// Arranque rápido ------------------------------------------------------------------------
+export interface QuickStartResult {
+  programId: string;
+  /** A dónde seguir: "Nuevo problema" si todo quedó, o el asistente para completar lo que faltó. */
+  href: string;
+  /** Si algo falló después de crear el programa: qué faltó (el programa ya existe y se retoma en Configuración). */
+  partialError?: string;
+}
+
+/**
+ * Crea en una sola pasada lo que el asistente completo arma paso a paso. Escribe
+ * en el mismo orden del asistente y avanza setup_step en cada bloque: si algo
+ * falla a mitad de camino, el programa queda usable y `resumeStep` retoma donde
+ * quedó.
+ */
+export async function saveQuickStart(input: QuickStartFormInput): Promise<ActionResult<QuickStartResult>> {
+  const user = await getSessionUser();
+  if (!user?.isAdmin) return fail("Solo un admin puede crear programas.");
+  const parsed = quickStartSchema.safeParse(input);
+  if (!parsed.success) return fromZod(parsed.error);
+  const planned = planQuickStart(parsed.data);
+  if (!planned.ok) return fail(planned.error);
+  const { plan } = planned;
+  const supabase = await createClient();
+
+  // 1 · Programa (el trigger deja al creador como owner).
+  const { data: program, error: programError } = await supabase
+    .from("programs")
+    .insert({ ...plan.program, description: null, setup_step: 1 })
+    .select("id")
+    .single();
+  if (programError) return failFrom(programError);
+  const programId = program.id;
+  const setStep = (step: number) => supabase.from("programs").update({ setup_step: step }).eq("id", programId);
+
+  const partial = (what: string, error: { message?: string; code?: string } | null): ActionResult<QuickStartResult> => {
+    revalidate(programId);
+    return ok({
+      programId,
+      href: `/programas/${programId}/configuracion`,
+      partialError: `El programa quedó creado, pero no se pudo guardar ${what}: ${toUserMessage(error)} Complételo en Configuración, que ya lo tiene a medio camino.`,
+    });
+  };
+
+  // 2 · Calendario típico de telco.
+  if (plan.events.length) {
+    const { error } = await supabase.from("calendar_events").insert(plan.events.map((e) => ({ ...e, program_id: programId })));
+    if (error) return partial("el calendario comercial", error);
+  }
+  let { error } = await setStep(2);
+  if (error) return partial("el avance de la configuración", error);
+
+  // 3 · Horizontes.
+  ({ error } = await supabase
+    .from("program_horizons")
+    .insert(plan.horizons.map((h, i) => ({ ...h, sort_order: i, program_id: programId }))));
+  if (error) return partial("los horizontes", error);
+  ({ error } = await setStep(3));
+  if (error) return partial("el avance de la configuración", error);
+
+  // 4 · Línea (el trigger le crea las cuatro etapas del embudo).
+  const { data: line, error: lineError } = await supabase
+    .from("business_lines")
+    .insert({ program_id: programId, name: plan.line.name, sort_order: 0 })
+    .select("id")
+    .single();
+  if (lineError) return partial("la línea de negocio", lineError);
+  ({ error } = await setStep(4));
+  if (error) return partial("el avance de la configuración", error);
+
+  // 5a · Métrica norte y eficiencia (sin línea base ni metas todavía).
+  const metricRow = (m: typeof plan.northStar) => ({ name: m.name, unit: m.unit || null, direction: m.direction, definition: m.definition || null });
+  const { data: north, error: northError } = await supabase
+    .from("metrics")
+    .insert({ ...metricRow(plan.northStar), line_id: line.id, type: "north_star", sort_order: 0 })
+    .select("id")
+    .single();
+  if (northError) return partial("la métrica norte", northError);
+  ({ error } = await supabase
+    .from("metrics")
+    .insert({ ...metricRow(plan.efficiency), line_id: line.id, type: "efficiency", sort_order: 1 }));
+  if (error) return partial("la métrica de eficiencia", error);
+
+  // 5b · Árbol de métricas.
+  const { data: inputs, error: treeError } = await supabase
+    .from("metrics")
+    .insert(
+      plan.tree.map((m) => ({
+        ...metricRow(m),
+        branch: m.branch,
+        sort_order: m.sort_order,
+        line_id: line.id,
+        type: "input" as const,
+        parent_id: north.id,
+      })),
+    )
+    .select("id, name");
+  if (treeError) return partial("el árbol de métricas", treeError);
+
+  // 5c · Embudo: descripción y métrica de cada etapa según la plantilla.
+  const { data: stages, error: stagesError } = await supabase.from("funnel_stages").select("id, name").eq("line_id", line.id);
+  if (stagesError) return partial("el embudo", stagesError);
+  const metricId = new Map((inputs ?? []).map((m) => [m.name.trim().toLowerCase(), m.id]));
+  for (const s of stages ?? []) {
+    const p = plan.funnel.find((f) => f.name.toLowerCase() === s.name.trim().toLowerCase());
+    if (!p) continue;
+    ({ error } = await supabase
+      .from("funnel_stages")
+      .update({ description: p.description, metric_id: p.metricName ? (metricId.get(p.metricName.toLowerCase()) ?? null) : null })
+      .eq("id", s.id));
+    if (error) return partial("el embudo", error);
+  }
+
+  // Cierre, como finishSetup.
+  ({ error } = await supabase
+    .from("programs")
+    .update({ setup_step: 5, setup_completed_at: new Date().toISOString() })
+    .eq("id", programId));
+  if (error) return partial("el cierre de la configuración", error);
+
+  revalidate(programId);
+  return ok(
+    { programId, href: `/programas/${programId}/problemas/nuevo?linea=${line.id}&desde=arranque` },
+    "Ya tiene el mapa. Ahora cuéntele a Arriero dónde se pierde valor.",
+  );
 }

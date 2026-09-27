@@ -1,6 +1,9 @@
-// Regla 6 · Cálculos de resultados. Sin significancia estadística: el veredicto
-// lo emite una persona frente a la regla de decisión.
-import type { Variant } from "./types";
+// Regla 6 · Cálculos de resultados. La probabilidad de ganar (stats.ts) y el
+// valor estimado (value.ts) ayudan a leer, pero el veredicto lo emite una
+// persona frente a la regla de decisión.
+import { analyzeExperiment, formatProbability, type EvidenceKind, type VariantStats } from "./stats";
+import type { MetricDirection, TestType, Variant } from "./types";
+import { estimateValue, type EstimatedValue, type MetricEconomics, type MissingValueInput } from "./value";
 
 /** conversiones / muestra; null si no se puede calcular (muestra 0 o vacía). */
 export function conversionRate(sample: number | null, conversions: number | null): number | null {
@@ -57,4 +60,63 @@ export function headlineDiff(results: VariantResult[]): number | null {
 
 export function hasCompleteResults(variants: Pick<Variant, "sample" | "conversions" | "metric_value">[]): boolean {
   return variants.length > 0 && variants.every((v) => v.sample != null && (v.conversions != null || v.metric_value != null));
+}
+
+export interface VariantReading extends VariantResult {
+  stats: VariantStats;
+  /** Valor estimado si se escala esta variante (null para el control o si falta un dato). */
+  value_estimate: EstimatedValue | null;
+  value_missing: MissingValueInput | null;
+}
+
+export interface ExperimentReading {
+  kind: EvidenceKind;
+  rows: VariantReading[];
+  /**
+   * Variante que resume el resultado: en A/B con datos, la de mayor
+   * probabilidad de ganar; si no, la de mayor diferencia absoluta.
+   */
+  headline: VariantReading | null;
+}
+
+/** Lectura completa: tasa, diferencia, probabilidad/intervalo y valor estimado por variante. */
+export function readExperiment(input: {
+  variants: Variant[];
+  testType: TestType | null | undefined;
+  metric?: Pick<MetricEconomics, "unit" | "baseline" | "latest_value" | "unit_value" | "direction"> | null;
+}): ExperimentReading {
+  const direction: MetricDirection = input.metric?.direction ?? "up";
+  const results = computeVariantResults(input.variants);
+  const stats = analyzeExperiment({ variants: input.variants, testType: input.testType, direction });
+  const rows: VariantReading[] = results.map((r, i) => {
+    const est = r.is_control ? { value: null, missing: null } : estimateValue({ lift: r.diffVsControl, metric: input.metric ?? null });
+    return { ...r, stats: stats.variants[i], value_estimate: est.value, value_missing: est.missing };
+  });
+  const challengers = rows.filter((r) => !r.is_control);
+  let headline: VariantReading | null = null;
+  if (stats.best) headline = rows[stats.variants.indexOf(stats.best)] ?? null;
+  if (!headline) {
+    const withDiff = challengers.filter((r) => r.diffVsControl != null);
+    headline = withDiff.length
+      ? withDiff.reduce((a, b) => (Math.abs(b.diffVsControl!) > Math.abs(a.diffVsControl!) ? b : a))
+      : (challengers[0] ?? null);
+  }
+  return { kind: stats.kind, rows, headline };
+}
+
+/**
+ * Borrador del aprendizaje a partir de los datos. La persona lo completa con
+ * el porqué; solo se propone cuando el campo está vacío.
+ */
+export function draftLearning(input: { reading: ExperimentReading; metricName: string }): string | null {
+  const h = input.reading.headline;
+  if (!h || h.diffVsControl == null) return null;
+  const verb = h.diffVsControl > 0 ? "subió" : h.diffVsControl < 0 ? "bajó" : "no movió";
+  const pct = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 1 }).format(Math.abs(h.diffVsControl) * 100);
+  const amount = h.diffVsControl === 0 ? "" : ` ${pct} %`;
+  const evidence =
+    input.reading.kind === "probabilistic" && h.stats.probability != null
+      ? ` (probabilidad de ganar ${formatProbability(h.stats.probability)})`
+      : " (evidencia direccional, sin probabilidad)";
+  return `La variante "${h.name}" ${verb} ${input.metricName}${amount} frente al control${evidence}. Creemos que pasó porque… Lo que nos llevamos para otras líneas es…`;
 }

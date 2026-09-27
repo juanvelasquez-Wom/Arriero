@@ -22,6 +22,8 @@ export async function createProblem(programId: string, input: ProblemInput): Pro
     .from("problems")
     .insert({
       ...parsed.data,
+      // Todo problema nace «Por validar»; el estado se cambia después, al editarlo.
+      status: "to_validate",
       channel: parsed.data.channel || null,
       root_cause: parsed.data.root_cause || null,
       line_id: stage.line_id,

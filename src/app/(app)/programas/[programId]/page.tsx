@@ -1,32 +1,64 @@
-import { CalendarClock, CheckCircle2, Circle, Flag, Snowflake, Sparkles, TriangleAlert } from "lucide-react";
+import {
+  BookOpenCheck,
+  CalendarClock,
+  CheckCircle2,
+  Circle,
+  Flag,
+  Hourglass,
+  Lightbulb,
+  OctagonAlert,
+  PartyPopper,
+  Snowflake,
+  Sparkles,
+  TriangleAlert,
+  UserRound,
+  type LucideIcon,
+} from "lucide-react";
 import Link from "next/link";
-import { PageHeader, Section, Stat } from "@/components/app/page";
+import { Term } from "@/components/app/info-tip";
+import { PageHeader, Section } from "@/components/app/page";
 import { StatusBadge } from "@/components/app/status-badge";
 import { JourneyStrip } from "@/components/brand/journey-strip";
+import { TargetStatusSummary } from "@/components/lines/target-status";
 import { Button } from "@/components/ui/button";
 import { CALENDAR_EVENT_LABEL } from "@/domain/labels";
-import { isActive, isClosed } from "@/domain/lifecycle";
 import { formatDate, formatDateRange, formatPercent } from "@/domain/format";
 import { journeyStages } from "@/domain/journey";
 import { onboardingComplete, onboardingSteps } from "@/domain/onboarding";
 import { can } from "@/domain/permissions";
 import { summarizeResults } from "@/domain/dashboards";
 import { todayIso } from "@/domain/dates";
+import { homeItems, problemFromMetricPath, type HomeItemKind } from "@/domain/home";
+import { evaluateTarget, type TargetEvaluation } from "@/domain/targets";
 import { getProgramContext } from "@/server/auth";
 import { listExperiments, listVariants } from "@/server/queries/experiments";
 import { listCalendar, listHorizons, listLines, onboardingCounts } from "@/server/queries/programs";
+import { listLearnings, listMetrics, listMetricValues } from "@/server/queries/structure";
+
+const HOME_ICON: Record<HomeItemKind, LucideIcon> = {
+  north_star_off_track: OctagonAlert,
+  ready_to_read: BookOpenCheck,
+  calendar_soon: Snowflake,
+  assigned: UserRound,
+  learning_to_try: Lightbulb,
+  stale_ideas: Hourglass,
+};
 
 export default async function ProgramOverviewPage({ params }: PageProps<"/programas/[programId]">) {
   const { programId } = await params;
   const ctx = await getProgramContext(programId);
-  const [counts, experiments, variants, calendar, lines, horizons] = await Promise.all([
+  const [counts, experiments, variants, calendar, lines, horizons, metrics, learnings] = await Promise.all([
     onboardingCounts(programId),
     listExperiments(programId),
     listVariants({ programId }),
     listCalendar(programId),
     listLines(programId),
     listHorizons(programId),
+    listMetrics({ programId }),
+    listLearnings(programId),
   ]);
+  const northStars = metrics.filter((m) => m.type === "north_star");
+  const northValues = northStars.length ? await listMetricValues({ metricIds: northStars.map((m) => m.id) }) : [];
   const steps = onboardingSteps(counts);
   const showChecklist = !onboardingComplete(counts);
   const base = `/programas/${programId}`;
@@ -45,6 +77,45 @@ export default async function ProgramOverviewPage({ params }: PageProps<"/progra
   const today = todayIso();
   const upcoming = calendar.filter((e) => e.end_date >= today).slice(0, 5);
   const inTest = experiments.filter((e) => e.status === "in_test" || e.status === "in_reading");
+
+  // Semáforo de la métrica norte de cada línea.
+  const northBy = new Map<string, { metric: (typeof northStars)[number]; evaluation: TargetEvaluation }>();
+  for (const m of northStars) {
+    northBy.set(m.line_id, {
+      metric: m,
+      evaluation: evaluateTarget({
+        baseline: m.baseline,
+        direction: m.direction,
+        targets: m.targets,
+        horizons,
+        values: northValues.filter((v) => v.metric_id === m.id),
+        today,
+        programStart: ctx.program.start_date,
+      }),
+    });
+  }
+  const lineName = new Map(lines.map((l) => [l.id, l.name]));
+  const todo = homeItems({
+    today,
+    userId: ctx.user.id,
+    northStars: [...northBy.values()].map(({ metric, evaluation }) => ({
+      metricId: metric.id,
+      lineId: metric.line_id,
+      lineName: lineName.get(metric.line_id) ?? "",
+      metricName: metric.name,
+      status: evaluation.status,
+      gap: evaluation.gap,
+    })),
+    experiments,
+    calendar,
+    lines,
+    learnings: learnings.map((l) => ({
+      id: l.id,
+      lineId: l.line_id,
+      lineName: l.line_name,
+      appliesToLineIds: l.applies_to_line_ids,
+    })),
+  });
   const nextUp = experiments.filter((e) => e.status === "prioritized" || e.status === "in_design").slice(0, 5);
 
   return (
@@ -114,6 +185,46 @@ export default async function ProgramOverviewPage({ params }: PageProps<"/progra
         </Section>
       ) : null}
 
+      <Section className="mb-6" title="Lo que toca hoy" description="Lo más urgente primero. Cada cosa lleva a donde se resuelve.">
+        {todo.length ? (
+          <ol className="divide-y">
+            {todo.map((item) => {
+              const Icon = HOME_ICON[item.kind];
+              const urgent = item.kind === "north_star_off_track" || item.kind === "ready_to_read";
+              return (
+                <li key={item.key} className="flex flex-wrap items-start gap-3 py-2.5 sm:flex-nowrap">
+                  <span
+                    aria-hidden
+                    className={
+                      urgent
+                        ? "mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-highlight text-[#1f1f1f]"
+                        : "mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-wash text-ink"
+                    }
+                  >
+                    <Icon className="size-4" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <Link href={`${base}${item.path}`} className="font-medium hover:underline">
+                      {item.title}
+                    </Link>
+                    <p className="text-xs text-soft">{item.detail}</p>
+                  </div>
+                  {item.secondary ? (
+                    <Button asChild variant="outline" size="sm" className="shrink-0">
+                      <Link href={`${base}${item.secondary.path}`}>{item.secondary.label}</Link>
+                    </Button>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ol>
+        ) : (
+          <p className="flex items-center gap-2 text-sm text-soft">
+            <PartyPopper aria-hidden className="size-4" /> Nada urgente por hoy. ¡Qué belleza! Aproveche para alimentar el backlog.
+          </p>
+        )}
+      </Section>
+
       <div className="mb-6">
         <JourneyStrip
           programId={programId}
@@ -122,14 +233,12 @@ export default async function ProgramOverviewPage({ params }: PageProps<"/progra
             problems: counts.problems,
             experiments,
           })}
+          note={
+            summary.winRate != null
+              ? `Tasa de acierto: ${formatPercent(summary.winRate)} · ${summary.winners} ganador${summary.winners === 1 ? "" : "es"}`
+              : undefined
+          }
         />
-      </div>
-
-      <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Stat label="Ejercicios activos" value={experiments.filter((e) => isActive(e.status)).length} hint="Priorizados a En lectura" />
-        <Stat label="En prueba ahora" value={inTest.length} highlight={inTest.length > 0} />
-        <Stat label="Cerrados" value={experiments.filter((e) => isClosed(e.status)).length} />
-        <Stat label="Win rate" value={formatPercent(summary.winRate)} hint={`${summary.winners} ganador(es)`} />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -222,20 +331,45 @@ export default async function ProgramOverviewPage({ params }: PageProps<"/progra
           )}
         </Section>
 
-        <Section title="Líneas de negocio">
+        <Section
+          title="Líneas de negocio"
+          description={
+            <>
+              Métrica norte de cada línea, <Term k="targetStatus">frente a la meta</Term>.
+            </>
+          }
+        >
           {lines.length ? (
             <ul className="divide-y">
               {lines.map((l) => {
                 const n = experiments.filter((e) => e.line_id === l.id && e.status !== "discarded").length;
+                const north = northBy.get(l.id);
                 return (
-                  <li key={l.id} className="flex items-center justify-between gap-3 py-2 text-sm">
-                    <Link href={`${base}/lineas/${l.id}`} className="hover:underline">
-                      {l.name}
-                    </Link>
-                    <span className="inline-flex items-center gap-1 text-xs tabular-nums">
-                      {n === 0 ? <TriangleAlert className="size-3.5" aria-label="Sin ejercicios" /> : null}
-                      {n} ejercicio(s)
-                    </span>
+                  <li key={l.id} className="py-2.5 text-sm">
+                    <div className="flex items-center justify-between gap-3">
+                      <Link href={`${base}/lineas/${l.id}`} className="font-medium hover:underline">
+                        {l.name}
+                      </Link>
+                      <span className="inline-flex items-center gap-1 text-xs tabular-nums">
+                        {n === 0 ? <TriangleAlert className="size-3.5" aria-label="Sin ejercicios" /> : null}
+                        {n} ejercicio{n === 1 ? "" : "s"}
+                      </span>
+                    </div>
+                    {north ? (
+                      <div className="mt-1">
+                        <span className="text-xs text-soft">{north.metric.name} · </span>
+                        <TargetStatusSummary
+                          evaluation={north.evaluation}
+                          unit={north.metric.unit}
+                          compact
+                          problemHref={`${base}${problemFromMetricPath(north.metric.id)}`}
+                        />
+                      </div>
+                    ) : (
+                      <Link href={`${base}/lineas/${l.id}?tab=norte`} className="mt-1 block text-xs text-soft underline underline-offset-4">
+                        Sin métrica norte: defínala
+                      </Link>
+                    )}
                   </li>
                 );
               })}

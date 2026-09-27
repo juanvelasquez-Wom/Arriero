@@ -135,6 +135,13 @@ describe("reglas en la base", () => {
     expect(skip.error?.message).toMatch(/No se puede pasar/);
   });
 
+  it("pasar a En diseño exige la hipótesis completa", async () => {
+    const id = await readyExperiment(C.client, seed, C.id, { hypothesis_because: "  " });
+    expect((await C.client.rpc("transition_experiment", { p_experiment: id, p_to: "prioritized" })).error).toBeNull();
+    const blocked = await C.client.rpc("transition_experiment", { p_experiment: id, p_to: "in_design" });
+    expect(blocked.error?.message).toMatch(/hipótesis completa/);
+  });
+
   it("bloquea el diseño al pasar a En prueba; solo el owner desbloquea con justificación", async () => {
     const id = await readyExperiment(C.client, seed, C.id);
     for (const to of ["prioritized", "in_design", "in_test"]) {

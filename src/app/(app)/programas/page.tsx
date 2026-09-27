@@ -1,4 +1,4 @@
-import { ArrowRight, CalendarRange, FolderKanban, Plus, Users } from "lucide-react";
+import { ArrowRight, CalendarRange, Compass, FolderKanban, Plus, Users } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AppHeader } from "@/components/app/app-header";
@@ -61,6 +61,24 @@ export default async function ProgramsPage() {
             ) : null
           }
         />
+
+        {programs.length ? (
+          <Link
+            href="/direccion"
+            className="lift group mb-6 flex flex-wrap items-center gap-4 rounded-2xl bg-[#111111] p-5 text-[#f6f6f4] shadow-card"
+          >
+            <Compass aria-hidden className="size-8 shrink-0 text-highlight" />
+            <div className="min-w-0 flex-1">
+              <div className="font-heading text-lg font-extrabold">Resumen ejecutivo: ¿estamos creciendo?</div>
+              <p className="text-sm text-[#f6f6f4]/70">
+                Para dirección: qué crece, qué cae, qué ganó, qué aprendimos, cuánto vale y qué hay que decidir, de todos los programas en una página.
+              </p>
+            </div>
+            <span className="inline-flex items-center gap-1 rounded-full bg-highlight px-3 py-1.5 text-sm font-semibold text-[#111111]">
+              Ver resumen <ArrowRight aria-hidden className="size-4 transition-transform group-hover:translate-x-1" />
+            </span>
+          </Link>
+        ) : null}
 
         {programs.length === 0 ? (
           <EmptyState

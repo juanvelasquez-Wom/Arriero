@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { summarizeResults } from "@/domain/dashboards";
+import { addDays, todayIso } from "@/domain/dates";
 import type { Variant } from "@/domain/types";
 import { deleteDemoProgram, findDemoProgramId, loadDemoProgram } from "@/server/demo/loader";
 import { adminClient, cleanup, createTestUser, type TestUser } from "./helpers";
@@ -43,17 +44,26 @@ describe("programa de ejemplo", () => {
   it("carga tres ejercicios en sus estados, win rate 50% y se borra sin dejar nada", async (ctx) => {
     if (preexisting) ctx.skip();
 
-    const programId = await loadDemoProgram(A.client, admin, A.id);
-    const { data: program } = await A.client.from("programs").select("name, is_demo").eq("id", programId).single();
+    // Las fechas del ejemplo salen del día de carga: se fija para poder compararlas.
+    const today = todayIso();
+    const programId = await loadDemoProgram(A.client, admin, A.id, today);
+    const { data: program } = await A.client.from("programs").select("name, is_demo, start_date, end_date").eq("id", programId).single();
     expect(program).toMatchObject({ name: "Programa demo · Telco Andina", is_demo: true });
+    expect(program!.start_date < today && program!.end_date > today).toBe(true);
 
-    const { data: exps } = await A.client.from("experiments").select("id, title, status, verdict, decision, final_score, design_locked_at").eq("program_id", programId);
+    const { data: exps } = await A.client
+      .from("experiments")
+      .select("id, title, status, verdict, decision, final_score, design_locked_at, actual_start, decided_at")
+      .eq("program_id", programId);
     expect(exps).toHaveLength(3);
     const byTitle = Object.fromEntries(exps!.map((e) => [e.title as string, e]));
     expect(byTitle["Recordatorio de recarga con paquete sugerido por WhatsApp"]).toMatchObject({ status: "scaled", verdict: "winner", decision: "scale" });
     expect(Number(byTitle["Recordatorio de recarga con paquete sugerido por WhatsApp"].final_score)).toBe(8.7);
     expect(byTitle["Rotación de creativos en video vertical testimonial"]).toMatchObject({ status: "in_test" });
-    expect(byTitle["Rotación de creativos en video vertical testimonial"].design_locked_at).toMatch(/^2026-10-05/);
+    // En prueba desde hace 10 días (nada en el futuro) y decididos en el pasado.
+    expect(byTitle["Rotación de creativos en video vertical testimonial"].actual_start).toBe(addDays(today, -10));
+    expect(byTitle["Rotación de creativos en video vertical testimonial"].design_locked_at).toMatch(new RegExp(`^${addDays(today, -10)}`));
+    for (const e of exps!.filter((x) => x.decided_at)) expect((e.decided_at as string).slice(0, 10) < today).toBe(true);
     expect(byTitle["Precio en cuotas mensuales en la ficha del equipo"]).toMatchObject({ status: "decided", verdict: "loser", decision: "kill" });
 
     const { data: variants } = await A.client

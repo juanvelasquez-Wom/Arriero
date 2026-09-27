@@ -9,10 +9,14 @@ import { buildMetricTree, countByBranch, flattenTree } from "@/domain/metric-tre
 import { METRIC_BRANCHES } from "@/domain/types";
 import { cn } from "@/lib/utils";
 import type { Horizon } from "@/server/queries/programs";
-import type { MetricRow } from "@/server/queries/structure";
+import { evaluateTarget } from "@/domain/targets";
+import { problemFromMetricPath } from "@/domain/home";
+import { Term } from "@/components/app/info-tip";
+import type { MetricHistoryRow, MetricRow, MetricValueRow } from "@/server/queries/structure";
 import { BranchBadge, DirectionLabel, MetricTypeBadge, metricOptionLabel } from "./metric-badges";
 import { MetricFormDialog, type Option } from "./metric-form-dialog";
-import { MetricTreeEditor } from "./metric-tree-editor";
+import { MetricTreeEditor, type MetricInsight } from "./metric-tree-editor";
+import { TargetStatusSummary } from "./target-status";
 
 export type TreeView = "arbol" | "tabla";
 
@@ -30,8 +34,34 @@ interface Props {
   members: Option[];
   horizons: Horizon[];
   currentHorizonId: string | null;
+  values: MetricValueRow[];
+  history: MetricHistoryRow[];
+  today: string;
+  programStart: string | null;
   canEdit: boolean;
   canDelete: boolean;
+}
+
+/** Semáforo, serie e historial por métrica (se calcula aquí y viaja al editor). */
+function buildInsights({ metrics, values, history, horizons, today, programStart }: Props): Record<string, MetricInsight> {
+  return Object.fromEntries(
+    metrics.map((m) => {
+      const series = values
+        .filter((v) => v.metric_id === m.id)
+        .sort((a, b) => a.week_start.localeCompare(b.week_start))
+        .map((v) => ({ week_start: v.week_start, value: v.value }));
+      const evaluation = evaluateTarget({
+        baseline: m.baseline,
+        direction: m.direction,
+        targets: m.targets,
+        horizons,
+        values: series,
+        today,
+        programStart,
+      });
+      return [m.id, { evaluation, series, history: history.filter((h) => h.metric_id === m.id) }];
+    }),
+  );
 }
 
 /** Pestaña "Árbol de métricas": editor visual y vista de tabla (`?vista=tabla`). */
@@ -58,6 +88,7 @@ export function TreeTab(props: Props) {
   }
 
   const allOptions = metrics.map((m) => ({ id: m.id, label: metricOptionLabel(m) }));
+  const insights = buildInsights(props);
 
   return (
     <Section
@@ -109,7 +140,21 @@ export function TreeTab(props: Props) {
         </p>
       ) : null}
 
-      {view === "tabla" ? <MetricsTable {...props} /> : <MetricTreeEditor {...props} />}
+      {view === "tabla" ? (
+        <MetricsTable {...props} insights={insights} />
+      ) : (
+        <MetricTreeEditor
+          programId={programId}
+          lineId={lineId}
+          metrics={metrics}
+          members={members}
+          horizons={props.horizons}
+          currentHorizonId={props.currentHorizonId}
+          canEdit={canEdit}
+          canDelete={props.canDelete}
+          insights={insights}
+        />
+      )}
     </Section>
   );
 }
@@ -130,7 +175,8 @@ function ViewLink({ href, active, icon: Icon, label }: { href: string; active: b
   );
 }
 
-function MetricsTable({ metrics, horizons }: Props) {
+function MetricsTable(props: Props & { insights: Record<string, MetricInsight> }) {
+  const { metrics, horizons, insights } = props;
   const rows = flattenTree(buildMetricTree(metrics));
   const nameOf = new Map(metrics.map((m) => [m.id, m.name]));
   return (
@@ -144,12 +190,17 @@ function MetricsTable({ metrics, horizons }: Props) {
             <TableHead>Padre</TableHead>
             <TableHead>Unidad</TableHead>
             <TableHead>Dirección</TableHead>
-            <TableHead className="text-right">Línea base</TableHead>
+            <TableHead className="text-right">
+              <Term k="baseline" />
+            </TableHead>
             {horizons.map((h) => (
               <TableHead key={h.id} className="text-right">
                 Objetivo {h.name}
               </TableHead>
             ))}
+            <TableHead>
+              <Term k="targetStatus" />
+            </TableHead>
             <TableHead>Responsable</TableHead>
           </TableRow>
         </TableHeader>
@@ -184,6 +235,14 @@ function MetricsTable({ metrics, horizons }: Props) {
                   </TableCell>
                 );
               })}
+              <TableCell className="min-w-48">
+                {insights[m.id] ? <TargetStatusSummary
+                    evaluation={insights[m.id].evaluation}
+                    unit={m.unit}
+                    compact
+                    problemHref={`/programas/${props.programId}${problemFromMetricPath(m.id)}`}
+                  /> : null}
+              </TableCell>
               <TableCell>{m.owner_name ?? <span className="text-soft">Sin responsable</span>}</TableCell>
             </TableRow>
           ))}

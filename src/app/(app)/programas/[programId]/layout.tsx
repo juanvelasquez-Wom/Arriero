@@ -21,19 +21,21 @@ export default async function ProgramLayout({ children, params }: LayoutProps<"/
 
   return (
     <>
-      <AppHeader user={ctx.user}>
+      <AppHeader
+        user={ctx.user}
+        programId={programId}
+        canCreateExperiment={can.createExperiment(ctx.actor)}
+        nav={<ProgramMobileNav {...nav} />}
+      >
         <div className="flex min-w-0 items-center gap-2">
-          <ProgramMobileNav {...nav} />
           <span aria-hidden className="hidden text-soft sm:inline">
             /
           </span>
-          <Link href={`/programas/${programId}`} className="truncate text-sm font-semibold hover:underline">
+          <Link href={`/programas/${programId}`} className="min-w-0 truncate text-sm font-semibold hover:underline">
             {ctx.program.name}
           </Link>
-          {ctx.program.is_demo ? <DemoBadge /> : null}
-          <span className="hidden rounded-full border px-2 py-0.5 text-xs text-soft sm:inline">
-            {ctx.role ? ROLE_LABEL[ctx.role] : "Admin"}
-          </span>
+          {ctx.program.is_demo ? <DemoBadge className="shrink-0" /> : null}
+          <span className="shrink-0 rounded-full border px-2 py-0.5 text-xs text-soft">{ctx.role ? ROLE_LABEL[ctx.role] : "Admin"}</span>
         </div>
       </AppHeader>
       <div className="flex flex-1">

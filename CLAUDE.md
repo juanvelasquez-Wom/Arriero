@@ -79,6 +79,8 @@ supabase/
   config.toml                 config de la CLI (registro cerrado, site_url)
   migrations/                 001 esquema · 002 helpers de permisos · 003 reglas (triggers)
                               004 RPC · 005 RLS · 006 Storage y Realtime · 008 mensajes de error en usted
+                              009 auditoría V0 (hipótesis obligatoria para diseñar, save_experiment_variants,
+                              metrics.unit_value, experiment_comments) · 010 avisos (notifications + job diario)
 scripts/                      create-admin.mts, drain-storage-queue.mts (usan la secret key)
 src/
   proxy.ts                    refresca la sesión y protege todo salvo login/recuperar/auth/confirm/api/cron
@@ -98,9 +100,18 @@ src/
       ejercicios (backlog), ejercicios/nuevo, ejercicios/[id]?tab=, ejercicios/[id]/editar?paso=
       aprendizajes, papelera
       tableros/gantt|kanban|resultados|portafolio (filtros globales en la URL)
+    (app)/direccion           RESUMEN EJECUTIVO para dirección (CMO/CEO/Head of Growth): ¿estamos creciendo?,
+                              las 9 preguntas del comité (semana|mes), copiar resumen, CSV, estado por programa
+    (app)/programas/[programId]/informe?periodo=semana|mes   informe para el comité de un programa
+    (app)/programas/[programId]/equipo   carga por persona (en prueba, listos para leer, vencidos, quietos)
     api/cron/purgar-papelera  job diario (Vercel Cron, Bearer CRON_SECRET)
+    api/cron/avisos           job diario: generate_daily_notifications (ya se puede leer, ideas quietas,
+                              congelamientos, recordatorio de carga del lunes)
   domain/                     LÓGICA DE NEGOCIO PURA, con tests *.test.ts al lado
     scoring · lifecycle · results · calendar · permissions · deletion · dashboards
+    stats (probabilidad de ganar, intervalo) · value (valor en pesos) · sample-size · targets (semáforo meta)
+    experiment-inference · experiment-templates · similarity · home (lo que toca hoy) · paste-import
+    evidence · search · quick-start · rollup · report · executive · workload · notifications · glossary · csv
     dashboard-filters · gantt · metric-tree · onboarding · dates · format · labels · types
   server/
     auth.ts                   getSessionUser, requireUser, getProgramContext, getActionActor
@@ -128,7 +139,7 @@ tests/
 
 **Asistente de configuración del programa** (pensado para quien no conoce el modelo de growth)
 
-- `/programas/nuevo` muestra primero la bienvenida (el modelo en 5 ideas) y luego el paso "El programa".
+- `/programas/nuevo` muestra primero la bienvenida (el modelo en 5 ideas) con dos caminos: **Arranque rápido** (`?paso=rapido`, una línea con plantilla telco, calendario típico y horizontes automáticos en un solo formulario; `saveQuickStart` + `domain/quick-start.ts`; termina en "Nuevo problema") y **Configuración completa** (`?paso=programa`).
 - `/programas/[id]/configuracion?paso=<clave>[&linea=<id>]` con las claves de `src/domain/setup-flow.ts`: `programa` → `calendario` (picos con congelamiento sugerido y punto de decisión) → `horizontes` (propuestos desde el punto de decisión) → `lineas` (plantillas telco) → por cada línea `linea-norte` → `linea-arbol` → `linea-embudo` → `equipo` → `puntaje` → `resumen`.
 - Se guarda al avanzar (`src/server/actions/setup.ts`). `programs.setup_step` guarda el último paso principal completado (1–4); el avance dentro de cada línea se deduce de los datos. `resumeStep` decide dónde retomar e `isReachable` impide saltar pasos.
 - Ayudas: panel "¿Qué es esto?" y textos en `src/components/setup/help-content.ts`; burbujas ⓘ (`InfoTip`) por campo; botones "Usar ejemplo". Plantillas y sugerencias en `src/domain/growth-templates.ts`.
@@ -164,6 +175,8 @@ programs (name, description, is_demo único, fechas, scoring_config, setup_step,
  │           ├─ experiment_variants (is_control único, sample, conversions, metric_value, notes)
  │           └─ learnings (text, applies_to_line_ids, suggested_hypothesis) · 1 activo por ejercicio
 attachments (entity_type + problem_id | experiment_id, storage_path, mime, tamaño ≤ 20 MB)
+experiment_comments (experiment, body, created_by)                ← menciones con @nombre generan avisos
+notifications (user, kind, title, body, href, dedupe_key, read_at) ← solo triggers y el job diario escriben
 activity_log (actor, action, entity, summary, payload)           ← solo triggers y RPC escriben
 trash_items (entity_type, entity_id, label, batch_id)            ← raíz de cada borrado
 storage_deletion_queue (storage_path)                            ← trigger al eliminar un adjunto; lo vacía el servidor
@@ -180,9 +193,16 @@ Storage: bucket privado `attachments`, ruta `{program_id}/{problem|experiment}/{
 | 3 | **Ciclo de vida.** Idea → Priorizado → En diseño → En prueba → En lectura → Decidido → Escalado a BAU; Descartado desde Idea, Priorizado o En diseño (se permite volver atrás entre Idea, Priorizado y En diseño). Requisitos de cada paso según la especificación. Decidido solo owner/admin y con aprendizaje obligatorio. | `domain/lifecycle.ts` (mensajes en la UI) · RPC `transition_experiment` y `decide_experiment` · guarda `b_experiments_guard` impide cambiar `status` directo |
 | 4 | **Bloqueo del diseño.** En prueba fija `design_locked_at`; tipo, métricas, duración, regla, métrica del árbol y definición de variantes quedan de solo lectura (los resultados sí se cargan). Desbloqueo solo owner/admin con justificación en `activity_log`. | guardas `b_experiments_guard` y `a_variants_guard` · RPC `unlock_design` / `lock_design` |
 | 5 | **Congelamientos.** Advertencia al planear si las fechas cruzan un `freeze`; bloqueo del paso a En prueba si el inicio cae dentro, salvo forzado del owner/admin con justificación (queda en `activity_log`). | `domain/calendar.ts` · `transition_experiment` |
-| 6 | **Resultados.** Tasa = conversiones / muestra; diferencia relativa vs control (sobre la tasa o, si no hay conversiones, sobre el valor de la métrica). Divisiones por cero → `null`. Sin significancia. | `domain/results.ts` |
+| 6 | **Resultados.** Tasa = conversiones / muestra; diferencia relativa vs control (sobre la tasa o, si no hay conversiones, sobre el valor de la métrica). Divisiones por cero → `null`. En A/B, probabilidad de ganar (beta-binomial, aprox. normal) e intervalo del lift; geo y antes/después = evidencia direccional. Valor estimado = lift × volumen semanal × `metrics.unit_value` (no aplica a tasas). Confeti solo con ganador y probabilidad ≥ 95 %. | `domain/results.ts`, `stats.ts`, `value.ts` |
 | 7 | **Duración.** Advertencia si el ejercicio corrió menos días que la duración mínima al cerrarlo. | `domain/calendar.ts#durationWarning` · barra de transiciones y diálogo de decisión |
 | 8 | **Borrado.** Lógico con papelera y lote; confirmación con impacto (`deletion_impact`); programa exige su nombre; problema/métrica/etapa con dependientes → reasignar o borrar juntos; línea en cascada; ejercicio con variantes, adjuntos y aprendizaje; restaurar exige que el padre esté activo; eliminación definitiva por FK en cascada + cola de Storage; purga a los 30 días por cron; todo en `activity_log`. | `domain/deletion.ts` · RPC `delete_*`, `restore_trash_item`, `purge_trash_item`, `empty_trash`, `purge_expired_trash` · `DeleteButton` · `/api/cron/purgar-papelera` |
+
+Reglas agregadas tras la auditoría 360°:
+- Pasar a **En diseño** exige la hipótesis completa (SI, ENTONCES y PORQUE) — `lifecycle.ts` y `transition_experiment`.
+- El asistente de ejercicios **infiere** calendario (de las fechas vs picos y congelamientos, con opción de cambiarlo), control (del problema), métrica principal (la del árbol) y tipo de responsable (del rol).
+- Las variantes se guardan todas o ninguna (`save_experiment_variants`) y la edición detecta si otra persona cambió el ejercicio (`expected_updated_at`).
+- Explicaciones básicas marcadas con `data-explain`: quien ya conoce el modelo las oculta desde el menú de usuario ("Mostrar explicaciones"). Términos del modelo con `<Term k=…/>` (glosario único en `domain/glossary.ts`).
+- El programa de ejemplo usa fechas relativas al día en que se carga (`buildDemoPlan(today)`).
 
 Decisiones tomadas donde la especificación no era explícita:
 - "Solo el owner" (desbloquear, forzar congelamiento) incluye al **admin global**.

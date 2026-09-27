@@ -46,7 +46,7 @@ export default async function PortfolioPage({ params, searchParams }: PageProps<
     })),
   };
   const zeroLines = matrix.rows.filter((r) => r.alert);
-  const gaps = matrix.rows.flatMap((r) => r.cells).filter((c) => c.gap);
+  const gaps = matrix.rows.flatMap((r) => r.cells.filter((c) => c.gap).map((c) => ({ ...c, lineName: r.line.name })));
 
   // Velocidad: 12 semanas que terminan en hoy o en el último dato, lo que sea más tarde.
   const latest = maxDate(
@@ -104,16 +104,43 @@ export default async function PortfolioPage({ params, searchParams }: PageProps<
               ) : null}
               {gaps.length ? (
                 <li>
-                  {gaps.length} {gaps.length === 1 ? "celda tiene" : "celdas tienen"} problemas validados sin ningún ejercicio.
+                  {gaps.length === 1 ? "Hay 1 hueco" : `Hay ${gaps.length} huecos`}: problemas validados sin ningún ejercicio.
                 </li>
               ) : null}
             </ul>
           </Callout>
         ) : null}
 
+        {gaps.length ? (
+          <Section title="Huecos" description="Problemas con evidencia que nadie está atacando. Cada uno pide un ejercicio.">
+            <ul className="divide-y">
+              {gaps.map((g) => (
+                <li key={`${g.lineId}-${g.stageName}`} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
+                  <span className="inline-flex items-center gap-2">
+                    <TriangleAlert aria-hidden className="size-4 shrink-0" />
+                    <span>
+                      <span className="font-medium">
+                        {g.lineName} · {g.stageName}
+                      </span>
+                      : {g.validatedWithoutExperiment}{" "}
+                      {g.validatedWithoutExperiment === 1 ? "problema validado" : "problemas validados"} sin ejercicio
+                    </span>
+                  </span>
+                  <Link
+                    href={`${base}/problemas?linea=${g.lineId}&etapa=${encodeURIComponent(g.stageName)}&estado=validated`}
+                    className="text-xs underline underline-offset-4"
+                  >
+                    Ver problemas
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </Section>
+        ) : null}
+
         <Section
           title="Matriz de líneas por etapa del embudo"
-          description="Número grande: ejercicios activos (Priorizado a En lectura). Debajo, los cerrados. Las celdas resaltadas tienen problemas validados sin ejercicio."
+          description="Cada celda: ejercicios activos en grande y cerrados debajo. Borde amarillo = hueco."
         >
           {matrix.columns.length === 0 ? (
             <p className="text-sm text-soft">

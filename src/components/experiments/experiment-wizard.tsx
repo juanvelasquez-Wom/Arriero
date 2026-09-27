@@ -1,11 +1,14 @@
 "use client";
 
-import { Check, Lock, Plus, Save, Snowflake, Trash2, TriangleAlert } from "lucide-react";
+import { Calculator, Check, History, Lock, Plus, Save, Snowflake, Sparkles, Trash2, TriangleAlert } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { FormError, FormField } from "@/components/app/form";
+import { Term } from "@/components/app/info-tip";
 import { Callout } from "@/components/app/page";
+import { StatusBadge, VerdictBadge } from "@/components/app/status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,10 +18,21 @@ import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { freezeWarning, plannedRange } from "@/domain/calendar";
+import {
+  calendarFitMessage,
+  inferCalendarFit,
+  inferControl,
+  inferOwnerType,
+  resolveFitsCalendar,
+} from "@/domain/experiment-inference";
+import { applyTemplate, decisionRuleTemplate, EXPERIMENT_TEMPLATES, type ExperimentTemplate } from "@/domain/experiment-templates";
 import { formatScore } from "@/domain/format";
 import { CONTROL_LABEL, METRIC_TYPE_LABEL, OWNER_TYPE_LABEL, ROLE_LABEL, TEST_TYPE_LABEL } from "@/domain/labels";
+import { missingHypothesisParts } from "@/domain/lifecycle";
+import { sampleSizePerVariant, suggestedDays } from "@/domain/sample-size";
+import { findSimilar, hasEnoughText, similarExperimentMessage, snippet } from "@/domain/similarity";
 import { computeFinalScore, computeIce, controlPenalty } from "@/domain/scoring";
-import { CONTROL_LEVELS, OWNER_TYPES, TEST_TYPES, type ControlLevel, type OwnerType } from "@/domain/types";
+import { CONTROL_LEVELS, OWNER_TYPES, TEST_TYPES, type ControlLevel, type MetricDirection, type OwnerType } from "@/domain/types";
 import { cn } from "@/lib/utils";
 import { createExperiment, updateExperiment } from "@/server/actions/experiments";
 import type { WizardData, WizardValues, WizardVariant } from "./wizard-values";
@@ -31,36 +45,64 @@ const STEPS = [
   { n: 5, label: "Responsable y fechas" },
 ];
 
+const FIELD_LABEL: Record<string, string> = {
+  title: "título",
+  hypothesis_if: "SI",
+  hypothesis_then: "ENTONCES",
+  hypothesis_because: "PORQUE",
+  test_type: "tipo de prueba",
+  min_duration_days: "duración mínima",
+  decision_rule: "regla de decisión",
+  variants: "variantes",
+};
+
 export function ExperimentWizard({
   data,
   initial,
   experimentId,
   initialStep = 1,
   designLocked = false,
+  initialUpdatedAt = null,
 }: {
   data: WizardData;
   initial: WizardValues;
   experimentId?: string;
   initialStep?: number;
   designLocked?: boolean;
+  initialUpdatedAt?: string | null;
 }) {
   const router = useRouter();
   const [step, setStep] = useState(initialStep);
   const [v, setV] = useState<WizardValues>(initial);
   const [id, setId] = useState(experimentId);
+  const [version, setVersion] = useState<string | null>(initialUpdatedAt);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string>();
   const [pending, startTransition] = useTransition();
+  // Lo que se deduce solo, mientras la persona no lo cambie a mano.
+  const [controlTouched, setControlTouched] = useState(!!experimentId);
+  const roleOf = (uid: string | null) => data.members.find((m) => m.user_id === uid)?.role ?? null;
+  const [ownerTypeOpen, setOwnerTypeOpen] = useState(
+    () => initial.owner_type != null && initial.owner_type !== inferOwnerType(roleOf(initial.owner_id)),
+  );
   const set = <K extends keyof WizardValues>(k: K, value: WizardValues[K]) => setV((prev) => ({ ...prev, [k]: value }));
 
   const problem = data.problems.find((p) => p.id === v.problem_id);
   const lineMetrics = data.metrics.filter((m) => m.line_id === problem?.line_id);
+  const metric = lineMetrics.find((m) => m.id === v.metric_id);
   const ice = computeIce(v.impact, v.confidence, v.ease);
-  const final = computeFinalScore(ice, v.fits_calendar, v.control, data.scoring);
+  const fit = inferCalendarFit(
+    { planned_start: v.planned_start || null, planned_end: v.planned_end || null, min_duration_days: v.min_duration_days },
+    data.calendar,
+  );
+  const fitsCalendar = resolveFitsCalendar({ manual: v.fits_calendar, override: v.fits_calendar_override, inferred: fit.fits });
+  const final = computeFinalScore(ice, fitsCalendar, v.control, data.scoring);
   const freeze = freezeWarning(
     plannedRange({ planned_start: v.planned_start || null, planned_end: v.planned_end || null, min_duration_days: v.min_duration_days }),
     data.calendar,
   );
+  const missingHypothesis = missingHypothesisParts(v);
+  const draftText = [v.title, v.hypothesis_if, v.hypothesis_then, v.hypothesis_because].join(" ");
 
   const problemsByLine = useMemo(
     () =>
@@ -79,6 +121,18 @@ export function ExperimentWizard({
     return Object.keys(e).length === 0;
   }
 
+  function pickTemplate(t: ExperimentTemplate) {
+    const r = applyTemplate(v, t, { metricName: metric?.name, direction: metric?.direction });
+    if (!r.filled.length) {
+      toast("No había nada vacío que llenar", { description: "Lo que usted ya escribió se queda igual. Ese camino ya estaba andado." });
+      return;
+    }
+    setV(r.values);
+    toast.success(`¡Eso! Plantilla "${t.name}" aplicada`, {
+      description: `Llenó: ${r.filled.map((f) => FIELD_LABEL[f] ?? f).join(", ")}. Cambie los [corchetes] por lo suyo.`,
+    });
+  }
+
   function payload() {
     return {
       problem_id: v.problem_id,
@@ -91,10 +145,11 @@ export function ExperimentWizard({
       impact: v.impact,
       confidence: v.confidence,
       ease: v.ease,
-      fits_calendar: v.fits_calendar,
+      fits_calendar: fitsCalendar,
+      fits_calendar_override: v.fits_calendar_override,
       control: v.control,
       test_type: v.test_type,
-      primary_metric: v.primary_metric,
+      // La métrica principal la pone el servidor: es la métrica del árbol elegida.
       control_metrics: v.control_metrics.map((c) => c.trim()).filter(Boolean),
       min_duration_days: v.min_duration_days,
       decision_rule: v.decision_rule,
@@ -105,6 +160,7 @@ export function ExperimentWizard({
       variants: designLocked
         ? undefined
         : v.variants.map((x) => ({ id: x.id, name: x.name, is_control: x.is_control, description: x.description })),
+      expected_updated_at: id ? version : undefined,
     };
   }
 
@@ -134,6 +190,7 @@ export function ExperimentWizard({
       }
       const newId = r.data.id;
       const variantIds = r.data.variantIds;
+      setVersion(r.data.updatedAt);
       if (variantIds) {
         setV((prev) => ({ ...prev, variants: prev.variants.map((x, i) => ({ ...x, id: variantIds[i] ?? x.id })) }));
       }
@@ -207,6 +264,7 @@ export function ExperimentWizard({
                     ...prev,
                     problem_id: pid,
                     metric_id: data.metrics.some((m) => m.id === prev.metric_id && m.line_id === p?.line_id) ? prev.metric_id : "",
+                    control: controlTouched ? prev.control : inferControl(p?.control, prev.control),
                   }));
                 }}
               >
@@ -232,7 +290,11 @@ export function ExperimentWizard({
               label="Métrica del árbol"
               required
               error={errors.metric_id}
-              description={problem ? "Solo métricas de la misma línea del problema." : "Elija primero el problema."}
+              description={
+                problem
+                  ? "Solo métricas de la misma línea del problema. Es también la métrica principal de la prueba."
+                  : "Elija primero el problema."
+              }
             >
               <Select value={v.metric_id || undefined} onValueChange={(mid) => set("metric_id", mid)} disabled={!problem || designLocked}>
                 <SelectTrigger id="metric_id" className="w-full" aria-invalid={!!errors.metric_id}>
@@ -250,17 +312,41 @@ export function ExperimentWizard({
             {problem && lineMetrics.length === 0 ? (
               <Callout icon={TriangleAlert}>Esta línea todavía no tiene métricas en su árbol. Créelas en la vista de la línea.</Callout>
             ) : null}
+            {!designLocked ? (
+              <div>
+                <div className="mb-1.5 flex items-center gap-1.5 text-sm font-medium">
+                  <Sparkles className="size-4" aria-hidden /> Partir de una plantilla
+                  <span className="font-normal text-soft">(opcional)</span>
+                </div>
+                <p className="mb-2 text-xs text-soft">Llena solo lo que esté vacío: título, hipótesis, tipo de prueba, duración, regla y variantes.</p>
+                <div className="flex flex-wrap gap-2">
+                  {EXPERIMENT_TEMPLATES.map((t) => (
+                    <button
+                      key={t.key}
+                      type="button"
+                      title={t.description}
+                      onClick={() => pickTemplate(t)}
+                      className="rounded-full border bg-paper px-3 py-1 text-sm transition-colors hover:border-ink/40 hover:bg-wash"
+                    >
+                      {t.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
             <FormField id="title" label="Título del ejercicio" required error={errors.title}>
               <Input id="title" value={v.title} onChange={(e) => set("title", e.target.value)} placeholder="Recordatorio de recarga con paquete sugerido por WhatsApp" />
             </FormField>
+            <SimilarBox data={data} draftText={draftText} excludeExperimentId={id} excludeLearningId={v.derived_from_learning_id} />
           </div>
         ) : null}
 
         {step === 2 ? (
           <div className="space-y-4">
             <p className="text-sm text-soft">
-              Escriba la hipótesis en tres partes. Ejemplo: <em>SI</em> enviamos un recordatorio por WhatsApp a los 25 días de la primera
-              recarga, <em>ENTONCES</em> sube la segunda recarga a 30 días, <em>PORQUE</em> el cliente se acuerda a tiempo.
+              Escriba la <Term k="hypothesis">hipótesis</Term> en tres partes. Ejemplo: <em>SI</em> enviamos un recordatorio por WhatsApp a
+              los 25 días de la primera recarga, <em>ENTONCES</em> sube la segunda recarga a 30 días, <em>PORQUE</em> el cliente se acuerda a
+              tiempo.
             </p>
             <FormField id="h-if" label="SI… (el cambio que haremos)">
               <Textarea id="h-if" rows={2} value={v.hypothesis_if} onChange={(e) => set("hypothesis_if", e.target.value)} placeholder="mostramos el precio como cuota mensual en la ficha del equipo" />
@@ -271,6 +357,16 @@ export function ExperimentWizard({
             <FormField id="h-because" label="PORQUE… (la razón que creemos que lo explica)">
               <Textarea id="h-because" rows={2} value={v.hypothesis_because} onChange={(e) => set("hypothesis_because", e.target.value)} placeholder="el precio se percibe accesible" />
             </FormField>
+            {missingHypothesis.length ? (
+              <Callout tone="neutral" title="Para pasar a En diseño se necesitan las tres partes">
+                Falta: {missingHypothesis.join(", ")}. Puede guardar el borrador sin ellas y completarlas después, sin afán.
+              </Callout>
+            ) : (
+              <p className="flex items-center gap-1.5 text-sm text-soft" aria-live="polite">
+                <Check className="size-4" aria-hidden /> ¡Eso! Hipótesis completa: por este lado ya puede pasar a En diseño.
+              </p>
+            )}
+            <SimilarBox data={data} draftText={draftText} excludeExperimentId={id} excludeLearningId={v.derived_from_learning_id} />
           </div>
         ) : null}
 
@@ -291,7 +387,9 @@ export function ExperimentWizard({
               ).map(([k, label, help]) => (
                 <div key={k} className="space-y-2">
                   <div className="flex items-baseline justify-between">
-                    <Label htmlFor={`s-${k}`}>{label}</Label>
+                    <Label htmlFor={`s-${k}`}>
+                      <Term k={k}>{label}</Term>
+                    </Label>
                     <span className="font-heading text-lg font-extrabold tabular-nums">{v[k] ?? "—"}</span>
                   </div>
                   <Slider
@@ -308,21 +406,70 @@ export function ExperimentWizard({
                 </div>
               ))}
             </div>
+            <div className="text-sm font-medium">
+              <Term k="filters" />
+            </div>
             <div className="grid gap-4 md:grid-cols-2">
-              <div className="flex items-start gap-3 rounded-xl border p-3">
-                <Switch
-                  id="fits_calendar"
-                  checked={v.fits_calendar}
-                  onCheckedChange={(c) => set("fits_calendar", c)}
-                  disabled={!data.canScore}
-                />
-                <div>
-                  <Label htmlFor="fits_calendar">Se puede leer antes de los picos comerciales</Label>
-                  <p className="text-xs text-soft">Filtro de calendario: suma {formatScore(data.scoring.calendar_bonus)}.</p>
+              <div className="rounded-xl border p-3">
+                <div className="text-sm font-medium">
+                  <Term k="calendarFit">Se puede leer antes de los picos comerciales</Term>
                 </div>
+                {v.fits_calendar_override ? (
+                  <div className="mt-2 flex items-start gap-3">
+                    <Switch
+                      id="fits_calendar"
+                      checked={v.fits_calendar}
+                      onCheckedChange={(c) => set("fits_calendar", c)}
+                      disabled={!data.canScore}
+                      aria-label="Se puede leer antes de los picos comerciales"
+                    />
+                    <div className="text-xs text-soft">
+                      Marcado a mano: {v.fits_calendar ? `suma ${formatScore(data.scoring.calendar_bonus)}` : "sin bono"}.
+                      {data.canScore ? (
+                        <button
+                          type="button"
+                          className="ml-1 underline underline-offset-2 hover:text-ink"
+                          onClick={() => set("fits_calendar_override", false)}
+                        >
+                          Volver al cálculo
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="mt-1 text-xs text-soft" aria-live="polite">
+                    {fit.fits === null
+                      ? `${calendarFitMessage(fit, data.scoring.calendar_bonus)} Mientras tanto: ${v.fits_calendar ? "con bono" : "sin bono"}.`
+                      : calendarFitMessage(fit, data.scoring.calendar_bonus)}
+                    {data.canScore ? (
+                      <button
+                        type="button"
+                        className="ml-1 underline underline-offset-2 hover:text-ink"
+                        onClick={() => setV((prev) => ({ ...prev, fits_calendar_override: true, fits_calendar: fitsCalendar }))}
+                      >
+                        Cambiar
+                      </button>
+                    ) : null}
+                  </p>
+                )}
               </div>
-              <FormField id="control" label="Control" description="¿Depende de nosotros o de terceros?">
-                <Select value={v.control} onValueChange={(c) => set("control", c as ControlLevel)} disabled={!data.canScore}>
+              <FormField
+                id="control"
+                label={<Term k="control" />}
+                description={
+                  problem && !controlTouched && v.control === problem.control
+                    ? "Viene del problema. ¿Depende de nosotros o de terceros?"
+                    : "¿Depende de nosotros o de terceros?"
+                }
+              >
+                <Select
+                  value={v.control}
+                  onValueChange={(c) => {
+                    setControlTouched(true);
+                    set("control", c as ControlLevel);
+                  }}
+                  disabled={!data.canScore}
+                >
                   <SelectTrigger id="control" className="w-full">
                     <SelectValue />
                   </SelectTrigger>
@@ -339,15 +486,19 @@ export function ExperimentWizard({
             </div>
             <div className="flex flex-wrap items-center gap-6 rounded-xl border-l-4 border-l-highlight bg-wash px-4 py-3" aria-live="polite">
               <div>
-                <div className="text-xs text-soft">ICE</div>
+                <div className="text-xs text-soft">
+                  <Term k="ice" />
+                </div>
                 <div className="font-heading text-xl font-extrabold tabular-nums">{formatScore(ice)}</div>
               </div>
               <div>
-                <div className="text-xs text-soft">Puntaje final</div>
+                <div className="text-xs text-soft">
+                  <Term k="finalScore" />
+                </div>
                 <div className="font-heading text-2xl font-extrabold tabular-nums">{formatScore(final)}</div>
               </div>
               <p className="text-xs text-soft">
-                ICE {formatScore(ice)} {v.fits_calendar ? `+ ${formatScore(data.scoring.calendar_bonus)} calendario ` : ""}
+                ICE {formatScore(ice)} {fitsCalendar ? `+ ${formatScore(data.scoring.calendar_bonus)} calendario ` : ""}
                 {v.control !== "ours" ? `− ${formatScore(controlPenalty(v.control, data.scoring))} control ${CONTROL_LABEL[v.control].toLowerCase()}` : ""}
               </p>
             </div>
@@ -355,7 +506,7 @@ export function ExperimentWizard({
         ) : null}
 
         {step === 4 ? (
-          <DesignStep v={v} set={set} setV={setV} locked={designLocked} metricName={lineMetrics.find((m) => m.id === v.metric_id)?.name} />
+          <DesignStep v={v} set={set} setV={setV} locked={designLocked} metricName={metric?.name} direction={metric?.direction ?? "up"} />
         ) : null}
 
         {step === 5 ? (
@@ -365,11 +516,11 @@ export function ExperimentWizard({
                 <Select
                   value={v.owner_id ?? undefined}
                   onValueChange={(uid) => {
-                    const m = data.members.find((x) => x.user_id === uid);
+                    const inferred = inferOwnerType(roleOf(uid));
                     setV((prev) => ({
                       ...prev,
                       owner_id: uid,
-                      owner_type: prev.owner_type ?? (m?.role === "agency" ? "agency" : "internal"),
+                      owner_type: ownerTypeOpen ? (prev.owner_type ?? inferred) : inferred,
                     }));
                   }}
                   disabled={!data.canScore}
@@ -388,20 +539,39 @@ export function ExperimentWizard({
                   </SelectContent>
                 </Select>
               </FormField>
-              <FormField id="owner_type" label="Tipo de responsable">
-                <Select value={v.owner_type ?? undefined} onValueChange={(t) => set("owner_type", t as OwnerType)} disabled={!data.canScore}>
-                  <SelectTrigger id="owner_type" className="w-full">
-                    <SelectValue placeholder="Interno, agencia o mixto" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {OWNER_TYPES.map((t) => (
-                      <SelectItem key={t} value={t}>
-                        {OWNER_TYPE_LABEL[t]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </FormField>
+              {ownerTypeOpen ? (
+                <FormField id="owner_type" label="Tipo de responsable">
+                  <Select value={v.owner_type ?? undefined} onValueChange={(t) => set("owner_type", t as OwnerType)} disabled={!data.canScore}>
+                    <SelectTrigger id="owner_type" className="w-full">
+                      <SelectValue placeholder="Interno, agencia o mixto" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {OWNER_TYPES.map((t) => (
+                        <SelectItem key={t} value={t}>
+                          {OWNER_TYPE_LABEL[t]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormField>
+              ) : (
+                <div className="space-y-1">
+                  <div className="text-sm font-medium">Tipo de responsable</div>
+                  <p className="flex h-9 items-center text-sm">
+                    {v.owner_type ? OWNER_TYPE_LABEL[v.owner_type] : <span className="text-soft">Se deduce al elegir el responsable</span>}
+                    {data.canScore ? (
+                      <button
+                        type="button"
+                        className="ml-2 text-xs text-soft underline underline-offset-2 hover:text-ink"
+                        onClick={() => setOwnerTypeOpen(true)}
+                      >
+                        Cambiar
+                      </button>
+                    ) : null}
+                  </p>
+                  <p className="text-xs text-soft">Sale del rol en el programa (agencia o equipo interno). Cámbielo si es mixto.</p>
+                </div>
+              )}
               <FormField id="planned_start" label="Inicio planeado">
                 <Input id="planned_start" type="date" value={v.planned_start} onChange={(e) => set("planned_start", e.target.value)} />
               </FormField>
@@ -409,6 +579,11 @@ export function ExperimentWizard({
                 <Input id="planned_end" type="date" value={v.planned_end} onChange={(e) => set("planned_end", e.target.value)} />
               </FormField>
             </div>
+            {!v.fits_calendar_override && fit.fits !== null ? (
+              <p className="text-xs text-soft" aria-live="polite">
+                <Term k="calendarFit">Filtro de calendario</Term>: {calendarFitMessage(fit, data.scoring.calendar_bonus)}
+              </p>
+            ) : null}
             {freeze ? (
               <Callout icon={Snowflake} title="Cruce con congelamiento">
                 {freeze} Si la fecha de inicio cae dentro de un congelamiento, no se podrá pasar a En prueba salvo que el owner lo fuerce con
@@ -442,20 +617,112 @@ export function ExperimentWizard({
   );
 }
 
+/**
+ * "Esto se parece a…": hasta 3 ejercicios y 3 aprendizajes del programa parecidos al
+ * borrador, para no repetir lo que ya se probó (o para partir de lo aprendido).
+ */
+function SimilarBox({
+  data,
+  draftText,
+  excludeExperimentId,
+  excludeLearningId,
+}: {
+  data: WizardData;
+  draftText: string;
+  excludeExperimentId?: string;
+  excludeLearningId: string | null;
+}) {
+  const enough = hasEnoughText(draftText);
+  const experiments = useMemo(
+    () =>
+      enough
+        ? findSimilar(
+            draftText,
+            data.similar.experiments.filter((e) => e.id !== excludeExperimentId),
+            (e) => e.text,
+          )
+        : [],
+    [enough, draftText, data.similar.experiments, excludeExperimentId],
+  );
+  const learnings = useMemo(
+    () =>
+      enough
+        ? findSimilar(
+            draftText,
+            data.similar.learnings.filter((l) => l.id !== excludeLearningId && l.experiment_id !== excludeExperimentId),
+            (l) => [l.experiment_title, l.text].join(" "),
+          )
+        : [],
+    [enough, draftText, data.similar.learnings, excludeLearningId, excludeExperimentId],
+  );
+  if (!experiments.length && !learnings.length) return null;
+  const base = `/programas/${data.programId}/ejercicios`;
+
+  return (
+    <section aria-label="Ejercicios y aprendizajes parecidos" className="rounded-xl border bg-wash px-3.5 py-3 text-sm">
+      <div className="mb-2 flex items-center gap-1.5 font-medium">
+        <History className="size-4" aria-hidden /> Esto se parece a…
+      </div>
+      <ul className="space-y-2.5">
+        {experiments.map(({ item: e }) => (
+          <li key={e.id}>
+            <div className="flex flex-wrap items-center gap-2">
+              <Link href={`${base}/${e.id}`} className="font-medium underline-offset-2 hover:underline" target="_blank">
+                {e.title}
+              </Link>
+              <StatusBadge status={e.status} />
+              {e.verdict ? <VerdictBadge verdict={e.verdict} /> : null}
+            </div>
+            <p className="text-xs text-soft">
+              {similarExperimentMessage({ lineName: e.line_name, date: e.date, status: e.status, verdict: e.verdict })}
+            </p>
+          </li>
+        ))}
+        {learnings.map(({ item: l }) => (
+          <li key={l.id}>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs text-soft">Aprendizaje de</span>
+              <Link href={`${base}/${l.experiment_id}`} className="font-medium underline-offset-2 hover:underline" target="_blank">
+                {l.experiment_title}
+              </Link>
+              {l.line_name ? <span className="text-xs text-soft">· {l.line_name}</span> : null}
+            </div>
+            <p className="text-xs text-soft">“{snippet(l.text)}” Aprovéchelo: lo que ya se aprendió no hay que volverlo a pagar.</p>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/** Convierte "12,5" o "12.5" en número; null si está vacío o no es número. */
+function parseDecimal(s: string): number | null {
+  if (!s.trim()) return null;
+  const n = Number(s.replace(",", "."));
+  return Number.isFinite(n) ? n : null;
+}
+
+const integer = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
+
 function DesignStep({
   v,
   set,
   setV,
   locked,
   metricName,
+  direction,
 }: {
   v: WizardValues;
   set: <K extends keyof WizardValues>(k: K, value: WizardValues[K]) => void;
   setV: React.Dispatch<React.SetStateAction<WizardValues>>;
   locked: boolean;
   metricName?: string;
+  direction: MetricDirection;
 }) {
   const [newControlMetric, setNewControlMetric] = useState("");
+  const [rate, setRate] = useState("");
+  const [mde, setMde] = useState("");
+  const [traffic, setTraffic] = useState("");
   function updateVariant(i: number, patch: Partial<WizardVariant>) {
     setV((prev) => ({
       ...prev,
@@ -465,6 +732,15 @@ function DesignStep({
     }));
   }
   const weeks = v.min_duration_days ? v.min_duration_days / 7 : null;
+
+  const rateN = parseDecimal(rate);
+  const mdeN = parseDecimal(mde);
+  const trafficN = parseDecimal(traffic);
+  const perVariant =
+    rateN != null && mdeN != null ? sampleSizePerVariant(rateN / 100, ((direction === "down" ? -1 : 1) * Math.abs(mdeN)) / 100) : null;
+  const variantCount = Math.max(2, v.variants.length);
+  const days = suggestedDays(perVariant, variantCount, trafficN);
+  const calcInvalid = rateN != null && mdeN != null && perVariant == null;
 
   return (
     <fieldset disabled={locked} className="space-y-6">
@@ -477,7 +753,9 @@ function DesignStep({
         <p className="text-sm text-soft">El diseño se fija antes de lanzar y no se reinterpreta después. Al pasar a En prueba queda bloqueado.</p>
       )}
       <div>
-        <div className="mb-2 text-sm font-medium">Tipo de prueba</div>
+        <div className="mb-2 text-sm font-medium">
+          <Term k="testType" />
+        </div>
         <div className="grid gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Tipo de prueba">
           {TEST_TYPES.map((t) => (
             <button
@@ -502,7 +780,9 @@ function DesignStep({
 
       <div>
         <div className="mb-2 flex items-center justify-between">
-          <div className="text-sm font-medium">Variantes</div>
+          <div className="text-sm font-medium">
+            <Term k="variant">Variantes</Term>
+          </div>
           <Button
             type="button"
             size="sm"
@@ -543,19 +823,68 @@ function DesignStep({
             </li>
           ))}
         </ul>
-        {!v.variants.some((x) => x.is_control) ? <p className="mt-2 text-sm">Marque una variante como control.</p> : null}
+        {!v.variants.some((x) => x.is_control) ? (
+          <p className="mt-2 text-sm">
+            Marque una variante como <Term k="controlVariant">control</Term>.
+          </p>
+        ) : null}
+      </div>
+
+      <div className="rounded-xl border bg-wash/60 p-3">
+        <div className="mb-1 flex items-center gap-1.5 text-sm font-medium">
+          <Calculator className="size-4" aria-hidden /> ¿Cuánto debe durar? · <Term k="sampleSize" />
+        </div>
+        <p className="mb-3 text-xs text-soft">Una guía para planear, con 95 % de confianza y 80 % de potencia. No reemplaza la regla de decisión.</p>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <FormField id="calc-rate" label="Tasa actual (%)">
+            <Input id="calc-rate" inputMode="decimal" placeholder="4,5" value={rate} onChange={(e) => setRate(e.target.value)} />
+          </FormField>
+          <FormField id="calc-mde" label="Cambio mínimo que quiere detectar (%)">
+            <Input id="calc-mde" inputMode="decimal" placeholder="10" value={mde} onChange={(e) => setMde(e.target.value)} />
+          </FormField>
+          <FormField id="calc-traffic" label="Personas por semana (opcional)">
+            <Input id="calc-traffic" inputMode="numeric" placeholder="20000" value={traffic} onChange={(e) => setTraffic(e.target.value)} />
+          </FormField>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm" aria-live="polite">
+          {calcInvalid ? (
+            <span className="text-soft">Esos números no dan: la tasa va entre 0 y 100 % y el cambio no puede ser cero. Revíselos, sin afán.</span>
+          ) : perVariant != null ? (
+            <>
+              <span>
+                Muestra por variante: <strong className="tabular-nums">{integer.format(perVariant)}</strong> personas
+              </span>
+              {days != null ? (
+                <span>
+                  Días sugeridos: <strong className="tabular-nums">{days}</strong>
+                  <span className="text-soft"> ({variantCount} variantes)</span>
+                </span>
+              ) : (
+                <span className="text-soft">Con las personas por semana le sugerimos los días.</span>
+              )}
+              {days != null ? (
+                <Button type="button" size="sm" variant="outline" onClick={() => set("min_duration_days", days)}>
+                  Usar como duración mínima
+                </Button>
+              ) : null}
+            </>
+          ) : (
+            <span className="text-soft">Ponga la tasa actual y el cambio que espera, y aquí sale la cuenta.</span>
+          )}
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <FormField id="primary_metric" label="Métrica principal" description="La que decide el resultado.">
-          <Input
-            id="primary_metric"
-            value={v.primary_metric}
-            placeholder={metricName}
-            onChange={(e) => set("primary_metric", e.target.value)}
-          />
-        </FormField>
-        <FormField id="min_duration_days" label="Duración mínima (días)" description={weeks ? `≈ ${formatScore(weeks)} semanas` : "Por ejemplo: 28 días = 4 semanas."}>
+        <div className="space-y-1">
+          <div className="text-sm font-medium">Métrica principal</div>
+          <p className="flex h-9 items-center text-sm">{metricName ?? <span className="text-soft">Elija la métrica del árbol en el paso 1</span>}</p>
+          <p className="text-xs text-soft">La que decide el resultado: la métrica del árbol que eligió en el paso 1.</p>
+        </div>
+        <FormField
+          id="min_duration_days"
+          label={<Term k="minDuration">Duración mínima (días)</Term>}
+          description={weeks ? `≈ ${formatScore(weeks)} semanas` : "Por ejemplo: 28 días = 4 semanas."}
+        >
           <Input
             id="min_duration_days"
             type="number"
@@ -614,7 +943,11 @@ function DesignStep({
         </div>
       </div>
 
-      <FormField id="decision_rule" label="Regla de decisión" description="Qué resultado lleva a escalar, ajustar o apagar. Se fija antes de lanzar.">
+      <FormField
+        id="decision_rule"
+        label={<Term k="decisionRule" />}
+        description="Qué resultado lleva a escalar, ajustar o apagar. Se fija antes de lanzar."
+      >
         <Textarea
           id="decision_rule"
           rows={2}
@@ -622,6 +955,19 @@ function DesignStep({
           placeholder="Escalar si la variante supera al control en al menos 10% relativo y el bloqueo no pasa de 1,5%."
           onChange={(e) => set("decision_rule", e.target.value)}
         />
+        <div>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              if (v.decision_rule.trim() && !window.confirm("Ya hay una regla escrita. ¿La reemplaza por la plantilla?")) return;
+              set("decision_rule", decisionRuleTemplate(metricName, direction, mdeN != null && mdeN !== 0 ? Math.abs(mdeN) : 10));
+            }}
+          >
+            Usar plantilla
+          </Button>
+        </div>
       </FormField>
     </fieldset>
   );

@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 
-const TABLES = ["experiments", "experiment_variants", "metric_values", "problems", "calendar_events", "learnings"];
+const TABLES = ["experiments", "experiment_variants", "metric_values", "problems", "calendar_events", "learnings", "experiment_comments"];
 
 /**
  * Refresca los server components cuando otro usuario cambia datos del

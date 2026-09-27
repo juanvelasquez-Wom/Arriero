@@ -4,7 +4,8 @@ import {
   DndContext,
   DragOverlay,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useDraggable,
   useDroppable,
   useSensor,
@@ -14,11 +15,20 @@ import {
   type DragStartEvent,
   type KeyboardCoordinateGetter,
 } from "@dnd-kit/core";
-import { Clock, GripVertical, Info, Lock, User } from "lucide-react";
+import { ArrowRightLeft, Clock, GripVertical, Info, Lock, User } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, type KeyboardEventHandler, type PointerEventHandler, type ReactNode } from "react";
+import { useState, type KeyboardEventHandler, type MouseEventHandler, type ReactNode, type TouchEventHandler } from "react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatScore } from "@/domain/format";
@@ -88,7 +98,9 @@ export function Kanban({ programId, cards, actor }: { programId: string; cards: 
   // mantiene hasta que llegan los datos nuevos (cambia `statusChangedAt`).
   const [pending, setPending] = useState<Record<string, { since: string; to: ExperimentStatus }>>({});
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    // En pantallas táctiles hay que sostener un momento: así el dedo todavía puede desplazar el tablero.
+    useSensor(TouchSensor, { activationConstraint: { delay: 220, tolerance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: columnCoordinates }),
   );
 
@@ -106,6 +118,11 @@ export function Kanban({ programId, cards, actor }: { programId: string; cards: 
     const card = byId.get(String(e.active.id));
     const to = e.over?.id as ExperimentStatus | undefined;
     if (!card || !to || to === card.status) return;
+    await move(card, to);
+  }
+
+  /** Mismo flujo para arrastrar y para el menú «Mover a…». */
+  async function move(card: KanbanCardData, to: ExperimentStatus) {
 
     if (!TRANSITIONS[card.status].includes(to)) {
       const allowed = TRANSITIONS[card.status].map((s) => STATUS_LABEL[s]);
@@ -199,6 +216,8 @@ export function Kanban({ programId, cards, actor }: { programId: string; cards: 
                       lockedReason={targets.length ? null : lockReason(c)}
                       pendingTo={movingTo}
                       hidden={activeId === c.id}
+                      targets={movingTo ? [] : targets}
+                      onMove={(to) => void move(c, to)}
                     />
                   );
                 })}
@@ -287,6 +306,8 @@ function KanbanCard({
   lockedReason,
   pendingTo,
   hidden,
+  targets,
+  onMove,
 }: {
   card: KanbanCardData;
   href: string;
@@ -294,6 +315,8 @@ function KanbanCard({
   lockedReason: string | null;
   pendingTo: ExperimentStatus | null;
   hidden: boolean;
+  targets: ExperimentStatus[];
+  onMove: (to: ExperimentStatus) => void;
 }) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef } = useDraggable({
     id: card.id,
@@ -302,13 +325,15 @@ function KanbanCard({
   return (
     <div
       ref={setNodeRef}
-      onPointerDown={listeners?.onPointerDown as PointerEventHandler<HTMLDivElement> | undefined}
+      onMouseDown={listeners?.onMouseDown as MouseEventHandler<HTMLDivElement> | undefined}
+      onTouchStart={listeners?.onTouchStart as TouchEventHandler<HTMLDivElement> | undefined}
       className={cn("relative", hidden && "opacity-40", draggable && "cursor-grab active:cursor-grabbing")}
     >
       <CardBody
         card={card}
         href={href}
         pendingTo={pendingTo}
+        footer={targets.length ? <MoveMenu card={card} targets={targets} onMove={onMove} /> : null}
         handle={
           draggable ? (
             <button
@@ -338,16 +363,60 @@ function KanbanCard({
   );
 }
 
+/** Alternativa al arrastre (táctil, teclado o simplemente preferencia): lista los destinos permitidos. */
+function MoveMenu({
+  card,
+  targets,
+  onMove,
+}: {
+  card: KanbanCardData;
+  targets: ExperimentStatus[];
+  onMove: (to: ExperimentStatus) => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="xs"
+          className="mt-2 -ml-1 text-soft"
+          aria-label={`Mover «${card.title}» a…`}
+          // Que el menú no dispare el arrastre de la tarjeta.
+          onMouseDown={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+        >
+          <ArrowRightLeft aria-hidden /> Mover a…
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-52">
+        <DropdownMenuLabel className="text-xs text-soft">Desde {STATUS_LABEL[card.status]}</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {targets.map((to) => {
+          const Icon = STATUS_FILL[to].icon;
+          return (
+            <DropdownMenuItem key={to} onSelect={() => onMove(to)}>
+              <Icon aria-hidden className="size-4" /> {STATUS_LABEL[to]}
+            </DropdownMenuItem>
+          );
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 function CardBody({
   card,
   href,
   handle,
+  footer,
   pendingTo,
   overlay,
 }: {
   card: KanbanCardData;
   href?: string;
   handle?: ReactNode;
+  footer?: ReactNode;
   pendingTo?: ExperimentStatus | null;
   overlay?: boolean;
 }) {
@@ -400,6 +469,7 @@ function CardBody({
           <Spinner className="size-3.5" /> Moviendo a {STATUS_LABEL[pendingTo]}…
         </div>
       ) : null}
+      {footer}
     </article>
   );
 }

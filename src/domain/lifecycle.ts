@@ -35,8 +35,28 @@ export const isActive = (s: ExperimentStatus) => ACTIVE_STATUSES.includes(s);
 /** Desde En prueba el diseño se considera lanzado. */
 export const isLaunched = (s: ExperimentStatus) => ["in_test", "in_reading", "decided", "scaled"].includes(s);
 
+/** Las tres partes de la hipótesis (SI / ENTONCES / PORQUE). */
+export interface HypothesisParts {
+  hypothesis_if: string | null;
+  hypothesis_then: string | null;
+  hypothesis_because: string | null;
+}
+
+export const HYPOTHESIS_REQUIREMENT = "hipótesis completa (SI, ENTONCES y PORQUE)";
+
+/** Partes de la hipótesis que faltan, con su etiqueta visible. */
+export function missingHypothesisParts(h: Partial<HypothesisParts>): ("SI" | "ENTONCES" | "PORQUE")[] {
+  const missing: ("SI" | "ENTONCES" | "PORQUE")[] = [];
+  if (!h.hypothesis_if?.trim()) missing.push("SI");
+  if (!h.hypothesis_then?.trim()) missing.push("ENTONCES");
+  if (!h.hypothesis_because?.trim()) missing.push("PORQUE");
+  return missing;
+}
+
+export const isHypothesisComplete = (h: Partial<HypothesisParts>) => missingHypothesisParts(h).length === 0;
+
 export interface TransitionContext {
-  experiment: ExperimentCore;
+  experiment: ExperimentCore & HypothesisParts;
   variants: Pick<Variant, "is_control" | "sample" | "conversions" | "metric_value">[];
   hasLearning: boolean;
   calendar: CalendarEvent[];
@@ -54,6 +74,8 @@ export function missingRequirements(to: ExperimentStatus, ctx: TransitionContext
   if ((to === "prioritized" || to === "in_design") && (e.impact == null || e.confidence == null || e.ease == null)) {
     missing.push("calificación ICE completa (impacto, confianza y facilidad)");
   }
+
+  if (to === "in_design" && !isHypothesisComplete(e)) missing.push(HYPOTHESIS_REQUIREMENT);
 
   if (to === "in_test") {
     if (!e.test_type) missing.push("tipo de prueba");

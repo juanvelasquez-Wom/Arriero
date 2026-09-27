@@ -21,7 +21,11 @@ export function PageHeader({
       <div className="min-w-0">
         {eyebrow ? <div className="mb-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-soft">{eyebrow}</div> : null}
         <h1 className="text-3xl font-extrabold text-ink">{title}</h1>
-        {description ? <p className="mt-1.5 max-w-3xl text-[15px] text-soft">{description}</p> : null}
+        {description ? (
+          <p data-explain className="mt-1.5 max-w-3xl text-[15px] text-soft">
+            {description}
+          </p>
+        ) : null}
       </div>
       {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
     </div>
@@ -104,7 +108,7 @@ export function Section({
   );
 }
 
-export function Stat({ label, value, hint, highlight }: { label: string; value: ReactNode; hint?: ReactNode; highlight?: boolean }) {
+export function Stat({ label, value, hint, highlight }: { label: ReactNode; value: ReactNode; hint?: ReactNode; highlight?: boolean }) {
   return (
     <div className={cn("lift rounded-2xl border bg-paper p-4 shadow-card", highlight && "border-highlight bg-highlight/10")}>
       <div className="text-xs font-medium text-soft">{label}</div>

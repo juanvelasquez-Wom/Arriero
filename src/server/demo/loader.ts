@@ -4,18 +4,17 @@
 //  · La secret key solo se usa para crear/borrar los usuarios ficticios, fijar
 //    las marcas de tiempo históricas y borrar definitivamente (sin papelera).
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { addDays } from "@/domain/dates";
+import { addDays, todayIso } from "@/domain/dates";
+import type { IsoDate } from "@/domain/types";
 import {
-  DEMO_CALENDAR,
+  buildDemoPlan,
   DEMO_EMAIL_DOMAIN,
   DEMO_EXPERIMENTS,
   DEMO_LINES,
   DEMO_METRICS,
   DEMO_PROBLEMS,
-  DEMO_PROGRAM,
   DEMO_STAGE_METRICS,
   DEMO_USERS,
-  DEMO_WEEKS_FROM,
   type LineKey,
   type MetricKey,
   type ProblemKey,
@@ -40,10 +39,18 @@ export async function findDemoProgramId(admin: Client): Promise<string | null> {
 
 /**
  * Crea el programa de ejemplo. `user` es el cliente con la sesión del admin
- * (RLS activa) y `admin` el cliente con secret key.
+ * (RLS activa) y `admin` el cliente con secret key. Las fechas se calculan a
+ * partir de `today` (por defecto, hoy en Bogotá).
  */
-export async function loadDemoProgram(user: Client, admin: Client, adminUserId: string): Promise<string> {
+export async function loadDemoProgram(
+  user: Client,
+  admin: Client,
+  adminUserId: string,
+  today: IsoDate = todayIso(),
+): Promise<string> {
   if (await findDemoProgramId(admin)) throw new Error("El programa de ejemplo ya existe.");
+  const plan = buildDemoPlan(today);
+  const DEMO_PROGRAM = plan.program;
 
   const suffix = Math.random().toString(36).slice(2, 8);
   const createdUserIds: string[] = [];
@@ -100,7 +107,7 @@ export async function loadDemoProgram(user: Client, admin: Client, adminUserId: 
       "Miembros",
     );
 
-    check(await user.from("calendar_events").insert(DEMO_CALENDAR.map((e) => ({ ...e, program_id: programId }))), "Calendario");
+    check(await user.from("calendar_events").insert(plan.calendar.map((e) => ({ ...e, program_id: programId }))), "Calendario");
 
     // 3. Líneas (las cuatro etapas por defecto las crea un trigger).
     const lines = must(
@@ -157,7 +164,7 @@ export async function loadDemoProgram(user: Client, admin: Client, adminUserId: 
     check(
       await user.from("metric_values").insert(
         DEMO_METRICS.flatMap((m) =>
-          m.weekly.map((value, i) => ({ metric_id: metricIds.get(m.key), week_start: addDays(DEMO_WEEKS_FROM, i * 7), value })),
+          m.weekly.map((value, i) => ({ metric_id: metricIds.get(m.key), week_start: addDays(plan.weeksFrom, i * 7), value })),
         ),
       ),
       "Valores semanales",
@@ -197,6 +204,7 @@ export async function loadDemoProgram(user: Client, admin: Client, adminUserId: 
     // 6. Ejercicios: se crean en Idea y avanzan con las transiciones reales.
     const rpc = async (fn: string, args: Record<string, unknown>) => check(await user.rpc(fn, args), fn);
     for (const e of DEMO_EXPERIMENTS) {
+      const dates = plan.experimentDates[e.key];
       const exp = must(
         await user
           .from("experiments")
@@ -220,10 +228,10 @@ export async function loadDemoProgram(user: Client, admin: Client, adminUserId: 
             control_metrics: e.control_metrics,
             min_duration_days: e.min_duration_days,
             decision_rule: e.decision_rule,
-            planned_start: e.planned_start,
-            planned_end: e.planned_end,
-            actual_start: e.actual_start,
-            actual_end: e.actual_end,
+            planned_start: dates.planned_start,
+            planned_end: dates.planned_end,
+            actual_start: dates.actual_start,
+            actual_end: dates.actual_end,
           })
           .select("id")
           .single(),
@@ -273,7 +281,7 @@ export async function loadDemoProgram(user: Client, admin: Client, adminUserId: 
       }
 
       // Marcas de tiempo históricas del ejemplo (solo el servidor puede fijarlas).
-      check(await admin.from("experiments").update(e.timestamps).eq("id", exp.id), "Fechas históricas");
+      check(await admin.from("experiments").update(dates.timestamps).eq("id", exp.id), "Fechas históricas");
     }
 
     return programId;

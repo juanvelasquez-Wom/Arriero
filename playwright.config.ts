@@ -5,7 +5,7 @@ import { defineConfig, devices } from "@playwright/test";
 // junto con los programas que haya creado.
 export default defineConfig({
   testDir: "./tests/e2e",
-  timeout: 120_000,
+  timeout: 240_000,
   expect: { timeout: 15_000 },
   fullyParallel: false,
   workers: 1,

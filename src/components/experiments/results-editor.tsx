@@ -4,14 +4,17 @@ import { Save } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
+import { Term } from "@/components/app/info-tip";
 import { Callout } from "@/components/app/page";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatNumber, formatPercent, formatSignedPercent } from "@/domain/format";
-import { computeVariantResults } from "@/domain/results";
-import type { Variant } from "@/domain/types";
+import { readExperiment, type VariantReading } from "@/domain/results";
+import { DIRECTIONAL_LABEL, formatProbability } from "@/domain/stats";
+import type { TestType, Variant } from "@/domain/types";
+import { formatCop, UNIT_VALUE_HINT, type MetricEconomics } from "@/domain/value";
 import { cn } from "@/lib/utils";
 import { saveResults } from "@/server/actions/experiments";
 
@@ -25,12 +28,17 @@ export function ResultsEditor({
   variants,
   canEdit,
   isWinner,
+  testType,
+  metric,
 }: {
   programId: string;
   experimentId: string;
   variants: Variant[];
   canEdit: boolean;
   isWinner?: boolean;
+  testType: TestType | null;
+  /** Datos económicos de la métrica del árbol (valor estimado). */
+  metric: MetricEconomics | null;
 }) {
   const router = useRouter();
   const [rows, setRows] = useState<Row[]>(() =>
@@ -45,18 +53,22 @@ export function ResultsEditor({
   const [error, setError] = useState<string>();
   const [pending, startTransition] = useTransition();
 
-  const live = useMemo(
+  const reading = useMemo(
     () =>
-      computeVariantResults(
-        variants.map((v, i) => ({
+      readExperiment({
+        variants: variants.map((v, i) => ({
           ...v,
           sample: toNum(rows[i]?.sample ?? ""),
           conversions: toNum(rows[i]?.conversions ?? ""),
           metric_value: toNum(rows[i]?.metric_value ?? ""),
         })),
-      ),
-    [variants, rows],
+        testType,
+        metric,
+      }),
+    [variants, rows, testType, metric],
   );
+  const live = reading.rows;
+  const directional = reading.kind === "directional";
   const invalid = rows.some(
     (r) => [r.sample, r.conversions, r.metric_value].some((x) => x.trim() !== "" && !Number.isFinite(toNum(x))),
   );
@@ -103,8 +115,16 @@ export function ResultsEditor({
               <TableHead className="text-right">Conversiones</TableHead>
               <TableHead className="text-right">Valor de la métrica</TableHead>
               <TableHead className="text-right">Tasa</TableHead>
-              <TableHead className="text-right">vs. control</TableHead>
-              <TableHead className="min-w-52">Notas</TableHead>
+              <TableHead className="text-right">
+                <Term k="diffVsControl" />
+              </TableHead>
+              <TableHead className="text-right">
+                <Term k="probabilityToWin" />
+              </TableHead>
+              <TableHead className="text-right">
+                <Term k="estimatedValue" />
+              </TableHead>
+              <TableHead className="min-w-44">Notas</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -138,6 +158,12 @@ export function ResultsEditor({
                   <TableCell className="text-right font-medium tabular-nums">
                     {v.is_control ? <span className="text-soft">base</span> : formatSignedPercent(res.diffVsControl)}
                   </TableCell>
+                  <TableCell className="text-right">
+                    {v.is_control ? <span className="text-soft">—</span> : <ProbabilityCell row={res} directional={directional} />}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {v.is_control ? <span className="text-soft">—</span> : <ValueCell row={res} />}
+                  </TableCell>
                   <TableCell>
                     {canEdit ? (
                       <Input aria-label={`Notas de ${v.name}`} value={rows[i].notes} onChange={(e) => update(i, { notes: e.target.value })} />
@@ -151,9 +177,18 @@ export function ResultsEditor({
           </TableBody>
         </Table>
       </div>
+      {directional ? (
+        <Callout tone="neutral" title={DIRECTIONAL_LABEL}>
+          Esta prueba no reparte a la gente al azar ({testType === "geo" ? "es por geografía" : testType === "before_after" ? "es antes y después" : "no tiene tipo de prueba definido"}), así
+          que la diferencia indica una dirección pero no se puede calcular una probabilidad de ganar. Léala con cuidado y apóyese en la regla de
+          decisión.
+        </Callout>
+      ) : null}
       <p className="text-xs text-soft">
         Tasa = conversiones / muestra. La diferencia se calcula frente al control (sobre la tasa o, si no hay conversiones, sobre el valor de
-        la métrica). No se calcula significancia: el veredicto lo da una persona frente a la regla de decisión.
+        la métrica). En A/B, la probabilidad de ganar sale de la muestra y las conversiones; con 95 % o más es confiable. El valor estimado es
+        la mejora × el volumen semanal de la métrica × el valor por unidad. Son ayudas: el veredicto lo da una persona frente a la regla de
+        decisión.
       </p>
       {error ? <Callout title="No se pudieron guardar">{error}</Callout> : null}
       {canEdit ? (
@@ -163,4 +198,48 @@ export function ResultsEditor({
       ) : null}
     </div>
   );
+}
+
+function ProbabilityCell({ row, directional }: { row: VariantReading; directional: boolean }) {
+  if (directional) return <span className="text-xs text-soft">Direccional</span>;
+  const { probability, interval, band } = row.stats;
+  if (probability == null) {
+    return <span className="text-xs text-soft">{row.conversions == null ? "Necesita conversiones" : "Faltan datos"}</span>;
+  }
+  return (
+    <div className="tabular-nums whitespace-nowrap">
+      <div className="font-medium">
+        {formatProbability(probability)}
+        {band ? (
+          <span
+            className={cn(
+              "ml-1.5 rounded px-1 text-[11px] font-normal whitespace-nowrap",
+              band.level === "reliable" && band.leaning === "better" ? "bg-highlight text-[#1F1F1F]" : "border text-soft",
+            )}
+          >
+            {band.label}
+          </span>
+        ) : null}
+      </div>
+      {interval ? (
+        <div className="text-[11px] text-soft">
+          95 %: {formatSignedPercent(interval.low)} a {formatSignedPercent(interval.high)}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ValueCell({ row }: { row: VariantReading }) {
+  if (row.value_estimate) {
+    return (
+      <div className="tabular-nums">
+        <div className="font-medium">{formatCop(row.value_estimate.weekly)} / sem.</div>
+        <div className="text-[11px] text-soft">{formatCop(row.value_estimate.monthly)} / mes</div>
+      </div>
+    );
+  }
+  if (row.value_missing === "unit_value") return <span className="text-xs text-soft">{UNIT_VALUE_HINT}</span>;
+  if (row.value_missing === "volume") return <span className="text-xs text-soft">Falta el volumen semanal de la métrica</span>;
+  return <span className="text-soft">—</span>;
 }

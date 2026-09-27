@@ -14,6 +14,8 @@ import {
   Waypoints,
   CalendarPlus,
   Menu,
+  FileText,
+  UsersRound,
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -44,6 +46,7 @@ function useGroups({ programId, lines, showTrash, showSettings }: ProgramNavProp
     {
       items: [
         { href: base, label: "Resumen", icon: LayoutDashboard, exact: true },
+        { href: `${base}/informe`, label: "Informe para el comité", icon: FileText },
         ...(showSettings ? [{ href: `${base}/configuracion`, label: "Configuración", icon: Settings2 }] : []),
       ],
     },
@@ -58,6 +61,7 @@ function useGroups({ programId, lines, showTrash, showSettings }: ProgramNavProp
         { href: `${base}/problemas`, label: "Problemas", icon: ClipboardList },
         { href: `${base}/ejercicios`, label: "Backlog de ejercicios", icon: ListOrdered },
         { href: `${base}/aprendizajes`, label: "Aprendizajes", icon: BookOpenCheck },
+        { href: `${base}/equipo`, label: "Equipo y carga", icon: UsersRound },
       ],
     },
     {

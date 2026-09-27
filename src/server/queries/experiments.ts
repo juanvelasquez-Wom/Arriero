@@ -5,11 +5,13 @@ import type {
   Decision,
   ExperimentCore,
   ExperimentStatus,
+  MetricDirection,
   OwnerType,
   TestType,
   Variant,
   Verdict,
 } from "@/domain/types";
+import type { MetricEconomics } from "@/domain/value";
 
 export interface ExperimentListItem extends ExperimentCore {
   title: string;
@@ -231,4 +233,49 @@ export async function listActivity(filter: { programId: string; entityId?: strin
       actor_name: actor ? actor.name || actor.email : null,
     };
   });
+}
+
+/**
+ * Datos económicos de las métricas (unidad, dirección, línea base, valor por
+ * unidad y último valor semanal) para estimar el valor de un resultado. Si la
+ * columna `unit_value` todavía no existe en la base, sigue sin ella.
+ */
+export async function listMetricEconomics(metricIds: string[]): Promise<Map<string, MetricEconomics>> {
+  const out = new Map<string, MetricEconomics>();
+  const ids = [...new Set(metricIds)];
+  if (!ids.length) return out;
+  const supabase = await createClient();
+  type MetricRow = { id: string; unit: string | null; direction: MetricDirection; baseline: number | string | null; unit_value?: number | string | null };
+  let rows: MetricRow[] = [];
+  const withValue = await supabase.from("metrics").select("id, unit, direction, baseline, unit_value").in("id", ids);
+  if (withValue.error) {
+    // 42703 = columna inexistente (la migración de valor por unidad no se ha aplicado).
+    if (withValue.error.code !== "42703" && !/unit_value/.test(withValue.error.message)) throw new Error(withValue.error.message);
+    const basic = await supabase.from("metrics").select("id, unit, direction, baseline").in("id", ids);
+    if (basic.error) throw new Error(basic.error.message);
+    rows = (basic.data ?? []) as MetricRow[];
+  } else {
+    rows = (withValue.data ?? []) as MetricRow[];
+  }
+  const { data: values, error } = await supabase
+    .from("metric_values")
+    .select("metric_id, week_start, value")
+    .in("metric_id", ids)
+    .order("week_start", { ascending: false });
+  if (error) throw new Error(error.message);
+  const latest = new Map<string, { week_start: string; value: number }>();
+  for (const v of values ?? []) if (!latest.has(v.metric_id)) latest.set(v.metric_id, { week_start: v.week_start, value: Number(v.value) });
+  for (const m of rows) {
+    const l = latest.get(m.id);
+    out.set(m.id, {
+      id: m.id,
+      unit: m.unit,
+      direction: m.direction,
+      baseline: m.baseline == null ? null : Number(m.baseline),
+      unit_value: m.unit_value == null ? null : Number(m.unit_value),
+      latest_value: l?.value ?? null,
+      latest_week: l?.week_start ?? null,
+    });
+  }
+  return out;
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { durationWarning, freezeContaining, freezesOverlapping, freezeWarning, plannedRange } from "./calendar";
+import { durationWarning, freezeContaining, freezesOverlapping, freezeWarning, plannedRange, readiness, runningDays } from "./calendar";
 import { mondaysBetween, weekStart } from "./dates";
 import type { CalendarEvent } from "./types";
 
@@ -60,6 +60,44 @@ describe("durationWarning", () => {
     expect(durationWarning({ actual_start: "2026-08-10", actual_end: "2026-09-13", min_duration_days: 28 })).toBeNull();
     expect(durationWarning({ actual_start: "2026-08-31", actual_end: "2026-09-27", min_duration_days: 21 })).toBeNull();
     expect(durationWarning({ actual_start: null, actual_end: "2026-09-13", min_duration_days: 28 })).toBeNull();
+  });
+});
+
+describe("durationWarning con inicio futuro (bug de días negativos)", () => {
+  it("no cuenta días negativos: dice cuándo arranca", () => {
+    const w = durationWarning({ actual_start: "2026-10-05", actual_end: "2026-09-26", min_duration_days: 21 })!;
+    expect(w).not.toMatch(/−|-\d/);
+    expect(w).toMatch(/arranca el 5 de oct/);
+  });
+  it("singular y plural", () => {
+    expect(durationWarning({ actual_start: "2026-09-26", actual_end: "2026-09-26", min_duration_days: 21 })).toMatch(/corrió 1 día y/);
+  });
+});
+
+describe("runningDays", () => {
+  it("cuenta el día de inicio y nunca es negativo", () => {
+    expect(runningDays({ actual_start: "2026-09-20", actual_end: null }, "2026-09-26")).toBe(7);
+    expect(runningDays({ actual_start: "2026-10-05", actual_end: null }, "2026-09-26")).toBe(0);
+    expect(runningDays({ actual_start: null, actual_end: null }, "2026-09-26")).toBe(0);
+    expect(runningDays({ actual_start: "2026-09-01", actual_end: "2026-09-10" }, "2026-09-26")).toBe(10);
+  });
+});
+
+describe("readiness", () => {
+  const base = { status: "in_test" as const, actual_end: null, min_duration_days: 21 };
+  it("inicio futuro: dice cuándo arranca", () => {
+    expect(readiness({ ...base, actual_start: "2026-10-05" }, "2026-09-26")).toMatchObject({ kind: "not_started", label: "Arranca el 5 de oct" });
+  });
+  it("cuenta lo que falta para la duración mínima", () => {
+    expect(readiness({ ...base, actual_start: "2026-09-20" }, "2026-09-26")).toMatchObject({ kind: "waiting", days: 7, remaining: 14, label: "Faltan 14 días para leerlo" });
+    expect(readiness({ ...base, actual_start: "2026-09-07" }, "2026-09-26")).toMatchObject({ remaining: 1, label: "Falta 1 día para leerlo" });
+  });
+  it("ya se puede leer al cumplir la duración mínima", () => {
+    expect(readiness({ ...base, actual_start: "2026-09-06" }, "2026-09-26")).toMatchObject({ kind: "ready", days: 21, label: "Ya se puede leer" });
+  });
+  it("solo aplica En prueba", () => {
+    expect(readiness({ ...base, status: "in_reading", actual_start: "2026-09-01" }, "2026-09-26")).toBeNull();
+    expect(readiness({ ...base, actual_start: null }, "2026-09-26")?.kind).toBe("no_start");
   });
 });
 

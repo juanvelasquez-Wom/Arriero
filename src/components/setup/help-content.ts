@@ -126,3 +126,34 @@ export const WELCOME_IDEAS = [
     text: "No se prueba en los picos de venta. Hay un punto de decisión formal, y cada ejercicio cerrado deja un aprendizaje para las demás líneas.",
   },
 ];
+
+/** Los dos caminos de la bienvenida. */
+export const START_PATHS = {
+  quick: {
+    title: "Arranque rápido (3 minutos)",
+    badge: "Recomendado si es su primera vez",
+    text: "Nombre, una línea de negocio y el periodo. Arriero arma el resto con lo típico de telco: calendario con picos y congelamientos, horizontes, métrica norte, árbol y embudo. Y de una a registrar el primer problema.",
+    cta: "Arranque rápido",
+  },
+  full: {
+    title: "Configuración completa",
+    badge: "Para quien ya tiene los datos a mano",
+    text: "Paso a paso: calendario, horizontes, varias líneas con su métrica norte, línea base, metas, árbol y embudo, equipo y reglas de priorización. Entre 10 y 20 minutos (lo que dura un tinto largo), y se guarda en cada paso.",
+    cta: "Configuración completa",
+  },
+} as const;
+
+/** Ayuda del formulario de arranque rápido. */
+export const QUICK_START_HELP: StepHelp = {
+  title: "¿Qué arma el arranque rápido?",
+  what: "Con cuatro datos crea el programa completo para una línea: el calendario típico de telco (Black Friday–Cyber y diciembre, con sus congelamientos y el punto de decisión), los horizontes H1 y H2, la métrica norte con su eficiencia, las métricas de entrada del árbol y el embudo con sus cuatro etapas.",
+  why: "Lo que da valor es registrar problemas y probar ejercicios, no llenar formularios. Con el mapa básico ya puede ubicar dónde se pierde valor; lo fino se completa después.",
+  example: "\"Plan digital Pospago oct 2026 – mar 2027\", línea Pospago, 6 meses desde hoy, con el calendario típico de telco.",
+  tip: "Después puede completar líneas base, metas y más líneas en Configuración. Nada queda escrito en piedra.",
+};
+
+export const QUICK_FIELD_HELP = {
+  line: "Elija la que más se parezca a su negocio: trae la métrica norte, el árbol y el embudo sugeridos. Si no está, use \"Otra línea\" y le ponemos métricas genéricas.",
+  duration: "Cuánto dura el plan. Con 6 meses hay tiempo de probar antes de los picos y escalar después.",
+  telcoCalendar: "Agrega Black Friday–Cyber y la temporada decembrina que caigan en el periodo, con sus congelamientos (no se lanzan pruebas) y un punto de decisión para revisar qué escalar.",
+} as const;

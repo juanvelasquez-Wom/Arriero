@@ -1,22 +1,29 @@
 import { BookOpenCheck, ChartColumn } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { EmptyState, Section, Stat } from "@/components/app/page";
+import type { ReactNode } from "react";
+import { ExportCsvButton } from "@/components/app/export-csv-button";
+import { Term } from "@/components/app/info-tip";
+import { EmptyState, Section } from "@/components/app/page";
 import { DecisionBadge, VerdictBadge } from "@/components/app/status-badge";
 import { CountBarChart } from "@/components/dashboards/charts";
 import { DashboardFrame, FilteredOutNote } from "@/components/dashboards/dashboard-frame";
 import type { FilterField } from "@/components/dashboards/dashboard-filters";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { toCsv } from "@/domain/csv";
 import { summarizeResults } from "@/domain/dashboards";
 import { applyResultSlicers, hasActiveFilters, parseResultSlicers } from "@/domain/dashboard-filters";
 import { formatDate, formatPercent, formatSignedPercent } from "@/domain/format";
 import { DECISION_LABEL, TEST_TYPE_LABEL, VERDICT_LABEL, labelOf } from "@/domain/labels";
 import { isClosed } from "@/domain/lifecycle";
-import { computeVariantResults, headlineDiff } from "@/domain/results";
+import { readExperiment } from "@/domain/results";
+import { DIRECTIONAL_LABEL, formatProbability } from "@/domain/stats";
+import { todayIso } from "@/domain/dates";
+import { formatCop } from "@/domain/value";
 import { DECISIONS, TEST_TYPES, VERDICTS } from "@/domain/types";
 import { cn } from "@/lib/utils";
-import { listVariants } from "@/server/queries/experiments";
+import { listMetricEconomics, listVariants } from "@/server/queries/experiments";
 import { listLearnings, listStages } from "@/server/queries/structure";
 import { loadDashboard } from "../_lib/data";
 
@@ -48,14 +55,43 @@ export default async function ResultsPage({ params, searchParams }: PageProps<"/
   for (const v of variants) variantsBy.set(v.experiment_id, [...(variantsBy.get(v.experiment_id) ?? []), v]);
   const learningBy = new Map(learnings.map((l) => [l.experiment_id, l.id]));
 
-  const closed = applyResultSlicers(data.filtered, slicers)
+  const closedBase = applyResultSlicers(data.filtered, slicers)
     .filter((e) => isClosed(e.status))
-    .sort((a, b) => (b.decided_at ?? "").localeCompare(a.decided_at ?? ""))
-    .map((e) => {
-      const vs = variantsBy.get(e.id) ?? [];
-      return { ...e, variants: vs, diff: headlineDiff(computeVariantResults(vs)), learningId: learningBy.get(e.id) ?? null };
-    });
+    .sort((a, b) => (b.decided_at ?? "").localeCompare(a.decided_at ?? ""));
+  const economics = await listMetricEconomics(closedBase.map((e) => e.metric_id));
+  const closed = closedBase.map((e) => {
+    const vs = variantsBy.get(e.id) ?? [];
+    const metric = economics.get(e.metric_id) ?? null;
+    const reading = readExperiment({ variants: vs, testType: e.test_type, metric });
+    const h = reading.headline;
+    return {
+      ...e,
+      variants: vs,
+      metric,
+      kind: reading.kind,
+      diff: h?.diffVsControl ?? null,
+      probability: h?.stats.probability ?? null,
+      band: h?.stats.band?.label ?? null,
+      valueWeekly: h?.value_estimate?.weekly ?? null,
+      learningId: learningBy.get(e.id) ?? null,
+    };
+  });
   const summary = summarizeResults(closed);
+  const confidenceText = (e: (typeof closed)[number]) =>
+    e.kind === "directional" ? DIRECTIONAL_LABEL : e.probability == null ? "Sin datos" : `${formatProbability(e.probability)} · ${e.band ?? ""}`;
+  const csv = toCsv(closed, [
+    { header: "Ejercicio", value: (e) => e.title },
+    { header: "Línea", value: (e) => e.line_name },
+    { header: "Etapa", value: (e) => e.stage_name },
+    { header: "Tipo de prueba", value: (e) => labelOf(TEST_TYPE_LABEL, e.test_type, "") },
+    { header: "Veredicto", value: (e) => labelOf(VERDICT_LABEL, e.verdict, "") },
+    { header: "Decisión", value: (e) => labelOf(DECISION_LABEL, e.decision, "") },
+    { header: "Diferencia vs control (%)", value: (e) => (e.diff == null ? null : Math.round(e.diff * 1000) / 10) },
+    { header: "Probabilidad de ganar (%)", value: (e) => (e.probability == null ? null : Math.round(e.probability * 1000) / 10) },
+    { header: "Confianza", value: (e) => (e.kind === "directional" ? DIRECTIONAL_LABEL : e.band) },
+    { header: "Valor estimado semanal (COP)", value: (e) => (e.valueWeekly == null ? null : Math.round(e.valueWeekly)) },
+    { header: "Decidido", value: (e) => e.decided_at?.slice(0, 10) ?? null },
+  ]);
   const anyFilter = data.filtersActive || hasActiveFilters(slicers);
 
   return (
@@ -63,7 +99,7 @@ export default async function ResultsPage({ params, searchParams }: PageProps<"/
       programId={programId}
       active="resultados"
       title="Resultados"
-      description="Ejercicios cerrados (decididos o escalados a BAU): win rate, cuánto le sacaron los ganadores al control y cómo se repartieron veredictos y decisiones. Aquí se ve el camello."
+      description="Ejercicios cerrados (decididos o escalados a BAU): tasa de acierto, cuánto le sacaron los ganadores al control, qué tan confiable es cada lectura y cómo se repartieron veredictos y decisiones. Aquí se ve el camello."
       fields={fields}
       current={data.current}
       query={data.query}
@@ -74,7 +110,7 @@ export default async function ResultsPage({ params, searchParams }: PageProps<"/
           title="Todavía no hay ejercicios cerrados"
           description={
             <>
-              Cuando decida el primero, aquí va a ver el win rate, la diferencia promedio de los ganadores frente al control y la
+              Cuando decida el primero, aquí va a ver la tasa de acierto, la diferencia promedio de los ganadores frente al control y la
               tabla de cerrados con su aprendizaje. Si funciona, seguimos.
               <FilteredOutNote active={anyFilter} />
             </>
@@ -87,16 +123,32 @@ export default async function ResultsPage({ params, searchParams }: PageProps<"/
         />
       ) : (
         <div className="space-y-6">
-          <div className="rise grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <Stat label="Ejercicios cerrados" value={summary.closed} hint="Decididos o escalados a BAU" />
-            <Stat
-              label="Win rate"
+          <div className={cn("rise grid grid-cols-1 gap-3 sm:grid-cols-2", summary.winnerValue ? "lg:grid-cols-4" : "lg:grid-cols-3")}>
+            {summary.winnerValue ? (
+              <StatTile
+                label={<Term k="estimatedValue">Valor estimado de los ganadores</Term>}
+                value={formatCop(summary.winnerValue.monthly)}
+                hint={
+                  <>
+                    Al mes si se escalan ({formatCop(summary.winnerValue.weekly)} por semana), con {summary.winnerValue.counted} ganador
+                    {summary.winnerValue.counted === 1 ? "" : "es"}.
+                    {summary.winnerValue.missingUnitValue
+                      ? ` ${summary.winnerValue.missingUnitValue} sin valor por unidad en su métrica.`
+                      : ""}
+                  </>
+                }
+                highlight
+              />
+            ) : null}
+            <StatTile label="Ejercicios cerrados" value={summary.closed} hint="Decididos o escalados a BAU" />
+            <StatTile
+              label={<Term k="winRate" />}
               value={formatPercent(summary.winRate)}
               hint={`${summary.winners} ganador${summary.winners === 1 ? "" : "es"} de ${summary.closed} cerrado${summary.closed === 1 ? "" : "s"}`}
-              highlight={summary.winners > 0}
+              highlight={!summary.winnerValue && summary.winners > 0}
             />
-            <Stat
-              label="Diferencia promedio vs control (ganadores)"
+            <StatTile
+              label={<Term k="diffVsControl">Diferencia promedio vs control (ganadores)</Term>}
               value={formatSignedPercent(summary.avgWinnerDiff)}
               hint={
                 summary.avgWinnerDiff == null
@@ -107,7 +159,7 @@ export default async function ResultsPage({ params, searchParams }: PageProps<"/
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <Section title="Veredictos" description="Lectura de cada cerrado frente a su regla de decisión.">
+            <Section title={<Term k="verdict">Veredictos</Term>} description="Lectura de cada cerrado frente a su regla de decisión.">
               <CountBarChart
                 caption="Distribución de veredictos de los ejercicios cerrados"
                 data={VERDICTS.map((v) => ({
@@ -118,7 +170,7 @@ export default async function ResultsPage({ params, searchParams }: PageProps<"/
                 }))}
               />
             </Section>
-            <Section title="Decisiones" description="Qué se hizo con cada cerrado.">
+            <Section title={<Term k="decision">Decisiones</Term>} description="Qué se hizo con cada cerrado.">
               <CountBarChart
                 caption="Distribución de decisiones de los ejercicios cerrados"
                 data={DECISIONS.map((d) => ({ key: d, label: DECISION_LABEL[d], value: summary.decisions[d] }))}
@@ -126,7 +178,11 @@ export default async function ResultsPage({ params, searchParams }: PageProps<"/
             </Section>
           </div>
 
-          <Section title="Ejercicios cerrados" description="Los ganadores se resaltan. Cada fila enlaza a su aprendizaje.">
+          <Section
+            title="Ejercicios cerrados"
+            description="Los ganadores se resaltan. Cada fila enlaza a su aprendizaje."
+            actions={<ExportCsvButton csv={csv} name={["resultados", todayIso()]} />}
+          >
             <div className="-m-4 overflow-x-auto">
               <Table className="tabular-nums">
                 <TableHeader>
@@ -134,10 +190,20 @@ export default async function ResultsPage({ params, searchParams }: PageProps<"/
                     <TableHead className="pl-4">Ejercicio</TableHead>
                     <TableHead>Línea</TableHead>
                     <TableHead>Etapa</TableHead>
-                    <TableHead>Tipo de prueba</TableHead>
+                    <TableHead>
+                      <Term k="testType" />
+                    </TableHead>
                     <TableHead>Veredicto</TableHead>
                     <TableHead>Decisión</TableHead>
-                    <TableHead className="text-right">Diferencia vs control</TableHead>
+                    <TableHead className="text-right">
+                      <Term k="diffVsControl" />
+                    </TableHead>
+                    <TableHead>
+                      <Term k="probabilityToWin">Confianza</Term>
+                    </TableHead>
+                    <TableHead className="text-right">
+                      <Term k="estimatedValue">Valor / semana</Term>
+                    </TableHead>
                     <TableHead>Decidido</TableHead>
                     <TableHead className="pr-4">Aprendizaje</TableHead>
                   </TableRow>
@@ -164,6 +230,12 @@ export default async function ResultsPage({ params, searchParams }: PageProps<"/
                         <TableCell className={cn("text-right", winner && "font-semibold")}>
                           {formatSignedPercent(e.diff)}
                         </TableCell>
+                        <TableCell className={cn("whitespace-nowrap", e.kind === "directional" || e.probability == null ? "text-soft" : "")}>
+                          {confidenceText(e)}
+                        </TableCell>
+                        <TableCell className="text-right whitespace-nowrap">
+                          {e.valueWeekly != null ? formatCop(e.valueWeekly) : <span className="text-soft">—</span>}
+                        </TableCell>
                         <TableCell>{formatDate(e.decided_at?.slice(0, 10))}</TableCell>
                         <TableCell className="pr-4">
                           {e.learningId ? (
@@ -188,5 +260,16 @@ export default async function ResultsPage({ params, searchParams }: PageProps<"/
         </div>
       )}
     </DashboardFrame>
+  );
+}
+
+/** Tarjeta de cifra con etiqueta enriquecida (admite la burbuja del glosario). */
+function StatTile({ label, value, hint, highlight }: { label: ReactNode; value: ReactNode; hint?: ReactNode; highlight?: boolean }) {
+  return (
+    <div className={cn("lift rounded-2xl border bg-paper p-4 shadow-card", highlight && "border-highlight bg-highlight/10")}>
+      <div className="text-xs font-medium text-soft">{label}</div>
+      <div className="mt-1 font-heading text-3xl font-extrabold tabular-nums">{value}</div>
+      {hint ? <div className="mt-1 text-xs text-soft">{hint}</div> : null}
+    </div>
   );
 }

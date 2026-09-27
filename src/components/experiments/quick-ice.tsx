@@ -56,7 +56,8 @@ export function QuickIce({
           max={10}
           inputMode="numeric"
           aria-label={`${LABEL[k]} de ${title}`}
-          title={LABEL[k]}
+          title={`${LABEL[k]} (1 a 10)`}
+          placeholder={LABEL[k][0]}
           value={draft[k]}
           onChange={(e) => setDraft((d) => ({ ...d, [k]: e.target.value }))}
           onBlur={commit}

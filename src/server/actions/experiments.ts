@@ -12,62 +12,53 @@ import {
   type DecideInput,
   type ExperimentDraftInput,
 } from "@/lib/validation/experiments";
+import { inferCalendarFit, inferOwnerType, resolvePrimaryMetric } from "@/domain/experiment-inference";
 import { can } from "@/domain/permissions";
+import type { CalendarEvent, ProgramRole } from "@/domain/types";
 import { getActionActor } from "@/server/auth";
 
 const uuid = z.string().uuid();
+
+type Supabase = Awaited<ReturnType<typeof createClient>>;
+type Draft = z.output<typeof experimentDraftSchema>;
+
+export interface ExperimentSaveResult {
+  id: string;
+  variantIds?: string[];
+  /** Versión actual del ejercicio: el asistente la manda en el siguiente guardado. */
+  updatedAt: string | null;
+}
+
+const CONFLICT_MESSAGE = "Alguien más cambió este ejercicio mientras usted lo editaba. Recargue para ver los cambios.";
 
 function revalidateProgram(programId: string) {
   revalidatePath(`/programas/${programId}`, "layout");
 }
 
 /**
- * Sincroniza las variantes del borrador (solo si el diseño no está bloqueado).
+ * Guarda las variantes del borrador en una sola operación atómica (RPC
+ * save_experiment_variants): borra las que ya no están, actualiza y crea.
  * Devuelve los ids en el mismo orden para que el asistente no las duplique.
  */
 async function syncVariants(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  supabase: Supabase,
   experimentId: string,
-  variants: NonNullable<ExperimentDraftInput["variants"]>,
+  variants: NonNullable<Draft["variants"]>,
 ): Promise<{ error: { message: string; code?: string } | null; ids: string[] }> {
-  const ids: string[] = [];
-  const { data: existing, error } = await supabase
-    .from("experiment_variants")
-    .select("id")
-    .eq("experiment_id", experimentId);
-  if (error) return { error, ids };
-  const keep = new Set(variants.filter((v) => v.id).map((v) => v.id!));
-  for (const row of existing ?? []) {
-    if (!keep.has(row.id)) {
-      const { error: delError } = await supabase.rpc("delete_variant", { p_id: row.id });
-      if (delError) return { error: delError, ids };
-    }
-  }
-  // Primero quitar la marca de control a las que la pierden (índice único parcial).
-  for (const v of variants.filter((x) => x.id && !x.is_control)) {
-    const { error: e } = await supabase.from("experiment_variants").update({ is_control: false }).eq("id", v.id!);
-    if (e) return { error: e, ids };
-  }
-  for (const [i, v] of variants.entries()) {
-    const row = { name: v.name, is_control: v.is_control, description: v.description ?? null, sort_order: i };
-    if (v.id) {
-      const { error: e } = await supabase.from("experiment_variants").update(row).eq("id", v.id);
-      if (e) return { error: e, ids };
-      ids.push(v.id);
-    } else {
-      const { data, error: e } = await supabase
-        .from("experiment_variants")
-        .insert({ ...row, experiment_id: experimentId })
-        .select("id")
-        .single();
-      if (e) return { error: e, ids };
-      ids.push(data.id);
-    }
-  }
-  return { error: null, ids };
+  const { data, error } = await supabase.rpc("save_experiment_variants", {
+    p_experiment: experimentId,
+    p_variants: variants.map((v) => ({
+      id: v.id ?? null,
+      name: v.name,
+      is_control: v.is_control,
+      description: v.description ?? null,
+    })),
+  });
+  if (error) return { error, ids: [] };
+  return { error: null, ids: (data as string[] | null) ?? [] };
 }
 
-function draftRow(d: z.output<typeof experimentDraftSchema>, allowScoring: boolean) {
+function draftRow(d: Draft, allowScoring: boolean) {
   const row: Record<string, unknown> = {
     problem_id: d.problem_id,
     metric_id: d.metric_id,
@@ -91,8 +82,80 @@ function draftRow(d: z.output<typeof experimentDraftSchema>, allowScoring: boole
   return row;
 }
 
+async function listCalendarEvents(supabase: Supabase, programId: string): Promise<CalendarEvent[]> {
+  const { data } = await supabase
+    .from("calendar_events")
+    .select("id, type, name, start_date, end_date")
+    .eq("program_id", programId)
+    .is("deleted_at", null);
+  return (data ?? []) as CalendarEvent[];
+}
+
+async function metricNames(supabase: Supabase, ids: (string | null | undefined)[]): Promise<Map<string, string>> {
+  const unique = [...new Set(ids.filter((x): x is string => !!x))];
+  if (!unique.length) return new Map();
+  const { data } = await supabase.from("metrics").select("id, name").in("id", unique);
+  return new Map((data ?? []).map((m) => [m.id as string, m.name as string]));
+}
+
+/**
+ * Completa lo que el producto sabe resolver solo: filtro de calendario (salvo cambio
+ * manual), métrica principal (la del árbol) y tipo de responsable (según su rol).
+ */
+async function applyInferences(
+  supabase: Supabase,
+  programId: string,
+  row: Record<string, unknown>,
+  d: Draft,
+  opts: {
+    allowScoring: boolean;
+    designLocked: boolean;
+    current?: { primary_metric: string | null; metric_id: string; min_duration_days: number | null } | null;
+  },
+) {
+  const { allowScoring, designLocked, current } = opts;
+
+  if (allowScoring && !d.fits_calendar_override) {
+    const fit = inferCalendarFit(
+      {
+        planned_start: d.planned_start ?? null,
+        planned_end: d.planned_end ?? null,
+        min_duration_days: d.min_duration_days !== undefined ? d.min_duration_days : (current?.min_duration_days ?? null),
+      },
+      await listCalendarEvents(supabase, programId),
+    );
+    if (fit.fits !== null) row.fits_calendar = fit.fits;
+  }
+
+  if (!designLocked) {
+    const names = await metricNames(supabase, [d.metric_id, current?.metric_id]);
+    const primary = resolvePrimaryMetric({
+      current: d.primary_metric !== undefined ? d.primary_metric : (current?.primary_metric ?? null),
+      previousMetricName: current ? (names.get(current.metric_id) ?? null) : null,
+      metricName: names.get(d.metric_id) ?? null,
+    });
+    if (primary) row.primary_metric = primary;
+  }
+
+  if (allowScoring && row.owner_id && !row.owner_type) {
+    const { data: member } = await supabase
+      .from("program_members")
+      .select("role")
+      .eq("program_id", programId)
+      .eq("user_id", row.owner_id as string)
+      .maybeSingle();
+    const inferred = inferOwnerType((member?.role as ProgramRole | undefined) ?? null);
+    if (inferred) row.owner_type = inferred;
+  }
+}
+
+async function currentVersion(supabase: Supabase, experimentId: string): Promise<string | null> {
+  const { data } = await supabase.from("experiments").select("updated_at").eq("id", experimentId).maybeSingle();
+  return (data?.updated_at as string | undefined) ?? null;
+}
+
 /** Crea el ejercicio como borrador (Idea). Se puede llamar desde cualquier paso. */
-export async function createExperiment(programId: string, input: ExperimentDraftInput): Promise<ActionResult<{ id: string; variantIds?: string[] }>> {
+export async function createExperiment(programId: string, input: ExperimentDraftInput): Promise<ActionResult<ExperimentSaveResult>> {
   if (!uuid.safeParse(programId).success) return fail("Programa inválido.");
   const ctx = await getActionActor(programId);
   if (!ctx) return fail("Su sesión venció o no tiene acceso a este programa.");
@@ -101,14 +164,16 @@ export async function createExperiment(programId: string, input: ExperimentDraft
   if (!parsed.success) return fromZod(parsed.error);
 
   const supabase = await createClient();
-  const row = draftRow(parsed.data, can.scoreIce(ctx.actor));
+  const allowScoring = can.scoreIce(ctx.actor);
+  const row = draftRow(parsed.data, allowScoring);
   // La agencia que crea un ejercicio queda como responsable (así puede seguir editándolo).
-  if (!can.scoreIce(ctx.actor)) {
+  if (!allowScoring) {
     row.owner_id = ctx.user.id;
     row.owner_type = "agency";
   }
   const { data: problem } = await supabase.from("problems").select("line_id").eq("id", parsed.data.problem_id).maybeSingle();
   if (!problem) return fail("El problema no existe o fue borrado.");
+  await applyInferences(supabase, programId, row, parsed.data, { allowScoring, designLocked: false });
   const { data, error } = await supabase
     .from("experiments")
     .insert({ ...row, line_id: problem.line_id })
@@ -122,15 +187,16 @@ export async function createExperiment(programId: string, input: ExperimentDraft
     if (synced.error) return failFrom(synced.error);
     variantIds = synced.ids;
   }
+  const updatedAt = await currentVersion(supabase, data.id);
   revalidateProgram(programId);
-  return ok({ id: data.id, variantIds }, "Borrador guardado. Ahí vamos.");
+  return ok({ id: data.id, variantIds, updatedAt }, "Borrador guardado. Ahí vamos.");
 }
 
 export async function updateExperiment(
   programId: string,
   experimentId: string,
   input: ExperimentDraftInput,
-): Promise<ActionResult<{ id: string; variantIds?: string[] }>> {
+): Promise<ActionResult<ExperimentSaveResult>> {
   if (!uuid.safeParse(programId).success || !uuid.safeParse(experimentId).success) return fail("Ejercicio inválido.");
   const ctx = await getActionActor(programId);
   if (!ctx) return fail("Su sesión venció o no tiene acceso a este programa.");
@@ -140,27 +206,42 @@ export async function updateExperiment(
   const supabase = await createClient();
   const { data: current } = await supabase
     .from("experiments")
-    .select("owner_id, design_locked_at")
+    .select("owner_id, design_locked_at, updated_at, primary_metric, metric_id, min_duration_days")
     .eq("id", experimentId)
     .maybeSingle();
   if (!current) return fail("El ejercicio no existe o fue borrado.");
   if (!can.editExperiment(ctx.actor, current)) return fail("No tiene permiso para editar este ejercicio.");
 
-  const row = draftRow(parsed.data, can.scoreIce(ctx.actor));
-  if (current.design_locked_at) {
+  // Concurrencia optimista: si cambió desde que se abrió, no se pisa.
+  const expected = parsed.data.expected_updated_at;
+  if (expected && new Date(expected).getTime() !== new Date(current.updated_at).getTime()) return fail(CONFLICT_MESSAGE);
+
+  const allowScoring = can.scoreIce(ctx.actor);
+  const designLocked = !!current.design_locked_at;
+  const row = draftRow(parsed.data, allowScoring);
+  await applyInferences(supabase, programId, row, parsed.data, { allowScoring, designLocked, current });
+  if (designLocked) {
     for (const k of ["test_type", "primary_metric", "control_metrics", "min_duration_days", "decision_rule", "metric_id"]) delete row[k];
   }
-  const { error } = await supabase.from("experiments").update(row).eq("id", experimentId);
+  // El filtro por updated_at cierra la ventana entre la lectura y la escritura.
+  const { data: updated, error } = await supabase
+    .from("experiments")
+    .update(row)
+    .eq("id", experimentId)
+    .eq("updated_at", current.updated_at)
+    .select("id");
   if (error) return failFrom(error);
+  if (!updated?.length) return fail(CONFLICT_MESSAGE);
 
   let variantIds: string[] | undefined;
-  if (parsed.data.variants && !current.design_locked_at) {
+  if (parsed.data.variants && !designLocked) {
     const synced = await syncVariants(supabase, experimentId, parsed.data.variants);
     if (synced.error) return failFrom(synced.error);
     variantIds = synced.ids;
   }
+  const updatedAt = await currentVersion(supabase, experimentId);
   revalidateProgram(programId);
-  return ok({ id: experimentId, variantIds }, "Cambios guardados.");
+  return ok({ id: experimentId, variantIds, updatedAt }, "Cambios guardados.");
 }
 
 /** Edición rápida de ICE desde el backlog. */

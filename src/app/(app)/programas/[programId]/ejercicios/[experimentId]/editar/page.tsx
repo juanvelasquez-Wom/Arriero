@@ -5,10 +5,11 @@ import { PageHeader } from "@/components/app/page";
 import { StatusBadge } from "@/components/app/status-badge";
 import { ExperimentWizard } from "@/components/experiments/experiment-wizard";
 import type { WizardValues } from "@/components/experiments/wizard-values";
+import { inferCalendarFit, isCalendarOverride } from "@/domain/experiment-inference";
 import { can } from "@/domain/permissions";
 import { getProgramContext } from "@/server/auth";
 import { getExperiment, listVariants } from "@/server/queries/experiments";
-import { loadWizardData } from "@/server/queries/wizard";
+import { getExperimentVersion, loadWizardData } from "@/server/queries/wizard";
 
 export const metadata: Metadata = { title: "Editar ejercicio" };
 
@@ -24,7 +25,12 @@ export default async function EditExperimentPage({
   const base = `/programas/${programId}/ejercicios/${experimentId}`;
   if (!can.editExperiment(ctx.actor, experiment)) redirect(base);
 
-  const [data, variants] = await Promise.all([loadWizardData(ctx), listVariants({ experimentId })]);
+  const [data, variants, version] = await Promise.all([
+    loadWizardData(ctx),
+    listVariants({ experimentId }),
+    getExperimentVersion(experimentId),
+  ]);
+  const fit = inferCalendarFit(experiment, data.calendar);
   const initial: WizardValues = {
     problem_id: experiment.problem_id,
     metric_id: experiment.metric_id,
@@ -37,6 +43,7 @@ export default async function EditExperimentPage({
     confidence: experiment.confidence,
     ease: experiment.ease,
     fits_calendar: experiment.fits_calendar,
+    fits_calendar_override: isCalendarOverride(experiment.fits_calendar, fit.fits),
     control: experiment.control,
     test_type: experiment.test_type,
     primary_metric: experiment.primary_metric ?? "",
@@ -67,6 +74,7 @@ export default async function EditExperimentPage({
         data={data}
         initial={initial}
         experimentId={experimentId}
+        initialUpdatedAt={version}
         initialStep={step}
         designLocked={!!experiment.design_locked_at}
       />

@@ -34,7 +34,7 @@ describe("summarizeResults (programa de ejemplo)", () => {
     },
   ];
 
-  it("dos cerrados, win rate 50 % y +27,8 % del ganador", () => {
+  it("dos cerrados, tasa de acierto 50 % y +27,8 % del ganador", () => {
     const s = summarizeResults(experiments);
     expect(s.closed).toBe(2);
     expect(s.winRate).toBe(0.5);
@@ -43,8 +43,22 @@ describe("summarizeResults (programa de ejemplo)", () => {
     expect(s.decisions).toEqual({ scale: 1, adjust: 0, kill: 1 });
   });
 
-  it("sin cerrados el win rate es null", () => {
+  it("sin cerrados la tasa de acierto es null", () => {
     expect(summarizeResults([]).winRate).toBeNull();
+    expect(summarizeResults([]).winnerValue).toBeNull();
+  });
+
+  it("suma el valor estimado de los ganadores que lo tienen", () => {
+    const metric = { unit: "altas", direction: "up" as const, baseline: 1000, latest_value: 1000, unit_value: 100_000 };
+    const s = summarizeResults([
+      { ...experiments[0], test_type: "ab", metric },
+      { ...experiments[0], id: "e4", test_type: "ab", metric: { ...metric, unit_value: null } },
+      experiments[2],
+    ]);
+    expect(s.winnerValue!.counted).toBe(1);
+    expect(s.winnerValue!.missingUnitValue).toBe(1);
+    expect(s.winnerValue!.weekly).toBeCloseTo((0.23 / 0.18 - 1) * 1000 * 100_000, 0);
+    expect(summarizeResults(experiments).winnerValue).toBeNull();
   });
 });
 

@@ -7,6 +7,7 @@ import { useRef, useState, useTransition } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { uploadAttachments } from "@/components/app/attachments";
+import { Term } from "@/components/app/info-tip";
 import { applyFieldErrors, FormError, FormField, SubmitButton } from "@/components/app/form";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
@@ -163,7 +164,7 @@ export function ProblemForm({
         </FormField>
         <FormField
           id="evidence"
-          label="Evidencia"
+          label={<Term k="evidence" />}
           required
           description="Los datos que muestran el problema. Nada de corazonadas."
           error={errors.evidence?.message}
@@ -174,14 +175,17 @@ export function ProblemForm({
           <Textarea id="root_cause" rows={2} {...form.register("root_cause")} />
         </FormField>
 
-        <div className="grid gap-4 sm:grid-cols-3">
+        {/* Al crear, el estado siempre es «Por validar»: solo se cambia al editar. */}
+        <div className={problemId ? "grid gap-4 sm:grid-cols-3" : "grid gap-4 sm:grid-cols-2"}>
           {(
             [
               ["impact", "Impacto estimado", IMPACT_LEVELS, IMPACT_LABEL],
-              ["control", "Control", CONTROL_LEVELS, CONTROL_LABEL],
+              ["control", <Term key="control" k="control" />, CONTROL_LEVELS, CONTROL_LABEL],
               ["status", "Estado", PROBLEM_STATUSES, PROBLEM_STATUS_LABEL],
             ] as const
-          ).map(([name, label, values, labels]) => (
+          )
+            .filter(([name]) => problemId || name !== "status")
+            .map(([name, label, values, labels]) => (
             <FormField key={name} id={name} label={label}>
               <Controller
                 control={form.control}

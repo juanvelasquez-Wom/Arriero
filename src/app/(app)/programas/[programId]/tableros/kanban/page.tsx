@@ -36,7 +36,7 @@ export default async function KanbanPage({ params, searchParams }: PageProps<"/p
       programId={programId}
       active="kanban"
       title="Kanban"
-      description="Una columna por estado. Arrastre una tarjeta para moverla: si falta algo, le decimos qué y la tarjeta se queda quieta, como mula terca."
+      description="Una columna por estado. Arrastre una tarjeta (o use «Mover a…») para moverla: si falta algo, le decimos qué y la tarjeta se queda quieta, como mula terca."
       fields={data.globalFields}
       current={data.current}
       query={data.query}
@@ -60,8 +60,9 @@ export default async function KanbanPage({ params, searchParams }: PageProps<"/p
             </Callout>
           ) : (
             <p className="text-xs text-soft">
-              Arrastre con el mouse o, con teclado, enfoque el asa de la tarjeta y pulse espacio. Pasar a Decidido exige veredicto,
-              decisión y aprendizaje: regístrelos desde el detalle del ejercicio.
+              Arrastre con el mouse, en el celular sostenga la tarjeta un momento antes de moverla, o use «Mover a…» en cada
+              tarjeta. Con teclado, enfoque el asa y pulse espacio. Pasar a Decidido exige veredicto, decisión y aprendizaje:
+              regístrelos desde el detalle del ejercicio.
             </p>
           )}
           {cards.length === 0 ? (
