@@ -375,7 +375,13 @@ export function analyzePilot(input: PilotAnalysisInput): PilotAnalysis {
     // geo y pre_post
     const build = (metric: PilotMetricDef) => {
       const testKeep = and(upToEnd, ofArms(variants.map((v) => v.id)));
-      const test = reader.series(metric, testKeep);
+      // Con varias ciudades de prueba se usa la ciudad promedio, igual que en el
+      // control: así prueba y control quedan en la misma escala (DiD y control sintético).
+      const testLabels = [...new Set(input.measurements.filter(testKeep).map((m) => m.unit_label))].filter((l) => l !== "");
+      const test =
+        testLabels.length >= 2
+          ? averageSeries(testLabels.map((label) => reader.series(metric, (m) => testKeep(m) && m.unit_label === label)).filter((s) => s.length > 0))
+          : reader.series(metric, testKeep);
       const controlKeep = and(upToEnd, ofArms([control.id]));
       const labels = [...new Set(input.measurements.filter(controlKeep).map((m) => m.unit_label))].filter((l) => l !== "");
       const units: ControlUnit[] =

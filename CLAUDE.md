@@ -83,7 +83,7 @@ supabase/
                               004 RPC · 005 RLS · 006 Storage y Realtime · 008 mensajes de error en usted
                               009 auditoría V0 (hipótesis obligatoria para diseñar, save_experiment_variants,
                               metrics.unit_value, experiment_comments) · 010 avisos (notifications + job diario)
-                              011 La Tía (tia_messages, tia_usage) · 012 Pilotos de medios (ver §11)
+                              011 La Tía (tia_messages, tia_usage) · 012 Pilotos de medios · 013 integraciones de Pilotos (ver §11)
 scripts/                      create-admin.mts, drain-storage-queue.mts (usan la secret key)
 src/
   proxy.ts                    refresca la sesión y protege todo salvo login/recuperar/auth/confirm/api/cron
@@ -306,4 +306,5 @@ Línea ejecutiva y sobria: **grises + amarillo como único acento**. Tokens en `
 - **Datos manuales y CSV** (`data-import.ts`): solo métricas `sum`; plantilla según las métricas del piloto; validación de fechas, grupos, ciudades, negativos y coherencia.
 - **Cruces entre pilotos** (`overlap.ts`): mismas fechas y misma cuenta, campaña, audiencia, ciudad o destino.
 - **Ejemplos:** 3 pilotos (`domain/pilots/examples.ts`, `server/demo/pilots.ts`) que carga un aprobador y se borran con un clic.
-- **Pendiente (fases siguientes):** La Tía para el módulo (necesita `ANTHROPIC_API_KEY`) e integraciones por MCP (Meta primero; tokens en Supabase Vault; ver `docs/pilotos/plan.md` §2).
+- **La Tía en Pilotos** (`server/actions/pilot-tia.ts`, `pilot_ai_drafts`, `PilotTiaDraft`): borradores de diagnóstico, diseño y conclusión; apagada con `NEXT_PUBLIC_TIA_ENABLED`.
+- **Integraciones por MCP** (migración `013`, `domain/pilots/integrations.ts`, `server/integrations/mcp.ts`, `/api/cron/pilotos-sync`): preparadas y apagadas con `PILOTS_MCP_ENABLED`. Tokens solo en Supabase Vault (`set_integration_token` / `get_integration_token`, solo service_role). Cómo prenderlas: [`docs/pilotos/integraciones.md`](docs/pilotos/integraciones.md).
