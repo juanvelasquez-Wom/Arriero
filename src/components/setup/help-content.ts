@@ -28,14 +28,14 @@ export const STEP_HELP: Record<SetupStepKey, StepHelp> = {
   lineas: {
     title: "¿Qué es una línea de negocio?",
     what: "Cada negocio que se mide por aparte porque funciona distinto: un pospago no se vende igual que una recarga.",
-    why: "Cada línea tiene su métrica norte, su árbol de métricas y su embudo. Así los problemas y los ejercicios quedan donde corresponden.",
+    why: "Cada línea tiene su métrica norte, su árbol de métricas y su embudo. Así las oportunidades de mejora y los ejercicios quedan donde corresponden.",
     example: "Pospago, Portabilidad prepago, Recargas y paquetes y Equipos móviles.",
     tip: "Elija las plantillas que le sirvan: traen de ñapa métricas y embudo sugeridos, que después revisa.",
   },
   linea: {
     title: "¿Qué se configura en cada línea?",
-    what: "Tres cosas: la métrica norte (el número que la línea quiere crecer) con su eficiencia, el árbol de métricas de entrada que la explican y el embudo donde se ubican los problemas.",
-    why: "Los ejercicios atacan métricas del árbol y los problemas se ubican en una etapa del embudo. Sin esto no hay dónde poner nada. Viene todo sugerido desde la plantilla: revise y siga.",
+    what: "Tres cosas: la métrica norte (el número que la línea quiere crecer) con su eficiencia, el árbol de métricas de entrada que la explican y el embudo donde se ubican las oportunidades de mejora.",
+    why: "Los ejercicios atacan métricas del árbol y las oportunidades de mejora se ubican en una etapa del embudo. Sin esto no hay dónde poner nada. Viene todo sugerido desde la plantilla: revise y siga.",
     example: "Pospago: norte \"Altas digitales semanales\", eficiencia \"Costo por alta\", árbol con conversaciones iniciadas y tasa de conversación a venta, embudo de cuatro etapas.",
     tip: "¿No tiene la línea base o las metas? Déjelas vacías: quedan en los pendientes y las completa después, sin afán.",
   },
@@ -55,8 +55,8 @@ export const STEP_HELP: Record<SetupStepKey, StepHelp> = {
   },
   resumen: {
     title: "¿Y ahora por dónde es?",
-    what: "¡Eso! El programa quedó listo. El siguiente paso es registrar un problema con evidencia: dónde se está perdiendo valor, y con qué datos lo sabe.",
-    why: "Los ejercicios nacen de problemas, nunca de ideas sueltas. De cada problema sale una hipótesis SI / ENTONCES / PORQUE que se prioriza y se prueba.",
+    what: "¡Eso! El programa quedó listo. El siguiente paso es registrar una oportunidad de mejora con evidencia: dónde se está perdiendo valor, y con qué datos lo sabe.",
+    why: "Los ejercicios nacen de oportunidades de mejora, nunca de ideas sueltas. De cada oportunidad sale una hipótesis SI / ENTONCES / PORQUE que se prioriza y se prueba.",
     example: "\"El costo por conversación subió 35% en seis semanas: los mismos tres creativos llevan 8 semanas activos.\"",
   },
 };
@@ -66,7 +66,7 @@ export const LINE_SECTION_HELP = {
   north:
     "La métrica norte es el número que representa el valor que esta línea quiere crecer. Uno solo. La eficiencia dice cuánto cuesta crecerlo, para no crecer a cualquier costo.",
   tree: "La métrica norte es un resultado: no se mueve directo. El árbol la parte en métricas de entrada que el equipo sí puede mover. Los ejercicios atacan estas. Mejor pocas y claras que muchas.",
-  funnel: "El recorrido del cliente, desde que llega hasta que compra y vuelve. Cada problema que registre va en una etapa, y así se ve dónde hay que experimentar.",
+  funnel: "El recorrido del cliente, desde que llega hasta que compra y vuelve. Cada oportunidad de mejora que registre va en una etapa, y así se ve dónde hay que experimentar.",
 } as const;
 
 /** Explicaciones cortas de campos (burbujas ⓘ). */
@@ -101,12 +101,12 @@ export const WELCOME_IDEAS = [
     text: "La métrica norte se parte en métricas de entrada que el equipo sí puede mover: demanda, conversión, eficiencia y recurrencia.",
   },
   {
-    title: "Un embudo para ubicar problemas",
-    text: "El recorrido del cliente muestra por dónde se pierde valor. Cada problema, con evidencia, va en una etapa.",
+    title: "Un embudo para ubicar oportunidades de mejora",
+    text: "El recorrido del cliente muestra por dónde se pierde valor. Cada oportunidad de mejora, con evidencia, va en una etapa.",
   },
   {
     title: "Ejercicios pequeños y medidos",
-    text: "De cada problema nace una hipótesis. Se prioriza con ICE, se prueba con un diseño fijado antes y se decide: escalar, ajustar o apagar.",
+    text: "De cada oportunidad de mejora nace una hipótesis. Se prioriza con ICE, se prueba con un diseño fijado antes y se decide: escalar, ajustar o apagar.",
   },
   {
     title: "Un calendario que manda",
@@ -118,7 +118,7 @@ export const WELCOME_IDEAS = [
 export const QUICK_START_HELP: StepHelp = {
   title: "¿Qué arma el arranque rápido?",
   what: "Con cuatro datos crea el programa completo para las líneas que elija: el calendario típico de telco (Black Friday–Cyber y diciembre, con sus congelamientos y el punto de decisión), los horizontes H1 y H2, la métrica norte con su eficiencia, las métricas de entrada del árbol y el embudo con sus cuatro etapas.",
-  why: "Lo que da valor es registrar problemas y probar ejercicios, no llenar formularios. Con el mapa básico ya puede ubicar dónde se pierde valor; lo fino se completa después.",
+  why: "Lo que da valor es registrar oportunidades de mejora y probar ejercicios, no llenar formularios. Con el mapa básico ya puede ubicar dónde se pierde valor; lo fino se completa después.",
   example: "\"Plan digital Pospago oct 2026 – mar 2027\", líneas Pospago y Recargas y paquetes, 6 meses desde hoy, con el calendario típico de telco.",
   tip: "Después puede completar líneas base, metas y más líneas en Configuración. Nada queda escrito en piedra.",
 };

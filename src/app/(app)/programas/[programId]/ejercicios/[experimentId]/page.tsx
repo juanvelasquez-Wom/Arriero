@@ -166,7 +166,7 @@ export default async function ExperimentPage({ params, searchParams }: PageProps
         title={e.title}
         description={
           <>
-            Problema:{" "}
+            Oportunidad de mejora:{" "}
             <Link href={`${base}/problemas/${e.problem_id}`} className="underline underline-offset-4">
               {e.problem_title}
             </Link>{" "}

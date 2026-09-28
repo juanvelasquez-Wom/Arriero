@@ -28,7 +28,7 @@ Fuente de verdad del dominio: [`docs/modelo-growth-marketing-wom.pdf`](docs/mode
 | **Métrica norte** | La métrica que representa el valor que la línea quiere crecer (`type = north_star`). Una por línea. Se acompaña de una métrica de **eficiencia** (`type = efficiency`). |
 | **Árbol de métricas** | Descomposición de la métrica norte en métricas de **entrada** (`type = input`) mediante `parent_id`. Cada entrada pertenece a una **rama**: volumen de demanda, conversión, eficiencia, o recuperación y recurrencia. Los ejercicios atacan métricas del árbol. |
 | **Embudo** | Etapas ordenadas del recorrido del cliente en una línea. Por defecto: Adquisición, Activación, Conversión, y Recuperación y recurrencia. Editables. |
-| **Problema** | Una pérdida de valor ubicada en línea + etapa + canal, con **evidencia**, causa raíz hipotética, impacto, control y estado (por validar, validado, descartado). |
+| **Problema** | Una pérdida de valor ubicada en línea + etapa + canal, con **evidencia**, causa raíz hipotética, impacto, control y estado (por validar, validada, descartada). En la interfaz (programas y pilotos) se muestra como «**Oportunidad de mejora**» (femenino: «la oportunidad de mejora validada»); en código, tablas y rutas sigue siendo `problem` / `/problemas`. |
 | **Ejercicio** | Unidad central. Un cambio a probar. Siempre nace de un problema y apunta a una métrica del árbol de la misma línea. Hipótesis SI / ENTONCES / PORQUE. |
 | **Variante** | Cada brazo de la prueba. Exactamente uno es el **control** (`is_control`). Guarda muestra, conversiones y valor de la métrica. |
 | **ICE** | Promedio de Impacto, Confianza y Facilidad (1–10), a un decimal. |
@@ -268,7 +268,7 @@ Línea ejecutiva y sobria: **grises + amarillo como único acento**. Tokens en `
 - Modo oscuro por clase (`next-themes`, por defecto el del sistema), con el conmutador en el header. Logo y mula se invierten con `.brand-ink`.
 - Utilidades: `shadow-card`, `lift` (tarjeta clicable que se eleva; no en tarjetas arrastrables), `rise` (entrada), `mule-walk`. Todo respeta `prefers-reduced-motion`.
 - Marca en `src/components/brand/`: `Mule`, `LogoLockup`, `LogoFull`; `phrases.ts` (lema y frases, `pickPhrase` estable para evitar diferencias de hidratación); `celebrate()` (confeti CSS para ganador, escalado y programa listo); `JourneyStrip` ("El camino del arriero": Ver → Crecer en el resumen, conteos en `src/domain/journey.ts`).
-- **Voz:** siempre de **usted**, paisa, cercana y con humor ("¡Eso!", "Hágale pues", "Ese camino no era"). Nada de "parce" ni similares, nada de voseo ni groserías. Los errores dicen primero qué pasó y cómo se arregla; el chiste, si va, después y corto. Máximo uno por mensaje. Los términos del modelo no se renombran.
+- **Voz:** siempre de **usted**, paisa, cercana y con humor ("¡Eso!", "Hágale pues", "Ese camino no era"). Nada de "parce" ni similares, nada de voseo ni groserías. Los errores dicen primero qué pasó y cómo se arregla; el chiste, si va, después y corto. Máximo uno por mensaje. Los términos del modelo no se renombran, salvo **Problema → Oportunidad de mejora** por decisión del 29 sep 2026 (solo en la interfaz; código, tablas, rutas y mensajes de las migraciones siguen con `problem`).
 
 ## 9. Convenciones
 
@@ -398,9 +398,9 @@ Migración `014_matriz_hallazgos` e informe en el artefacto "Auditoría integral
 
 - **Qué es:** puntos, niveles de arriero, insignias y escalafón por persona.
 - **Dónde se ve:** en `/recua`, con cuatro pestañas en `?vista=`: Escalafón (con `?periodo=mes`), Mi carriel, Muro de la vergüenza y Así se gana. También aparece como sección de la barra y como franja en el inicio.
-- **De dónde salen los datos:** la migración `016_gamificacion` crea la RPC `gamification_stats(p_since)`, `security definer` y solo para `authenticated`. Devuelve **solo conteos por persona** (días de uso, programas, problemas, ejercicios, decisiones, ganadores, pilotos, aprendizajes, semanas cargadas, comentarios, papelera…). No cuenta el programa de ejemplo, los pilotos de ejemplo ni lo que está en la papelera. Por eso el ranking es visible para todos sin tocar el RLS del detalle.
+- **De dónde salen los datos:** la migración `016_gamificacion` crea la RPC `gamification_stats(p_since)`, `security definer` y solo para `authenticated`. Devuelve **solo conteos por persona** (días de uso, programas, problemas, ejercicios, decisiones, ganadores, pilotos, aprendizajes, semanas cargadas, comentarios, papelera…). No cuenta el programa de ejemplo, los pilotos de ejemplo ni lo que está en la papelera. Por eso el ranking es visible para todos sin tocar el RLS del detalle. La `017` suma los insights y la `018` la lluvia de ideas (`ideas_created`, `idea_sessions_created`, `ideas_scored`, `ideas_chosen`, `ideas_buried`); cada una hace `drop` + `create` de la función con el cuerpo completo.
 - **Reglas en `src/domain/gamification.ts`:**
-  - `POINT_RULES`, con topes y con resta por ideas quietas; el total nunca baja de 0.
+  - `POINT_RULES`, con topes y con resta por ideas quietas; el total nunca baja de 0. Lluvia de ideas: +20 por aguacero armado, +5 por idea soltada (tope 60), +1 por idea ajena puntuada (tope 40), +60 por idea suya elegida y +1 por idea suya enterrada.
   - `LEVELS`: de "Turista en chanclas" a "Mula Mayor honoraria".
   - `BADGES`, incluidas las oscuras.
   - `currentStreak`, `rankUsers`, apodos por puesto y frases.
@@ -433,3 +433,35 @@ Migración `014_matriz_hallazgos` e informe en el artefacto "Auditoría integral
   - Acciones en `server/actions/insights.ts`.
   - Lecturas en `server/queries/insights.ts`.
   - Tests en `tests/db/insights.test.ts`, que se salta si la migración no está.
+
+## 16. Lluvia de ideas («aguaceros»)
+
+- **Qué es:** sesiones globales de brainstorming, visibles para todas las personas con sesión. Cada **aguacero** tiene un reto (una pregunta), contexto, línea y fecha límite opcionales, y quien lo armó.
+- **Fases** (solo por la RPC `set_idea_session_phase`, que usa quien lo armó o un admin):
+  - `open` «Llueven ideas»: cualquiera anota.
+  - `voting` «A puntuar»: impacto y facilidad de 1 a 5 y hasta 3 «¡Esta!» por persona.
+  - `closed` «Se decidió»: podio a la vista y decisiones.
+  - Saltos: open → voting (con al menos una idea), voting → closed u open, closed → voting (si ninguna idea se ha convertido).
+- **Captura en cinco segundos:** `QuickIdeaInput` en la sesión. Enter anota y el campo queda listo para la siguiente, sin esperar a la anterior. «Anotar en anónimo» solo cambia cómo se muestra («Un arriero tímido»): el autor queda guardado. El id del autor no viaja al navegador y el nombre tampoco si la idea es anónima y ajena (`server/queries/ideas.ts#toIdea`).
+- **Puntaje a ciegas:**
+  - RPC `score_idea`: solo en votación, nunca la idea propia, máximo 3 favoritas; un valor nulo conserva lo que había.
+  - La RLS de `idea_scores` muestra solo los propios hasta que se cierra. `idea_session_progress` dice cuántas personas han puntuado.
+  - Podio (`rankIdeas`): promedio de impacto × promedio de facilidad (1 a 25); desempata el de más «¡Esta!» y luego el de más votantes.
+- **Decidir** (RPC `decide_idea`, quien lo armó o un admin, con el aguacero cerrado): `project`, `pilot`, `insight` o `buried`; `null` la revive.
+  - «Insight» crea de una vez el insight en el carriel (fuente «El equipo», a nombre de quien decide) y lo deja vinculado.
+  - «Armar proyecto» → `/programas/nuevo?idea=<id>` (solo admin). «Crear piloto» → `/pilotos/nuevo?idea=<id>`, con la oportunidad de mejora prellenada (`pilotPrefillFromIdea`).
+  - Al crear, `linkIdea` llama la RPC `link_idea`, que exige que la decisión coincida con el destino y la misma membresía que `link_insight`.
+  - Lo convertido ya no se re-decide, no se borra y no deja reabrir el aguacero.
+  - Las enterradas van al **Cementerio de ideas**, con lápida y frase de humor negro (`ripLine`), siempre contra la idea y nunca contra la persona.
+- **Pantallas:** `/ideas` (formulario «Arme un aguacero» y pestañas `?vista=abiertas|votacion|cerradas|mios`) y `/ideas/[sessionId]` (pasos, captura, votación, podio, tabla y cementerio). La sección «Ideas» va en la barra, después de Insights, y hay una franja pequeña en el inicio.
+- **Base de datos:** la migración `018_lluvia_ideas` crea:
+  - Las tablas `idea_sessions`, `ideas` e `idea_scores`, con RLS. Ideas nuevas solo con el aguacero abierto; `idea_scores` solo se escribe por RPC.
+  - Las guardas `private.idea_sessions_guard` (fase, autor y borrado) y `private.ideas_guard` (autor, decisión, vínculos y borrado; el texto solo se corrige mientras llueve).
+  - Las RPC `delete_idea` (autor, quien armó el aguacero o un admin) y `delete_idea_session` (borrado lógico).
+  - La redefinición de `gamification_stats`.
+- **La Recua:** insignias Nube cargada, Hacedor de lluvia, Buena cosecha y la oscura Poeta maldito (puntos en §14).
+- **Código:**
+  - Reglas en `src/domain/ideas.ts` (fases, `phaseMoves`, `sessionActions`, `ideaActions`, `rankIdeas`, favoritas, anonimato y frases).
+  - Validación en `lib/validation/ideas.ts`, acciones en `server/actions/ideas.ts`, lecturas en `server/queries/ideas.ts` y componentes en `components/ideas/`.
+  - Tests en `src/domain/ideas.test.ts` y `tests/db/ideas.test.ts` (se salta si la migración no está).
+- **SQL para el SQL Editor:** `arriero-lluvia-de-ideas.sql` junta la 016, la 017 y la 018 con sus registros en `schema_migrations`, y se puede correr dos veces.

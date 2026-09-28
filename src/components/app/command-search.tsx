@@ -190,7 +190,7 @@ export function CommandSearch({ programId, canCreateExperiment = false }: { prog
           <div className="flex items-center gap-2 border-b px-3 py-2 pr-11">
             <Search aria-hidden className="size-4 shrink-0 text-soft" />
             <label htmlFor={inputId} className="sr-only">
-              Buscar problemas, ejercicios, aprendizajes y métricas
+              Buscar oportunidades de mejora, ejercicios, aprendizajes y métricas
             </label>
             <Input
               id={inputId}
@@ -207,7 +207,7 @@ export function CommandSearch({ programId, canCreateExperiment = false }: { prog
                 runSearch(e.target.value);
               }}
               onKeyDown={onInputKeyDown}
-              placeholder="Problemas, ejercicios, aprendizajes, métricas…"
+              placeholder="Oportunidades, ejercicios, aprendizajes, métricas…"
               className="h-9 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0 dark:bg-transparent"
             />
             {loading ? <Spinner className="size-4 shrink-0" /> : null}

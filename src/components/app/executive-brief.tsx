@@ -22,10 +22,11 @@ const ART: Record<BriefKey, BrandIconName> = {
   risks: "camino",
 };
 
-// Punto de estado: forma + color, nunca solo color (el texto dice el resto).
+// Punto de estado: nunca solo color (el texto dice el resto). Sin rojo ni verde:
+// lo malo en tinta, lo que pide atención en amarillo, lo bueno con aro de tinta.
 const DOT: Record<BriefTone, string> = {
-  good: "bg-emerald-600 dark:bg-emerald-400",
-  bad: "bg-red-600 dark:bg-red-400",
+  good: "border-2 border-ink bg-paper",
+  bad: "bg-ink",
   attention: "bg-highlight",
   neutral: "bg-gray-3",
 };

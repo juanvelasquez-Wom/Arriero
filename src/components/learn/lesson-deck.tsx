@@ -70,7 +70,7 @@ export function LessonDeck({ userName }: { userName: string }) {
           <BrandIcon name="montana-cima" className="float-soft mx-auto w-32" />
           <h2 className="mt-4 text-3xl font-extrabold">¡Coronó la montaña!</h2>
           <p className="mx-auto mt-2 max-w-md text-[15px] text-soft">
-            Ya sabe lo esencial: norte, árbol, embudo, problemas con evidencia, ejercicios con hipótesis, ICE, calendario, veredicto,
+            Ya sabe lo esencial: norte, árbol, embudo, oportunidades de mejora con evidencia, ejercicios con hipótesis, ICE, calendario, veredicto,
             aprendizaje y pilotos. Menos carreta, más crecimiento.
           </p>
           <div className="mx-auto mt-6 max-w-md rounded-2xl bg-highlight p-4 text-left text-[#111111]">

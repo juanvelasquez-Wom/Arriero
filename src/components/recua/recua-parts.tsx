@@ -21,6 +21,10 @@ import {
   Megaphone,
   Package,
   WandSparkles,
+  CloudRain,
+  CloudLightning,
+  Sprout,
+  Feather,
   type LucideIcon,
 } from "lucide-react";
 import { BADGES, ghostLine, levelFor, LEVELS, nudge, positionTitle, type Badge, type RankedUser } from "@/domain/gamification";
@@ -45,6 +49,10 @@ const BADGE_ICON: Record<string, LucideIcon> = {
   profeta: WandSparkles,
   influencer: Megaphone,
   acumulador: Package,
+  nube: CloudRain,
+  hacedor: CloudLightning,
+  cosecha: Sprout,
+  poeta: Feather,
 };
 
 export const initials = (name: string) =>

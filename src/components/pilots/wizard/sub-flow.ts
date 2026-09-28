@@ -17,9 +17,9 @@ export const PILOT_SUB_SCREENS = {
   problema: [
     {
       key: "problema",
-      label: "Problema",
+      label: "Oportunidad",
       title: "¿Qué está pasando en medios?",
-      subtitle: "El problema, a quién le duele y el dato que lo muestra.",
+      subtitle: "La oportunidad de mejora, a quién le duele y el dato que la muestra.",
       fields: ["problem", "problem_evidence"],
     },
     {

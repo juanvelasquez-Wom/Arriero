@@ -33,5 +33,5 @@ export function celebrate(title: string, description?: string) {
 export const CELEBRATIONS = {
   winner: ["¡Eso! ¡Ese camino sí era!", "¡Qué berraquera! Si funciona, seguimos: a escalarlo."],
   scaled: ["¡Ave María, qué belleza!", "La mula llegó con la carga: esto ya es parte del BAU."],
-  setupDone: ["¡Listo pues, programa armado!", "Ya sabe por dónde es. Ahora hágale al primer problema."],
+  setupDone: ["¡Listo pues, programa armado!", "Ya sabe por dónde es. Ahora hágale a la primera oportunidad de mejora."],
 } as const;

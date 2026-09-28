@@ -16,7 +16,7 @@ import { listAttachments, listExperiments } from "@/server/queries/experiments";
 import { listLines } from "@/server/queries/programs";
 import { listProblems, listStages } from "@/server/queries/structure";
 
-export const metadata: Metadata = { title: "Problema" };
+export const metadata: Metadata = { title: "Oportunidad de mejora" };
 
 export default async function ProblemDetailPage({ params }: PageProps<"/programas/[programId]/problemas/[problemId]">) {
   const { programId, problemId } = await params;
@@ -38,7 +38,7 @@ export default async function ProblemDetailPage({ params }: PageProps<"/programa
       <PageHeader
         eyebrow={
           <Link href={`${base}/problemas`} className="hover:underline">
-            Problemas
+            Oportunidades de mejora
           </Link>
         }
         title={problem.title}
@@ -48,7 +48,7 @@ export default async function ProblemDetailPage({ params }: PageProps<"/programa
             {can.createExperiment(ctx.actor) && problem.status !== "discarded" ? (
               <Button asChild>
                 <Link href={`${base}/ejercicios/nuevo?problema=${problem.id}`}>
-                  <Sparkles aria-hidden /> Crear ejercicio desde este problema
+                  <Sparkles aria-hidden /> Crear ejercicio desde esta oportunidad de mejora
                 </Link>
               </Button>
             ) : null}
@@ -110,7 +110,7 @@ export default async function ProblemDetailPage({ params }: PageProps<"/programa
                 ))}
               </ul>
             ) : (
-              <p className="text-sm text-soft">Todavía no hay ejercicios para este problema. Probemos por ahí: cree el primero.</p>
+              <p className="text-sm text-soft">Todavía no hay ejercicios para esta oportunidad. Probemos por ahí: cree el primero.</p>
             )}
           </Section>
         </div>

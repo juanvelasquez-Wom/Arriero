@@ -24,7 +24,7 @@ export function EditProblem(props: {
       </DialogTrigger>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Editar problema</DialogTitle>
+          <DialogTitle>Editar oportunidad de mejora</DialogTitle>
         </DialogHeader>
         <ProblemForm {...props} onDone={() => setOpen(false)} />
       </DialogContent>

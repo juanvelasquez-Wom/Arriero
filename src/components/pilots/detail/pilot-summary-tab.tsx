@@ -100,9 +100,9 @@ export function PilotSummaryTab({ detail, catalogs, actor, overlaps, linkOptions
         <KeyFact label="Métrica principal">{primary?.name ?? "—"}</KeyFact>
       </dl>
 
-      <Section title="Problema e hipótesis">
+      <Section title="Oportunidad de mejora e hipótesis">
         <dl className="divide-y">
-          <Row label="Problema">{p.problem ?? "—"}</Row>
+          <Row label="Oportunidad de mejora">{p.problem ?? "—"}</Row>
           {p.problem_evidence ? <Row label="Evidencia">{p.problem_evidence}</Row> : null}
           <Row label="Hipótesis">
             <span className="font-medium">

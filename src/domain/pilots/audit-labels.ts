@@ -23,7 +23,7 @@ export const AUDIT_OP_LABEL: Record<string, string> = {
 
 export const AUDIT_FIELD_LABEL: Record<string, string> = {
   title: "Nombre",
-  problem: "Problema",
+  problem: "Oportunidad de mejora",
   problem_evidence: "Evidencia",
   hypothesis_change: "Hipótesis · cambio",
   hypothesis_scope: "Hipótesis · dónde",

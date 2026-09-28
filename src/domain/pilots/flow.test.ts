@@ -78,7 +78,7 @@ describe("qué falta para enviar a revisión", () => {
 
   it("lista lo que falta en el orden de la base", () => {
     const m = missingForReview({ ...complete, problem: " ", guardrails: 0, has_rules: false, media: 0 });
-    expect(m.map((x) => x.text)).toEqual(["el problema", "al menos un guardrail", "las reglas de decisión", "al menos un medio"]);
+    expect(m.map((x) => x.text)).toEqual(["la oportunidad de mejora", "al menos un guardrail", "las reglas de decisión", "al menos un medio"]);
     expect(m[0].step).toBe("problema");
   });
 

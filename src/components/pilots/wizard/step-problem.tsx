@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { hypothesisSentence } from "@/domain/pilots/flow";
 import { pilotProblemSchema, type PilotProblemInput } from "@/lib/validation/pilots";
+import { linkIdea } from "@/server/actions/ideas";
 import { linkInsight } from "@/server/actions/insights";
 import { createPilot, savePilotLinks, savePilotProblem } from "@/server/actions/pilots";
 import type { LinkOptions, PilotMember } from "@/server/queries/pilots";
@@ -34,9 +35,11 @@ export interface StepProblemProps {
   members: PilotMember[];
   /** Si el piloto nace de un insight: al crearlo, el insight queda «Sembrado» en él. */
   insightId?: string;
+  /** Si nace de una idea de la lluvia de ideas: al crearlo, la idea queda vinculada. */
+  ideaId?: string;
 }
 
-export function StepProblem({ pilotId, initial, links: initialLinks, linkOptions, members, insightId }: StepProblemProps) {
+export function StepProblem({ pilotId, initial, links: initialLinks, linkOptions, members, insightId, ideaId }: StepProblemProps) {
   const router = useRouter();
   const [error, setError] = useState<string>();
   const [pending, startTransition] = useTransition();
@@ -90,6 +93,10 @@ export function StepProblem({ pilotId, initial, links: initialLinks, linkOptions
               const linked = await linkInsight(insightId, { pilotId: id });
               if (!linked.ok) toast.error("El piloto quedó creado, pero no se pudo marcar el insight", { description: linked.error });
             }
+            if (ideaId) {
+              const linked = await linkIdea(ideaId, { pilotId: id });
+              if (!linked.ok) toast.error("El piloto quedó creado, pero no se pudo vincular la idea", { description: linked.error });
+            }
           }
           if (!sameLinks(links, savedLinks)) {
             const r = await savePilotLinks(id, links);
@@ -97,7 +104,7 @@ export function StepProblem({ pilotId, initial, links: initialLinks, linkOptions
               toast.error("El piloto quedó guardado, pero los vínculos no", { description: r.error });
             } else setSavedLinks(links);
           }
-          toast.success(pilotId ? "Problema e hipótesis guardados." : "Piloto creado en borrador. Hágale pues con el diseño.");
+          toast.success(pilotId ? "Oportunidad de mejora e hipótesis guardadas." : "Piloto creado en borrador. Hágale pues con el diseño.");
           if (then === "next" || !pilotId) router.push(pilotStepHref(id, then === "next" ? "prueba" : "problema"));
           else router.refresh();
         });
@@ -145,7 +152,7 @@ export function StepProblem({ pilotId, initial, links: initialLinks, linkOptions
       >
         {screen.key === "problema" ? (
           <>
-            <FormField id="pilot-problem" label="Problema" required error={errors.problem?.message} description="Qué está pasando en medios y a quién le duele.">
+            <FormField id="pilot-problem" label="Oportunidad de mejora" required error={errors.problem?.message} description="Qué está pasando en medios y a quién le duele.">
               <Textarea
                 id="pilot-problem"
                 rows={4}

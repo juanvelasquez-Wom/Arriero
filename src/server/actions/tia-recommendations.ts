@@ -58,10 +58,10 @@ async function context(programId: string, allowed: (a: Actor) => boolean): Promi
 async function draftScreen(programId: string, draft: HypothesisDraft): Promise<ActionResult<Record<string, unknown>>> {
   try {
     const [problem] = await listProblems(programId, { problemId: draft.problem_id });
-    if (!problem) return fail("No encontramos el problema elegido.");
+    if (!problem) return fail("No encontramos la oportunidad de mejora elegida.");
     const metrics = await listMetrics({ lineId: problem.line_id });
     const metric = metrics.find((m) => m.id === draft.metric_id);
-    if (!metric) return fail("La métrica debe ser del árbol de la misma línea del problema.");
+    if (!metric) return fail("La métrica debe ser del árbol de la misma línea de la oportunidad de mejora.");
     const parent = metric.parent_id ? metrics.find((m) => m.id === metric.parent_id) : null;
     return ok({
       problema: {
@@ -95,7 +95,7 @@ async function draftScreen(programId: string, draft: HypothesisDraft): Promise<A
       },
     });
   } catch {
-    return fail("No se pudieron leer el problema y la métrica. Intente de nuevo.");
+    return fail("No se pudieron leer la oportunidad de mejora y la métrica. Intente de nuevo.");
   }
 }
 
@@ -116,7 +116,7 @@ async function ask<T>(
 /** 1. "Pídale hipótesis a la Tía": tres opciones SI / ENTONCES / PORQUE. */
 export async function suggestHypotheses(programId: string, input: unknown): Promise<ActionResult<HypothesisOption[]>> {
   const draft = hypothesisDraftSchema.safeParse(input);
-  if (!draft.success) return fail(draft.error.issues[0]?.message ?? "Elija primero el problema y la métrica.");
+  if (!draft.success) return fail(draft.error.issues[0]?.message ?? "Elija primero la oportunidad de mejora y la métrica.");
   const c = await context(programId, can.createExperiment);
   if (!c.ok) return c;
   const screen = await draftScreen(programId, draft.data);
@@ -127,7 +127,7 @@ export async function suggestHypotheses(programId: string, input: unknown): Prom
 /** 2. "La Tía le revisa la hipótesis". */
 export async function reviewHypothesis(programId: string, input: unknown): Promise<ActionResult<HypothesisReview>> {
   const draft = hypothesisDraftSchema.safeParse(input);
-  if (!draft.success) return fail(draft.error.issues[0]?.message ?? "Elija primero el problema y la métrica.");
+  if (!draft.success) return fail(draft.error.issues[0]?.message ?? "Elija primero la oportunidad de mejora y la métrica.");
   const d = draft.data;
   if (!d.hypothesis_if.trim() && !d.hypothesis_then.trim() && !d.hypothesis_because.trim())
     return fail("Escriba primero algo de la hipótesis para que la Tía la revise.");
@@ -141,7 +141,7 @@ export async function reviewHypothesis(programId: string, input: unknown): Promi
 /** 3. "¿Qué calificación le pondría la Tía?" (solo quien puede calificar ICE). */
 export async function suggestIce(programId: string, input: unknown): Promise<ActionResult<IceSuggestion>> {
   const draft = iceDraftSchema.safeParse(input);
-  if (!draft.success) return fail(draft.error.issues[0]?.message ?? "Elija primero el problema y la métrica.");
+  if (!draft.success) return fail(draft.error.issues[0]?.message ?? "Elija primero la oportunidad de mejora y la métrica.");
   const c = await context(programId, can.scoreIce);
   if (!c.ok) return c;
   const screen = await draftScreen(programId, draft.data);
@@ -158,7 +158,7 @@ export async function suggestIce(programId: string, input: unknown): Promise<Act
 /** 4. Diseño de la prueba: tipo, duración, regla, variantes y riesgos. */
 export async function suggestDesign(programId: string, input: unknown): Promise<ActionResult<DesignSuggestion>> {
   const draft = designDraftSchema.safeParse(input);
-  if (!draft.success) return fail(draft.error.issues[0]?.message ?? "Elija primero el problema y la métrica.");
+  if (!draft.success) return fail(draft.error.issues[0]?.message ?? "Elija primero la oportunidad de mejora y la métrica.");
   const c = await context(programId, can.createExperiment);
   if (!c.ok) return c;
   const screen = await draftScreen(programId, draft.data);

@@ -19,7 +19,7 @@ const ROLE_CARDS: { role: ProgramRole; title: string; icon: typeof Crown; can: s
     role: "collaborator",
     title: "Colaborador",
     icon: Users,
-    can: ["Editar líneas, métricas, embudo y calendario", "Registrar problemas y ejercicios", "Calificar ICE y cargar resultados"],
+    can: ["Editar líneas, métricas, embudo y calendario", "Registrar oportunidades de mejora y ejercicios", "Calificar ICE y cargar resultados"],
     cannot: ["Decidir ejercicios", "Borrar estructura"],
   },
   {

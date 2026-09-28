@@ -105,8 +105,8 @@ export default async function PilotSheetPage({ params }: PageProps<"/pilotos/[pi
         </div>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <Block title="Problema">
-            <p className="whitespace-pre-line">{pilot.problem?.trim() || "Sin problema escrito."}</p>
+          <Block title="Oportunidad de mejora">
+            <p className="whitespace-pre-line">{pilot.problem?.trim() || "Sin oportunidad de mejora escrita."}</p>
           </Block>
           <Block title="Hipótesis">
             <p>{hypothesis}</p>

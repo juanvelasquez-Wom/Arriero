@@ -69,7 +69,7 @@ export function toTestType(v: unknown): TestType | null {
 // ---------------------------------------------------------------------------
 
 export const hypothesisDraftSchema = z.object({
-  problem_id: z.string().uuid("Elija primero el problema."),
+  problem_id: z.string().uuid("Elija primero la oportunidad de mejora."),
   metric_id: z.string().uuid("Elija primero la métrica del árbol."),
   title: z.string().max(300).default(""),
   hypothesis_if: z.string().max(2000).default(""),
@@ -122,23 +122,23 @@ const JSON_ONLY =
   "Responda SOLO con JSON válido, sin texto antes ni después y sin bloque de código. Todos los textos en español, de usted, cortos.";
 
 export const HYPOTHESES_TASK = `Proponga 3 hipótesis distintas para un ejercicio nuevo.
-En "pantalla.borrador" está lo que la persona lleva escrito; en "pantalla.problema" el problema elegido con su evidencia, y en "pantalla.metrica" la métrica del árbol que el ejercicio debe mover.
+En "pantalla.borrador" está lo que la persona lleva escrito; en "pantalla.problema" la oportunidad de mejora elegida con su evidencia, y en "pantalla.metrica" la métrica del árbol que el ejercicio debe mover.
 Cada hipótesis:
 - SI: un cambio concreto y lanzable (qué, a quién o en qué canal/segmento, cuándo).
 - ENTONCES: el efecto esperado medido en la métrica elegida (use su nombre y su dirección).
-- PORQUE: la razón, apoyada en la evidencia del problema.
+- PORQUE: la razón, apoyada en la evidencia de la oportunidad de mejora.
 - Revise "aprendizajes" y "ejercicios" del programa: no repita lo que ya perdió o no fue concluyente; si una opción se apoya en un aprendizaje o se aleja de algo que ya se probó, dígalo en "based_on".
 - Si el borrador ya tiene texto, úselo como punto de partida en al menos una opción.
 ${JSON_ONLY}
 Formato exacto:
 [{"title": "título corto (máx. 90 caracteres)", "si": "…", "entonces": "…", "porque": "…", "why": "por qué vale la pena, en una frase", "based_on": "de qué dato, evidencia o aprendizaje sale (o qué evita repetir)"}]`;
 
-export const REVIEW_TASK = `Revise la hipótesis de "pantalla.borrador" (SI / ENTONCES / PORQUE) para el problema "pantalla.problema" y la métrica "pantalla.metrica".
+export const REVIEW_TASK = `Revise la hipótesis de "pantalla.borrador" (SI / ENTONCES / PORQUE) para la oportunidad de mejora "pantalla.problema" y la métrica "pantalla.metrica".
 Revise cuatro cosas:
 1. ¿Se puede medir en la métrica elegida? (el ENTONCES habla de esa métrica y de su dirección)
 2. ¿El cambio (SI) es concreto y lanzable, no una intención general?
 3. ¿Dice a qué segmento, canal o momento aplica?
-4. ¿El PORQUE se apoya en la evidencia del problema?
+4. ¿El PORQUE se apoya en la evidencia de la oportunidad de mejora?
 "verdict": "clara" si pasa las cuatro, "mejorable" si falla una o dos, "vaga" si falla más.
 "issues": una frase por cada punto que falla (vacío si es clara).
 "improved": la misma idea, mejor escrita; no cambie la intención ni invente cifras (si hace falta un dato, déjelo entre [corchetes]).
@@ -147,8 +147,8 @@ Formato exacto:
 {"verdict": "clara" | "mejorable" | "vaga", "issues": ["…"], "improved": {"si": "…", "entonces": "…", "porque": "…"}}`;
 
 export const ICE_TASK = `Sugiera una calificación ICE (1 a 10, enteros) para el ejercicio de "pantalla.borrador":
-- impact: cuánto movería la métrica elegida si funciona (mire la brecha frente a la meta y el impacto del problema).
-- confidence: qué tan sólida es la evidencia (evidencia del problema, aprendizajes parecidos, lo que ya ganó o perdió).
+- impact: cuánto movería la métrica elegida si funciona (mire la brecha frente a la meta y el impacto de la oportunidad de mejora).
+- confidence: qué tan sólida es la evidencia (evidencia de la oportunidad de mejora, aprendizajes parecidos, lo que ya ganó o perdió).
 - ease: qué tan fácil y rápido es de lanzar (control nuestro o de terceros, calendario y congelamientos).
 Es una sugerencia: el equipo pone la calificación. Explique cada número en una frase con el dato que lo sostiene.
 ${JSON_ONLY}

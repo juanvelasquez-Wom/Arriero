@@ -7,7 +7,7 @@ export const SEARCH_KIND_ORDER: SearchKind[] = ["experiment", "problem", "learni
 
 export const SEARCH_KIND_LABEL: Record<SearchKind, string> = {
   experiment: "Ejercicios",
-  problem: "Problemas",
+  problem: "Oportunidades de mejora",
   learning: "Aprendizajes",
   metric: "Métricas",
   program: "Programas",

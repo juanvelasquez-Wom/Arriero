@@ -21,6 +21,8 @@ export type BriefTone = "good" | "bad" | "attention" | "neutral";
 
 export interface BriefItem {
   text: string;
+  /** De qué se habla, en corto (métrica · línea o título del ejercicio), para el vistazo. */
+  subject?: string;
   detail?: string;
   href?: string;
   /** Acción sugerida (texto del enlace). */
@@ -89,14 +91,16 @@ export function buildExecutiveBrief(inputs: ExecutiveProgramInput[], period: Rep
       if (status === "off_track" || status === "behind" || (change != null && change < -EPS)) {
         falling.push({
           text: `${label}: ${value}${moved}`,
+          subject: label,
           detail: status === "off_track" ? `Va muy atrás: ${vsTarget}.` : status === "behind" ? `Va un poco atrás: ${vsTarget}.` : `Bajó en el periodo; ${vsTarget}.`,
           href: `${base(i)}/problemas/nuevo?metrica=${n.metric_id}`,
-          action: "Convertir en problema",
+          action: "Convertir en oportunidad de mejora",
           tone: status === "off_track" ? "bad" : "attention",
         });
       } else if (status === "on_track" || (change != null && change > EPS)) {
         growing.push({
           text: `${label}: ${value}${moved}`,
+          subject: label,
           detail: status === "on_track" ? `Vamos bien: ${vsTarget}.` : vsTarget,
           href: `${base(i)}/lineas/${n.line_id}`,
           tone: "good",
@@ -143,6 +147,7 @@ export function buildExecutiveBrief(inputs: ExecutiveProgramInput[], period: Rep
       const decision = c.decision ? labelOf(DECISION_LABEL, c.decision) : null;
       results.push({
         text: `${verdict}: ${c.title} · ${where(i, c.line_name)}`,
+        subject: c.title,
         detail: [
           c.diff != null ? `${formatSignedPercent(c.diff)} frente al control` : null,
           decision ? `Decisión: ${decision.toLowerCase()}` : null,
@@ -177,6 +182,7 @@ export function buildExecutiveBrief(inputs: ExecutiveProgramInput[], period: Rep
   const decide: BriefItem[] = used.flatMap((i) =>
     i.rollup.pendingDecisions.map((p) => ({
       text: `${p.title} · ${where(i, p.line_name)}`,
+      subject: p.title,
       detail: `En lectura desde el ${formatDate(p.since.slice(0, 10))}. Mientras no se decida, no se aprende.`,
       href: `${base(i)}/ejercicios/${p.id}`,
       action: "Decidir",
@@ -190,6 +196,7 @@ export function buildExecutiveBrief(inputs: ExecutiveProgramInput[], period: Rep
     .slice(0, 5)
     .map(({ i, n }) => ({
       text: `${n.title} · ${where(i, n.line_name)}`,
+      subject: n.title,
       detail: n.final_score != null ? `Puntaje ${String(n.final_score).replace(".", ",")}` : undefined,
       href: `${base(i)}/ejercicios/${n.id}`,
       tone: "neutral" as const,

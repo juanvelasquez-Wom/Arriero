@@ -10,6 +10,7 @@ describe("parentPath", () => {
     expect(parentPath("/programas/p1")).toBe("/programas");
     expect(parentPath("/programas/p1/ejercicios/e1")).toBe("/programas/p1/ejercicios");
     expect(parentPath("/pilotos/x/ficha")).toBe("/pilotos/x");
+    expect(parentPath("/ideas/s1")).toBe("/ideas");
   });
   it("salta carpetas sin página y rutas que redirigen", () => {
     expect(parentPath("/programas/p1/lineas/l1")).toBe("/programas/p1");
@@ -30,6 +31,8 @@ describe("sectionOf", () => {
     expect(sectionOf("/direccion")).toBe("direccion");
     expect(sectionOf("/recua")).toBe("recua");
     expect(sectionOf("/insights/abc")).toBe("insights");
+    expect(sectionOf("/ideas")).toBe("ideas");
+    expect(sectionOf("/ideas/s1")).toBe("ideas");
     expect(sectionOf("/aprender")).toBeNull();
   });
 });

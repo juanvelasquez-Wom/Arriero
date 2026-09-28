@@ -325,7 +325,7 @@ export async function createExperiment(programId: string, input: ExperimentDraft
     row.owner_type = "agency";
   }
   const { data: problem } = await supabase.from("problems").select("line_id").eq("id", parsed.data.problem_id).maybeSingle();
-  if (!problem) return fail("El problema no existe o fue borrado.");
+  if (!problem) return fail("La oportunidad de mejora no existe o fue borrada.");
   await applyInferences(supabase, programId, row, parsed.data, { allowScoring, designLocked: false });
   const { data, error } = await supabase
     .from("experiments")

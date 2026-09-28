@@ -30,11 +30,11 @@ export function FunnelTab({ programId, lineId, stages, problems, experiments, me
     <div className="space-y-4">
       <Section
         title="Embudo de la línea"
-        description="Problemas y ejercicios vigentes por etapa (sin descartados)."
+        description="Oportunidades de mejora y ejercicios vigentes por etapa (sin descartados)."
         actions={
           <Button asChild variant="outline" size="sm">
             <Link href={`/programas/${programId}/problemas`}>
-              <ClipboardList aria-hidden /> Ver problemas
+              <ClipboardList aria-hidden /> Ver oportunidades
             </Link>
           </Button>
         }
@@ -43,7 +43,7 @@ export function FunnelTab({ programId, lineId, stages, problems, experiments, me
           <EmptyState art="embudo"
             icon={Filter}
             title="El embudo no tiene etapas"
-            description="Las etapas ordenan el recorrido del cliente (adquisición, activación, conversión, recuperación). Cada problema se ubica en una etapa."
+            description="Las etapas ordenan el recorrido del cliente (adquisición, activación, conversión, recuperación). Cada oportunidad de mejora se ubica en una etapa."
           />
         ) : (
           <>
@@ -51,8 +51,8 @@ export function FunnelTab({ programId, lineId, stages, problems, experiments, me
               <p className="mb-3 flex items-center gap-1.5 text-sm">
                 <TriangleAlert aria-hidden className="size-4" />
                 {attention === 1
-                  ? "1 etapa tiene problemas validados y ningún ejercicio."
-                  : `${attention} etapas tienen problemas validados y ningún ejercicio.`}
+                  ? "1 etapa tiene oportunidades de mejora validadas y ningún ejercicio."
+                  : `${attention} etapas tienen oportunidades de mejora validadas y ningún ejercicio.`}
               </p>
             ) : null}
             <ol className="flex flex-col items-center gap-1.5" aria-label="Etapas del embudo">
@@ -66,7 +66,7 @@ export function FunnelTab({ programId, lineId, stages, problems, experiments, me
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <span aria-hidden className="size-3 rounded-sm border border-highlight bg-highlight/40" />
-                <TriangleAlert aria-hidden className="size-3" /> Problemas validados sin ejercicio
+                <TriangleAlert aria-hidden className="size-3" /> Oportunidades validadas sin ejercicio
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <span aria-hidden className="size-3 rounded-sm border border-dashed bg-paper" /> Vacía
@@ -116,9 +116,9 @@ function FunnelBar({ name, index, width, stat }: { name: string; index: number; 
           {status ? <span className="sr-only">({status})</span> : null}
         </span>
         <span className="flex items-center gap-3 text-xs tabular-nums">
-          <span className="inline-flex items-center gap-1" title="Problemas">
+          <span className="inline-flex items-center gap-1" title="Oportunidades de mejora">
             <ClipboardList aria-hidden className="size-3.5" />
-            {stat.problems} {stat.problems === 1 ? "problema" : "problemas"}
+            {stat.problems} {stat.problems === 1 ? "oportunidad" : "oportunidades"}
             {stat.validatedProblems ? <span className="text-soft">({stat.validatedProblems} validados)</span> : null}
           </span>
           <span className="inline-flex items-center gap-1" title="Ejercicios">
@@ -128,9 +128,9 @@ function FunnelBar({ name, index, width, stat }: { name: string; index: number; 
         </span>
       </div>
       {stat.needsAttention ? (
-        <p className="mt-0.5 text-xs">Hay problemas validados sin ejercicio. ¿Y por dónde es? Diseñe uno.</p>
+        <p className="mt-0.5 text-xs">Hay oportunidades de mejora validadas sin ejercicio. ¿Y por dónde es? Diseñe uno.</p>
       ) : stat.empty ? (
-        <p className="mt-0.5 text-xs">Sin problemas ni ejercicios.</p>
+        <p className="mt-0.5 text-xs">Sin oportunidades ni ejercicios.</p>
       ) : null}
     </li>
   );

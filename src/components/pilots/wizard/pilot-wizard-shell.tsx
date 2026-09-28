@@ -11,7 +11,7 @@ import { pilotStepHref } from "./wizard-links";
 
 /** Nombres cortos para las fichas (el título completo va en la barra de avance). */
 const SHORT_TITLE: Record<PilotStepKey, string> = {
-  problema: "Problema",
+  problema: "Oportunidad de mejora",
   prueba: "Prueba",
   metricas: "Métricas",
   reglas: "Reglas",

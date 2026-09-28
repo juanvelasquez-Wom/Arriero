@@ -52,13 +52,13 @@ export const OPPORTUNITY_MAX = 3;
 
 export const OPPORTUNITY_TASK = `Busque en los datos del programa hasta ${OPPORTUNITY_MAX} oportunidades concretas de crecimiento que el equipo todavía no esté atacando. Mire sobre todo:
 - métricas norte que van atrás frente a la meta (campo "frente_a_la_meta" y "brecha"),
-- problemas con evidencia que no tienen ejercicios (campo "ejercicios" en 0),
+- oportunidades de mejora con evidencia que no tienen ejercicios (campo "ejercicios" en 0),
 - aprendizajes de una línea que podrían aplicarse en otra.
 
-Cada oportunidad debe salir de los datos: cite en "evidence" las cifras o textos exactos de donde sale (semana, valor, meta, título del problema o del aprendizaje). No invente cifras. Si no ve ninguna oportunidad con respaldo, devuelva una lista vacía.
+Cada oportunidad debe salir de los datos: cite en "evidence" las cifras o textos exactos de donde sale (semana, valor, meta, título de la oportunidad de mejora o del aprendizaje). No invente cifras. Si no ve ninguna oportunidad con respaldo, devuelva una lista vacía.
 
 Responda SOLO con JSON, sin texto antes ni después, con esta forma:
-[{"title": "frase corta del problema u oportunidad (máx. 120 caracteres)", "why": "por qué vale la pena, en su voz, 1 o 2 frases", "evidence": "los datos que lo muestran", "line": "nombre exacto de la línea", "stage": "nombre exacto de la etapa del embudo o null", "metric": "nombre exacto de la métrica o null", "impact": "high" | "medium" | "low"}]`;
+[{"title": "frase corta de la oportunidad de mejora (máx. 120 caracteres)", "why": "por qué vale la pena, en su voz, 1 o 2 frases", "evidence": "los datos que lo muestran", "line": "nombre exacto de la línea", "stage": "nombre exacto de la etapa del embudo o null", "metric": "nombre exacto de la métrica o null", "impact": "high" | "medium" | "low"}]`;
 
 export interface OpportunityRefs {
   lines: { id: string; name: string }[];

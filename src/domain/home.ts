@@ -133,7 +133,7 @@ export function homeItems(input: HomeInput): HomeItem[] {
       detail: `${n.metricName}${n.gap != null ? ` va ${pct(n.gap)} por debajo de lo esperado` : ""}. Revise el árbol y busque dónde se pierde.`,
       path: `/lineas/${n.lineId}?tab=norte`,
       priority: PRIORITY.north_star_off_track,
-      secondary: { label: "Convertir en problema", path: problemFromMetricPath(n.metricId) },
+      secondary: { label: "Convertir en oportunidad de mejora", path: problemFromMetricPath(n.metricId) },
     });
   }
 

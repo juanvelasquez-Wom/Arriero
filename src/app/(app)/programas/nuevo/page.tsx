@@ -1,5 +1,6 @@
-import { Lightbulb } from "lucide-react";
+import { CloudRain, Lightbulb } from "lucide-react";
 import type { Metadata } from "next";
+import { getIdeaForLink } from "@/server/queries/ideas";
 import { getInsight } from "@/server/queries/insights";
 import { redirect } from "next/navigation";
 import { AppHeader } from "@/components/app/app-header";
@@ -28,6 +29,9 @@ export default async function NewProgramPage({ searchParams }: PageProps<"/progr
   const today = todayIso();
   const insightParam = typeof sp.insight === "string" && /^[0-9a-f-]{36}$/i.test(sp.insight) ? sp.insight : null;
   const insight = insightParam ? await getInsight(insightParam, user.id) : null;
+  // Desde la lluvia de ideas: una idea decidida «para proyecto».
+  const ideaParam = typeof sp.idea === "string" && /^[0-9a-f-]{36}$/i.test(sp.idea) ? sp.idea : null;
+  const idea = ideaParam ? await getIdeaForLink(ideaParam, user.id) : null;
 
   let content: React.ReactNode;
   if (sp.paso === "programa") {
@@ -61,11 +65,25 @@ export default async function NewProgramPage({ searchParams }: PageProps<"/progr
             <Lightbulb aria-hidden className="mt-0.5 size-4 shrink-0" />
             <span>
               Este proyecto nace del insight «{insight.title}», de {insight.author_name}. Al crearlo, el insight queda sembrado aquí. De ahí sale
-              su primer problema.
+              su primera oportunidad de mejora.
             </span>
           </p>
         ) : null}
-        <QuickWizard today={today} fullHref={FULL_HREF} insight={insight ? { id: insight.id, title: insight.title } : null} />
+        {idea ? (
+          <p className="mb-4 flex gap-2 rounded-2xl border-l-4 border-highlight bg-paper px-4 py-3 text-sm">
+            <CloudRain aria-hidden className="mt-0.5 size-4 shrink-0" />
+            <span>
+              Este proyecto nace de la idea «{idea.title}», del aguacero «{idea.sessionTitle}». Al crearlo, la idea queda vinculada aquí. Llovió y
+              cosechamos.
+            </span>
+          </p>
+        ) : null}
+        <QuickWizard
+          today={today}
+          fullHref={FULL_HREF}
+          insight={insight ? { id: insight.id, title: insight.title } : null}
+          idea={idea ? { id: idea.id, title: idea.title } : null}
+        />
         <div className="mt-6">
           <GrowthPrimer defaultOpen={false} />
         </div>

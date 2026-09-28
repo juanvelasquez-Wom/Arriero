@@ -4,11 +4,11 @@ import { CONTROL_LEVELS, IMPACT_LEVELS, PROBLEM_STATUSES } from "@/domain/types"
 export const problemSchema = z.object({
   stage_id: z.string().uuid("Elija la etapa del embudo."),
   channel: z.string().trim().max(80).optional(),
-  title: z.string().trim().min(5, "Describa el problema en al menos 5 caracteres.").max(240),
+  title: z.string().trim().min(5, "Describa la oportunidad de mejora en al menos 5 caracteres.").max(240),
   evidence: z
     .string()
     .trim()
-    .min(10, "La evidencia es obligatoria: un problema sin datos es una idea suelta.")
+    .min(10, "La evidencia es obligatoria: una oportunidad de mejora sin datos es una idea suelta.")
     .max(4000),
   root_cause: z.string().trim().max(2000).optional(),
   impact: z.enum(IMPACT_LEVELS),

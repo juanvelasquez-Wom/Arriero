@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 // login → inicio → asistente del programa (programa + línea con métricas, árbol y embudo) →
-// problema → buscador global → ejercicio (asistente de 5 pasos) → En prueba →
+// oportunidad de mejora → buscador global → ejercicio (asistente de 5 pasos) → En prueba →
 // borrarlo → restaurarlo desde la papelera.
 //
 // Selectores por rol y nombre accesible (no por clases ni ids internos) para
@@ -47,26 +47,26 @@ test("flujo principal de un ejercicio", async ({ page }) => {
   await page.getByRole("button", { name: /^Siga/ }).click(); // → resumen
   await page.getByRole("button", { name: /Arme el programa/ }).click();
 
-  // El arranque lleva directo a registrar el primer problema, con la línea elegida.
+  // El arranque lleva directo a registrar la primera oportunidad de mejora, con la línea elegida.
   await expect(page).toHaveURL(/\/problemas\/nuevo\?.*desde=arranque/);
   await expect(page.getByText(/ya tiene el mapa/)).toBeVisible();
   await pickOption(page, /Etapa del embudo/);
-  await page.getByRole("textbox", { name: /^Problema/ }).fill(problemTitle);
+  await page.getByRole("textbox", { name: /^Oportunidad de mejora/ }).fill(problemTitle);
   await page.getByRole("textbox", { name: /Evidencia/ }).fill("La frecuencia pasó de 1,8 a 3,4 en seis semanas.");
   // Al crear no se pide el estado: siempre nace «Por validar».
   await expect(page.getByRole("combobox", { name: /^Estado/ })).toHaveCount(0);
-  await page.getByRole("button", { name: "Crear problema" }).click();
+  await page.getByRole("button", { name: "Crear oportunidad de mejora" }).click();
   await expect(page.getByRole("heading", { name: problemTitle })).toBeVisible();
 
-  // Buscador global (Ctrl+K): encuentra el problema sin tildes.
+  // Buscador global (Ctrl+K): encuentra la oportunidad de mejora sin tildes.
   await page.keyboard.press("Control+k");
   const search = page.getByRole("dialog", { name: /Buscar en sus programas/ });
   await search.getByRole("combobox").fill(`costo por conversacion subio en e2e ${suffix}`);
   await expect(search.getByRole("option", { name: new RegExp(problemTitle) })).toBeVisible();
   await page.keyboard.press("Escape");
 
-  // Ejercicio desde el problema (asistente de 5 pasos).
-  await page.getByRole("link", { name: "Crear ejercicio desde este problema" }).click();
+  // Ejercicio desde la oportunidad de mejora (asistente de 5 pasos).
+  await page.getByRole("link", { name: "Crear ejercicio desde esta oportunidad de mejora" }).click();
   await pickOption(page, /Métrica del árbol/);
   await page.getByRole("textbox", { name: /Título del ejercicio/ }).fill(experimentTitle);
   await page.getByRole("button", { name: "Guardar y seguir" }).click();

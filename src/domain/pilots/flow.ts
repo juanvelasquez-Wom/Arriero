@@ -123,7 +123,7 @@ export function needsDesignJustification(input: Pick<ReadinessInput, "variable" 
 
 export function missingForReview(p: ReadinessInput): MissingItem[] {
   const out: MissingItem[] = [];
-  if (blank(p.problem)) out.push({ text: "el problema", step: "problema" });
+  if (blank(p.problem)) out.push({ text: "la oportunidad de mejora", step: "problema" });
   if (blank(p.hypothesis_change) || blank(p.hypothesis_scope) || blank(p.hypothesis_metric) || p.hypothesis_expected_pct == null || blank(p.hypothesis_reason)) {
     out.push({ text: "la hipótesis completa", step: "problema" });
   }
@@ -150,7 +150,7 @@ export function missingForReview(p: ReadinessInput): MissingItem[] {
 // -----------------------------------------------------------------------------
 
 export const PILOT_STEPS: { key: PilotStepKey; title: string; covers: string }[] = [
-  { key: "problema", title: "Problema e hipótesis", covers: "Qué pasa, con qué evidencia y qué esperamos mover" },
+  { key: "problema", title: "Oportunidad de mejora e hipótesis", covers: "Qué pasa, con qué evidencia y qué esperamos mover" },
   { key: "prueba", title: "Qué se prueba y cómo", covers: "Variable, tipo de prueba, medios, grupos y fechas" },
   { key: "metricas", title: "Métricas y potencia", covers: "Métrica principal, guardrails y cuánto alcanza a ver la prueba" },
   { key: "reglas", title: "Reglas de decisión", covers: "Cuándo escalar, ajustar o apagar, antes de lanzar" },

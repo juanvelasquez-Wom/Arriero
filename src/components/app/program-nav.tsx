@@ -47,7 +47,7 @@ function useGroups({ programId, lines, showTrash, showSettings }: ProgramNavProp
       items: [
         { href: base, label: "Resumen", icon: LayoutDashboard, exact: true },
         { href: `${base}/ejercicios`, label: "Ejercicios", icon: ListOrdered },
-        { href: `${base}/problemas`, label: "Problemas", icon: ClipboardList },
+        { href: `${base}/problemas`, label: "Oportunidades", icon: ClipboardList },
         { href: `${base}/carga`, label: "Carga semanal", icon: CalendarPlus },
         { href: `${base}/tableros`, label: "Tableros", icon: Columns3 },
       ],

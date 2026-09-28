@@ -23,7 +23,7 @@ import { StepSchedule } from "./wizard/step-schedule";
 import type { WizardData, WizardValues } from "./wizard-values";
 
 const STEPS = [
-  { n: 1, label: "Problema y métrica" },
+  { n: 1, label: "Oportunidad y métrica" },
   { n: 2, label: "Hipótesis" },
   { n: 3, label: "Priorización" },
   { n: 4, label: "Diseño de la prueba" },
@@ -99,7 +99,7 @@ export function ExperimentWizard({
 
   function validateOrigin(): boolean {
     const e: Record<string, string> = {};
-    if (!v.problem_id) e.problem_id = "Todo ejercicio nace de un problema: elija uno.";
+    if (!v.problem_id) e.problem_id = "Todo ejercicio nace de una oportunidad de mejora: elija una.";
     if (!v.metric_id) e.metric_id = "Elija la métrica del árbol que el ejercicio quiere mover.";
     if (v.title.trim().length < 3) e.title = "Escriba un título de al menos 3 caracteres.";
     setErrors(e);
@@ -169,7 +169,7 @@ export function ExperimentWizard({
     setFormError(undefined);
     if (!validateOrigin()) {
       setStep(1);
-      setFormError("Para guardar se necesita al menos el problema, la métrica y el título.");
+      setFormError("Para guardar se necesita al menos la oportunidad de mejora, la métrica y el título.");
       return;
     }
     if (v.variants.filter((x) => x.is_control).length > 1) {

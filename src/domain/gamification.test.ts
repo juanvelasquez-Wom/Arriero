@@ -44,6 +44,11 @@ function stats(over: Partial<UserStats> = {}): UserStats {
     insights_planted: 0,
     insight_votes_received: 0,
     insight_votes_given: 0,
+    ideas_created: 0,
+    idea_sessions_created: 0,
+    ideas_scored: 0,
+    ideas_chosen: 0,
+    ideas_buried: 0,
     ...over,
   };
 }
@@ -121,6 +126,26 @@ describe("insights en La Recua", () => {
     const acumulador = BADGES.find((b) => b.id === "acumulador")!;
     expect(acumulador.earned(stats({ insights_created: 10 }), 0)).toBe(true);
     expect(acumulador.earned(stats({ insights_created: 10, insights_planted: 1 }), 0)).toBe(false);
+  });
+});
+
+describe("lluvia de ideas en La Recua", () => {
+  it("suma con topes: ideas, aguaceros, puntajes, elegidas y enterradas", () => {
+    const r = computeScore(
+      stats({ ideas_created: 100, idea_sessions_created: 2, ideas_scored: 100, ideas_chosen: 1, ideas_buried: 3 }),
+      TODAY,
+    );
+    expect(r.points).toBe(60 * 5 + 2 * 20 + 40 * 1 + 60 + 3);
+    expect(r.lines.find((l) => l.key === "ideas_created")?.count).toBe(60);
+  });
+  it("da sus insignias, incluida la oscura", () => {
+    const earned = (id: string, s: Partial<UserStats>) => BADGES.find((b) => b.id === id)!.earned(stats(s), 0);
+    expect(earned("nube", { ideas_created: 20 })).toBe(true);
+    expect(earned("nube", { ideas_created: 19 })).toBe(false);
+    expect(earned("hacedor", { idea_sessions_created: 3 })).toBe(true);
+    expect(earned("cosecha", { ideas_chosen: 3 })).toBe(true);
+    expect(earned("poeta", { ideas_buried: 5 })).toBe(true);
+    expect(BADGES.find((b) => b.id === "poeta")?.dark).toBe(true);
   });
 });
 

@@ -31,7 +31,7 @@ describe("impacto", () => {
   it("sin valor usa el impacto del problema", () => {
     const s = suggestIce({ expectedEffectPct: null, metric, problem, draftText: "" });
     expect(s.impact).toBe(5);
-    expect(s.why.impact).toMatch(/impacto medio del problema/);
+    expect(s.why.impact).toMatch(/impacto medio de la oportunidad de mejora/);
   });
   it("con pocos pares usa la escala; con 3 o más, la posición", () => {
     const alone = suggestIce({ expectedEffectPct: 10, metric, problem, draftText: "" });
@@ -55,7 +55,7 @@ describe("confianza", () => {
       draftText: draft,
     });
     expect(s.confidence).toBe(8);
-    expect(s.why.confidence.join(" ")).toMatch(/validado \(\+2\).*evidencia.*2 adjuntos/);
+    expect(s.why.confidence.join(" ")).toMatch(/validada \(\+2\).*evidencia.*2 adjuntos/);
   });
   it("aprendizajes parecidos que ganaron suben y los que perdieron bajan", () => {
     const learnings = [

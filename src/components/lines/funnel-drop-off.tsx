@@ -79,7 +79,7 @@ export function FunnelDropOff({ result, loadHref }: { result: FunnelDropResult; 
         <Callout icon={TrendingDown} title="Aquí se está cayendo más gente" className="mb-4">
           De {before.name} a {biggest.name} solo pasa el {formatPercent(biggest.conversion)}
           {biggest.conversionChange != null ? ` (${formatPoints(biggest.conversionChange)} frente a la semana anterior)` : ""}. Ahí
-          vale la pena buscar un problema con evidencia.
+          vale la pena buscar una oportunidad de mejora con evidencia.
         </Callout>
       ) : null}
 

@@ -72,7 +72,7 @@ describe("homeItems", () => {
     expect(items.map((i) => i.kind)).toEqual(["north_star_off_track", "ready_to_read", "calendar_soon", "assigned", "stale_ideas"]);
     expect(items[0].detail).toContain("22 %");
     expect(items[0].path).toBe("/lineas/l1?tab=norte");
-    expect(items[0].secondary).toEqual({ label: "Convertir en problema", path: "/problemas/nuevo?metrica=m1" });
+    expect(items[0].secondary).toEqual({ label: "Convertir en oportunidad de mejora", path: "/problemas/nuevo?metrica=m1" });
     expect(items[1].path).toBe("/ejercicios/r");
     expect(items[2].title).toContain("en 9 días");
     // El listo para leer no se repite como asignado.

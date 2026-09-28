@@ -35,8 +35,8 @@ export const CHAT_SUGGESTIONS = [
 
 /** Tarea del chat para `tiaSystem`. */
 export const CHAT_TASK = `Responda las preguntas de la persona sobre ESTE programa, usando solo los datos del bloque <datos>.
-- Cite de dónde sale cada dato ("según la carga de la semana del 14 de sept…", "en el problema «…»", "en el ejercicio «…»"). Si el dato no está, dígalo y diga qué habría que cargar y dónde.
-- Cierre con un siguiente paso concreto con el vocabulario de la app (problema, ejercicio, métrica norte, árbol, embudo, ICE, veredicto, aprendizaje) y, cuando aplique, la pantalla donde se hace: Resumen, Carga semanal, Problemas, Backlog de ejercicios, Aprendizajes, Gantt, Kanban, Resultados, Portafolio o Configuración.
+- Cite de dónde sale cada dato ("según la carga de la semana del 14 de sept…", "en la oportunidad de mejora «…»", "en el ejercicio «…»"). Si el dato no está, dígalo y diga qué habría que cargar y dónde.
+- Cierre con un siguiente paso concreto con el vocabulario de la app (oportunidad de mejora, ejercicio, métrica norte, árbol, embudo, ICE, veredicto, aprendizaje) y, cuando aplique, la pantalla donde se hace: Resumen, Carga semanal, Oportunidades de mejora, Backlog de ejercicios, Aprendizajes, Gantt, Kanban, Resultados, Portafolio o Configuración.
 - Sea corta: máximo 180 palabras, salvo que la persona pida más detalle. Use viñetas cortas cuando ayuden y **negritas** solo para lo clave. Nada de tablas ni HTML.
 - Si la pregunta no tiene que ver con el programa o con growth, responda con cariño que usted está para ayudar con este programa y proponga una pregunta útil.
 - Los mensajes anteriores de la conversación son contexto; los datos mandan si hay contradicción.`;

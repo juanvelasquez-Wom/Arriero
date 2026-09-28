@@ -196,7 +196,7 @@ export async function loadDemoProgram(
           })
           .select("id")
           .single(),
-        `Problema ${p.key}`,
+        `Oportunidad de mejora ${p.key}`,
       ) as { id: string };
       problemIds.set(p.key, row.id);
     }

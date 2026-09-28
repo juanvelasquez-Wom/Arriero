@@ -87,7 +87,7 @@ export function FunnelEditor({
                       />
                     </div>
                     <div className="space-y-1">
-                      <HelpLabel htmlFor={`st-d-${row.id}`} help="Qué hace el cliente en esta etapa, en esta línea. Así todos ubican los problemas en el mismo lugar.">
+                      <HelpLabel htmlFor={`st-d-${row.id}`} help="Qué hace el cliente en esta etapa, en esta línea. Así todos ubican las oportunidades de mejora en el mismo lugar.">
                         Qué significa en {lineName}
                       </HelpLabel>
                       <Textarea id={`st-d-${row.id}`} rows={2} value={row.description} disabled={readOnly} onChange={(e) => update(row.id, { description: e.target.value })} />

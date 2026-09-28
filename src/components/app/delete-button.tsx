@@ -91,7 +91,9 @@ export function DeleteButton({
 
   const choice = impact ? dependencyChoice(entity, impact) : null;
   const affected = impact ? describeImpact(impact) : [];
-  const dependentsLabel = choice?.dependents === "problems" ? "problemas" : "ejercicios";
+  const dependentsFem = choice?.dependents === "problems";
+  const dependentsLabel = dependentsFem ? "oportunidades de mejora" : "ejercicios";
+  const them = dependentsFem ? "las" : "los";
   const needsName = entity === "program";
   const canConfirm =
     !!impact &&
@@ -153,13 +155,13 @@ export function DeleteButton({
         {impact && choice ? (
           <div className="space-y-3">
             <p className="text-sm">
-              Tiene <strong>{choice.count}</strong> {dependentsLabel} vinculados. Elija qué hacer con ellos:
+              Tiene <strong>{choice.count}</strong> {dependentsLabel} vinculad{dependentsFem ? "as" : "os"}. Elija qué hacer con {dependentsFem ? "ellas" : "ellos"}:
             </p>
             <RadioGroup value={strategy} onValueChange={(v) => setStrategy(v as DeleteStrategy)}>
               <div className="flex items-start gap-2">
                 <RadioGroupItem value="reassign" id="strategy-reassign" disabled={!reassignOptions.length} />
                 <Label htmlFor="strategy-reassign" className="flex-col items-start gap-1">
-                  <span>Reasignarlos a otro elemento</span>
+                  <span>Reasignar{them} a otro elemento</span>
                   {!reassignOptions.length ? (
                     <span className="text-xs font-normal text-soft">No hay otro elemento de la misma línea.</span>
                   ) : null}
@@ -168,7 +170,7 @@ export function DeleteButton({
               {strategy === "reassign" && reassignOptions.length ? (
                 <Select value={target} onValueChange={setTarget}>
                   <SelectTrigger className="ml-6 w-[calc(100%-1.5rem)]" aria-label="Elemento destino">
-                    <SelectValue placeholder="Elija a dónde moverlos" />
+                    <SelectValue placeholder={`Elija a dónde mover${them}`} />
                   </SelectTrigger>
                   <SelectContent>
                     {reassignOptions.map((o) => (
@@ -181,7 +183,7 @@ export function DeleteButton({
               ) : null}
               <div className="flex items-start gap-2">
                 <RadioGroupItem value="cascade" id="strategy-cascade" />
-                <Label htmlFor="strategy-cascade">Borrarlos junto con él</Label>
+                <Label htmlFor="strategy-cascade">Borrar{them} junto con ella</Label>
               </div>
             </RadioGroup>
           </div>

@@ -122,7 +122,7 @@ export default async function InsightPage({ params, searchParams }: PageProps<"/
                 <ul className="mt-1 space-y-0.5 text-sm">
                   {planted.problem ? (
                     <li>
-                      Problema:{" "}
+                      Oportunidad de mejora:{" "}
                       <Link href={`/programas/${planted.problem.programId}/problemas/${planted.problem.id}`} className="font-semibold underline underline-offset-4">
                         {planted.problem.title}
                       </Link>

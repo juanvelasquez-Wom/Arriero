@@ -61,7 +61,7 @@ export function TiaHypothesisHelp({ programId, v, setV }: { programId: string; v
         label="Pídale hipótesis a la Tía"
         title="La Tía tiene una recomendación"
         disabled={!ready}
-        disabledReason="Elija primero el problema y la métrica en el paso 1."
+        disabledReason="Elija primero la oportunidad de mejora y la métrica en el paso 1."
         run={() => suggestHypotheses(programId, hypothesisDraft(v))}
         render={(options, close) => (
           <ul className="space-y-2">

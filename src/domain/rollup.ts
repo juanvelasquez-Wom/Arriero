@@ -209,7 +209,7 @@ const ANSWER_COPY: Record<GrowthAnswer, { title: string; text: (h: { on: number;
   mixed: {
     title: "Más o menos",
     text: ({ on, evaluated }) =>
-      `${on} de ${evaluated} métricas norte van en la meta. Las que van atrás necesitan problemas y ejercicios que las muevan.`,
+      `${on} de ${evaluated} métricas norte van en la meta. Las que van atrás necesitan oportunidades de mejora y ejercicios que las muevan.`,
   },
   no: {
     title: "Todavía no",

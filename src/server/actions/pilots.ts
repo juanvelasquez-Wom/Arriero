@@ -86,7 +86,7 @@ export async function savePilotProblem(pilotId: string, input: PilotProblemInput
   const { error } = await supabase.from("pilots").update(parsed.data).eq("id", pilotId);
   if (error) return failFrom(error);
   refresh(pilotId);
-  return ok(undefined, "Problema e hipótesis guardados.");
+  return ok(undefined, "Oportunidad de mejora e hipótesis guardadas.");
 }
 
 /** ¿La RPC todavía no existe en la base? (migración 014 sin aplicar). */

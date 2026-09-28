@@ -56,7 +56,7 @@ export function TourDeck({ userName }: { userName: string }) {
           <BrandIcon name="mula-sombrero" className="float-soft mx-auto w-32" />
           <h2 className="mt-4 text-3xl font-extrabold">Ya se sabe el camino</h2>
           <p className="mx-auto mt-2 max-w-md text-[15px] text-soft">
-            Programa, líneas, carga semanal, problemas, ejercicios, tableros, pilotos y dirección. Lo demás se aprende andando.
+            Programa, líneas, carga semanal, oportunidades de mejora, ejercicios, tableros, pilotos y dirección. Lo demás se aprende andando.
           </p>
           <div className="mx-auto mt-6 max-w-md rounded-2xl bg-highlight p-4 text-left text-[#111111]">
             <div className="flex items-center gap-3">

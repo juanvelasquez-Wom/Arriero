@@ -11,15 +11,16 @@ import { Button } from "@/components/ui/button";
 import { BOARD_VIEW_LABEL, BOARD_VIEWS, filterBoardItems, parseBoardFilters, UNASSIGNED, type BoardItem, type BoardView } from "@/domain/boards";
 import { firstParam } from "@/domain/dashboard-filters";
 import { todayIso } from "@/domain/dates";
-import { formatDateRange, formatMonth, formatShortDate } from "@/domain/format";
+import { formatDateRange } from "@/domain/format";
 import {
   barGeometry,
-  boardPixelsPerDay,
-  buildTimeline,
+  boardRange,
   displaySpan,
-  positionOf,
-  spansRange,
-  timelineColumns,
+  ganttScale,
+  ganttZoomParam,
+  GANTT_ZOOMS,
+  parseGanttZoom,
+  spanProgress,
   type GanttZoom,
 } from "@/domain/gantt";
 import { cn } from "@/lib/utils";
@@ -158,7 +159,7 @@ function GlobalGantt({
   hrefFor: (patch: Record<string, string | null>) => string;
   today: string;
 }) {
-  const zoom: GanttZoom = zoomParam === "semana" ? "week" : "month";
+  const zoom: GanttZoom = parseGanttZoom(zoomParam);
   const visible = items.filter((i) => i.column !== "discarded");
   const spans = new Map(
     visible.map((i) => [
@@ -166,16 +167,19 @@ function GlobalGantt({
       displaySpan({ planned_start: i.plannedStart, planned_end: i.plannedEnd, actual_start: i.actualStart, actual_end: i.actualEnd }, running(i), today),
     ]),
   );
-  const range = spansRange([...spans.values()], today);
-  const timeline = buildTimeline(range.start, range.end);
-  const widthPx = timeline.totalDays * boardPixelsPerDay(zoom);
-  const months = timelineColumns(timeline, "month", formatMonth);
-  const weeks = zoom === "week" ? timelineColumns(timeline, "week", (d) => formatShortDate(d)) : null;
-  const todayLeft = positionOf(timeline, today) + 100 / timeline.totalDays / 2;
-
   // La franja de calendario solo tiene sentido con un programa: cada uno tiene el suyo.
+  const calendar = filters.programa ? (data.calendar.get(filters.programa) ?? []) : [];
+  const range = boardRange(
+    [...[...spans.values()].flatMap((s) => (s ? [s.start, s.end] : [])), ...calendar.flatMap((c) => [c.start_date, c.end_date])],
+    today,
+    zoom,
+  );
+  const scale = ganttScale(range.start, range.end, zoom, today);
+  const timeline = scale.timeline;
+  const zoomHrefs = Object.fromEntries(GANTT_ZOOMS.map(({ zoom: z }) => [z, hrefFor({ zoom: ganttZoomParam(z) })])) as Record<GanttZoom, string>;
+
   const events = filters.programa
-    ? (data.calendar.get(filters.programa) ?? [])
+    ? calendar
         .map((ev) => {
           const g = barGeometry(timeline, ev.start_date, ev.end_date);
           return g ? { id: ev.id, type: ev.type, name: ev.name, ...g, range: formatDateRange(ev.start_date, ev.end_date) } : null;
@@ -186,7 +190,7 @@ function GlobalGantt({
   const row = (i: BoardItem) => {
     const span = spans.get(`${i.kind}-${i.id}`) ?? null;
     const g = span ? barGeometry(timeline, span.start, span.end) : null;
-    const bar: TimelineBar | null = span && g ? { ...g, range: formatDateRange(span.start, span.end), mode: span.mode, ongoing: span.ongoing } : null;
+    const bar: TimelineBar | null = span && g ? { ...g, range: formatDateRange(span.start, span.end), mode: span.mode, ongoing: span.ongoing, progress: spanProgress(span) } : null;
     return {
       id: `${i.kind}-${i.id}`,
       title: i.title,
@@ -220,38 +224,28 @@ function GlobalGantt({
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs text-soft">
-          {filters.programa ? "Arriba, el calendario del programa." : "Filtre por un programa para ver su calendario (congelamientos, picos y decisión)."} El ícono
-          amarillo marca lo que está en riesgo.
-        </p>
-        <div role="group" aria-label="Escala de la línea de tiempo" className="inline-flex rounded-xl border bg-paper p-0.5 shadow-card">
-          {(["mes", "semana"] as const).map((z) => {
-            const active = (z === "mes") === (zoom === "month");
-            return (
-              <Button key={z} asChild size="sm" variant="ghost" className={cn(active && "bg-gray-1 font-semibold")}>
-                <Link href={hrefFor({ zoom: z === "semana" ? "semana" : null })} aria-current={active ? "true" : undefined} scroll={false}>
-                  {z === "semana" ? "Semana" : "Mes"}
-                </Link>
-              </Button>
-            );
-          })}
-        </div>
-      </div>
+      <p className="text-xs text-soft">
+        {filters.programa ? "Arriba, el calendario del programa." : "Filtre por un programa para ver su calendario (congelamientos, picos y decisión)."} El ícono
+        amarillo marca lo que está en riesgo. Pliegue un programa con su flecha para verlo resumido.
+      </p>
       {groups.length ? (
         <TimelineGantt
-          widthPx={widthPx}
-          months={months}
-          weeks={weeks}
+          widthPx={scale.widthPx}
+          zoom={zoom}
+          zoomHrefs={zoomHrefs}
+          months={scale.months}
+          weeks={scale.weeks}
+          quarters={scale.quarters}
+          bands={scale.bands}
           events={events}
-          todayLeft={todayLeft}
+          todayLeft={scale.todayLeft}
           groups={groups}
-          ariaLabel="Línea de tiempo de ejercicios y pilotos (desplácese horizontalmente)"
+          ariaLabel="Línea de tiempo de ejercicios y pilotos"
         />
       ) : (
         <p className="rounded-2xl border border-dashed bg-paper py-10 text-center text-sm text-soft">Solo hay descartados o cancelados con estos filtros.</p>
       )}
-      <p className="text-xs text-soft">Rango: {formatDateRange(timeline.start, timeline.end)}. Haga clic en una barra para abrir el detalle.</p>
+      <p className="text-xs text-soft">Haga clic en una barra para abrir el detalle; arrastre o use ‹ › para moverse por los meses.</p>
     </div>
   );
 }

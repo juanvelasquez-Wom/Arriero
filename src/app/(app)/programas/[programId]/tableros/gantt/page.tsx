@@ -8,22 +8,22 @@ import { Button } from "@/components/ui/button";
 import { experimentColumn } from "@/domain/boards";
 import { asCollisionCandidate, collisionPairs, describeCollision } from "@/domain/collisions";
 import { firstParam } from "@/domain/dashboard-filters";
-import { addDays, maxDate, minDate } from "@/domain/dates";
-import { formatDateRange, formatMonth, formatShortDate } from "@/domain/format";
+import { formatDateRange } from "@/domain/format";
 import {
   barGeometry,
-  boardPixelsPerDay,
-  buildTimeline,
+  boardRange,
   crossesFreeze,
   displaySpan,
-  positionOf,
-  timelineColumns,
+  ganttScale,
+  ganttZoomParam,
+  GANTT_ZOOMS,
+  parseGanttZoom,
+  spanProgress,
   type DisplaySpan,
   type GanttZoom,
   type Timeline,
 } from "@/domain/gantt";
 import { STATUS_LABEL } from "@/domain/labels";
-import { cn } from "@/lib/utils";
 import { loadDashboard } from "../_lib/data";
 
 export const metadata: Metadata = { title: "Gantt" };
@@ -33,36 +33,34 @@ const RUNNING = new Set(["in_test", "in_reading"]);
 function toBar(timeline: Timeline, span: DisplaySpan | null): TimelineBar | null {
   if (!span) return null;
   const g = barGeometry(timeline, span.start, span.end);
-  return g ? { ...g, range: formatDateRange(span.start, span.end), mode: span.mode, ongoing: span.ongoing } : null;
+  return g ? { ...g, range: formatDateRange(span.start, span.end), mode: span.mode, ongoing: span.ongoing, progress: spanProgress(span) } : null;
 }
 
 export default async function GanttPage({ params, searchParams }: PageProps<"/programas/[programId]/tableros/gantt">) {
   const { programId } = await params;
   const sp = await searchParams;
   const data = await loadDashboard(programId, sp);
-  // El mes es la vista por defecto: se lee de un vistazo. La semana, a pedido.
-  const zoom: GanttZoom = firstParam(sp.zoom) === "semana" ? "week" : "month";
+  // El mes es la vista por defecto: se lee de un vistazo. La semana y el trimestre, a pedido.
+  const zoom: GanttZoom = parseGanttZoom(firstParam(sp.zoom));
 
-  // Rango: el del programa; si falta, el de los ejercicios y el calendario.
+  // Rango: el del programa, estirado para que quepan los ejercicios, el calendario y hoy, con margen.
+  const spans = new Map(data.filtered.map((e) => [e.id, displaySpan(e, RUNNING.has(e.status), data.today)]));
   const allDates = [
-    ...data.experiments.flatMap((e) => [e.planned_start, e.planned_end, e.actual_start, e.actual_end]),
+    data.program.start_date,
+    data.program.end_date,
+    ...[...spans.values()].flatMap((s) => (s ? [s.start, s.end] : [])),
     ...data.calendar.flatMap((c) => [c.start_date, c.end_date]),
   ];
-  const start = data.program.start_date ?? minDate(...allDates) ?? data.today;
-  const end = data.program.end_date ?? maxDate(...allDates, addDays(start, 90)) ?? addDays(start, 90);
-  const timeline = buildTimeline(start, end);
-  const widthPx = timeline.totalDays * boardPixelsPerDay(zoom);
+  const range = boardRange(allDates, data.today, zoom);
+  const scale = ganttScale(range.start, range.end, zoom, data.today);
+  const timeline = scale.timeline;
 
-  const months = timelineColumns(timeline, "month", formatMonth);
-  const weeks = zoom === "week" ? timelineColumns(timeline, "week", (d) => formatShortDate(d)) : null;
   const events = data.calendar
     .map((ev) => {
       const g = barGeometry(timeline, ev.start_date, ev.end_date);
       return g ? { id: ev.id, type: ev.type, name: ev.name, ...g, range: formatDateRange(ev.start_date, ev.end_date) } : null;
     })
     .filter((e) => e != null);
-  const todayLeft =
-    data.today >= timeline.start && data.today <= timeline.end ? positionOf(timeline, data.today) + 100 / timeline.totalDays / 2 : null;
 
   const visibleLines = data.filters.linea ? data.lines.filter((l) => l.id === data.filters.linea) : data.lines;
   const freezeNames = new Map(data.filtered.map((e) => [e.id, crossesFreeze(e, data.calendar).map((f) => f.name)]));
@@ -74,7 +72,7 @@ export default async function GanttPage({ params, searchParams }: PageProps<"/pr
       .filter((e) => e.line_id === line.id)
       .sort((a, b) => (a.actual_start ?? a.planned_start ?? "9999").localeCompare(b.actual_start ?? b.planned_start ?? "9999"))
       .map((e) => {
-        const span = displaySpan(e, RUNNING.has(e.status), data.today);
+        const span = spans.get(e.id) ?? null;
         const bar = toBar(timeline, span);
         const freezes = freezeNames.get(e.id) ?? [];
         return {
@@ -99,27 +97,16 @@ export default async function GanttPage({ params, searchParams }: PageProps<"/pr
     collisions.length ? `${collisions.length} ${collisions.length === 1 ? "pareja corre" : "parejas corren"} a la vez` : null,
   ].filter(Boolean);
 
-  const zoomHref = (z: "semana" | "mes") => {
-    const next = { ...data.current };
-    if (z === "semana") next.zoom = "semana";
-    else delete next.zoom;
-    const qs = new URLSearchParams(next).toString();
-    return qs ? `?${qs}` : "?";
-  };
-  const zoomLinks = (
-    <div role="group" aria-label="Escala de la línea de tiempo" className="inline-flex rounded-xl border bg-paper p-0.5 shadow-card">
-      {(["mes", "semana"] as const).map((z) => {
-        const active = (z === "mes") === (zoom === "month");
-        return (
-          <Button key={z} asChild size="sm" variant="ghost" className={cn(active && "bg-gray-1 font-semibold")}>
-            <Link href={zoomHref(z)} aria-current={active ? "true" : undefined} scroll={false}>
-              {z === "semana" ? "Semana" : "Mes"}
-            </Link>
-          </Button>
-        );
-      })}
-    </div>
-  );
+  const zoomHrefs = Object.fromEntries(
+    GANTT_ZOOMS.map(({ zoom: z }) => {
+      const next = { ...data.current };
+      const param = ganttZoomParam(z);
+      if (param) next.zoom = param;
+      else delete next.zoom;
+      const qs = new URLSearchParams(next).toString();
+      return [z, qs ? `?${qs}` : "?"];
+    }),
+  ) as Record<GanttZoom, string>;
 
   return (
     <DashboardFrame
@@ -127,7 +114,6 @@ export default async function GanttPage({ params, searchParams }: PageProps<"/pr
       active="gantt"
       title="Gantt"
       description="Una barra por ejercicio: rellena si ya arrancó, punteada si todavía es plan. Arriba, el calendario del programa."
-      actions={zoomLinks}
       fields={data.globalFields}
       current={data.current}
       query={data.query}
@@ -202,18 +188,23 @@ export default async function GanttPage({ params, searchParams }: PageProps<"/pr
             </details>
           ) : null}
           <TimelineGantt
-            widthPx={widthPx}
-            months={months}
-            weeks={weeks}
+            widthPx={scale.widthPx}
+            zoom={zoom}
+            zoomHrefs={zoomHrefs}
+            months={scale.months}
+            weeks={scale.weeks}
+            quarters={scale.quarters}
+            bands={scale.bands}
             events={events}
-            todayLeft={todayLeft}
+            todayLeft={scale.todayLeft}
             groups={groups}
-            ariaLabel="Línea de tiempo de ejercicios (desplácese horizontalmente)"
+            ariaLabel="Línea de tiempo de ejercicios"
           />
           <p className="text-xs text-soft">
-            Rango: {formatDateRange(timeline.start, timeline.end)}
-            {data.program.start_date && data.program.end_date ? " (fechas del programa)" : " (calculado con los ejercicios y el calendario)"}.
-            Haga clic en una barra para abrir el ejercicio.
+            {data.program.start_date && data.program.end_date
+              ? `Programa: ${formatDateRange(data.program.start_date, data.program.end_date)}. `
+              : "Rango calculado con los ejercicios y el calendario. "}
+            Haga clic en una barra para abrir el ejercicio; arrastre o use ‹ › para moverse por los meses.
           </p>
         </div>
       )}

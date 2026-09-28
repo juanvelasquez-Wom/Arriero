@@ -58,8 +58,9 @@ export async function AppHeader({
         <div className="flex h-14 items-center gap-2 px-4 sm:gap-3">
           <BackButton />
           <Link href="/" aria-label="Arriero, ir al inicio" className="shrink-0 rounded-md transition-opacity hover:opacity-80">
-            <Mule className="size-8 w-8 xl:hidden" />
-            <LogoLockup className="hidden xl:flex" />
+            {/* Con ocho secciones en la barra, el logo completo solo cabe en pantallas muy anchas. */}
+            <Mule className="size-8 w-8 2xl:hidden" />
+            <LogoLockup className="hidden 2xl:flex" />
           </Link>
           {nav}
           <div className="flex min-w-0 flex-1 justify-center">

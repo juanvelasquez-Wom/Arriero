@@ -45,7 +45,7 @@ export default async function KanbanPage({ params, searchParams }: PageProps<"/p
         <EmptyState art="mula-cargada"
           icon={Columns3}
           title="Los ejercicios son los atajos. Todavía no hay ninguno."
-          description="Cada ejercicio aparece como tarjeta en la columna de su estado. Cree el primero desde un problema con evidencia."
+          description="Cada ejercicio aparece como tarjeta en la columna de su estado. Cree el primero desde una oportunidad de mejora con evidencia."
           action={
             <Button asChild variant="outline">
               <Link href={`/programas/${programId}/ejercicios`}>Ir al backlog</Link>

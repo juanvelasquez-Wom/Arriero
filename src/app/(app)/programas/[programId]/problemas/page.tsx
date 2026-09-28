@@ -18,7 +18,7 @@ import { getProgramContext } from "@/server/auth";
 import { listLines } from "@/server/queries/programs";
 import { listProblems, listStages } from "@/server/queries/structure";
 
-export const metadata: Metadata = { title: "Problemas" };
+export const metadata: Metadata = { title: "Oportunidades de mejora" };
 
 export default async function ProblemsPage({ params, searchParams }: PageProps<"/programas/[programId]/problemas">) {
   const { programId } = await params;
@@ -38,7 +38,7 @@ export default async function ProblemsPage({ params, searchParams }: PageProps<"
       (!f.q || normalizeText(`${p.title} ${p.evidence} ${p.root_cause ?? ""}`).includes(normalizeText(f.q))),
   );
   const csv = toCsv(filtered, [
-    { header: "Problema", value: (p) => p.title },
+    { header: "Oportunidad de mejora", value: (p) => p.title },
     { header: "Línea", value: (p) => p.line_name },
     { header: "Etapa", value: (p) => p.stage_name },
     { header: "Canal", value: (p) => p.channel },
@@ -56,15 +56,15 @@ export default async function ProblemsPage({ params, searchParams }: PageProps<"
   return (
     <div className="mx-auto max-w-7xl">
       <PageHeader
-        title="Problemas"
-        description="Pérdidas de valor con evidencia, ubicadas en la línea, la etapa del embudo y el canal. Todo ejercicio nace de un problema."
+        title="Oportunidades de mejora"
+        description="Pérdidas de valor con evidencia, ubicadas en la línea, la etapa del embudo y el canal. Todo ejercicio nace de una oportunidad de mejora."
         actions={
           <>
-            {problems.length ? <ExportCsvButton csv={csv} name={["problemas", ctx.program.name, todayIso()]} /> : null}
+            {problems.length ? <ExportCsvButton csv={csv} name={["oportunidades-de-mejora", ctx.program.name, todayIso()]} /> : null}
             {can.createProblem(ctx.actor) && lines.length ? (
               <Button asChild>
                 <Link href={`${base}/problemas/nuevo`}>
-                  <Plus aria-hidden /> Nuevo problema
+                  <Plus aria-hidden /> Nueva oportunidad de mejora
                 </Link>
               </Button>
             ) : null}
@@ -75,17 +75,17 @@ export default async function ProblemsPage({ params, searchParams }: PageProps<"
       {problems.length === 0 ? (
         <EmptyState art="embudo"
           icon={ClipboardList}
-          title="¿Y por dónde es? Aún no hay problemas"
+          title="¿Y por dónde es? Aún no hay oportunidades de mejora"
           description={
             lines.length
-              ? "Registre dónde se está perdiendo valor, con los datos que lo muestran. Después podrá crear ejercicios desde cada problema."
+              ? "Registre dónde se está perdiendo valor, con los datos que lo muestran. Después podrá crear ejercicios desde cada oportunidad."
               : "Primero configure al menos una línea de negocio con su embudo."
           }
           action={
             can.createProblem(ctx.actor) && lines.length ? (
               <Button asChild>
                 <Link href={`${base}/problemas/nuevo`}>
-                  <Plus aria-hidden /> Registrar el primer problema
+                  <Plus aria-hidden /> Registrar la primera oportunidad de mejora
                 </Link>
               </Button>
             ) : (
@@ -111,7 +111,7 @@ export default async function ProblemsPage({ params, searchParams }: PageProps<"
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="min-w-72">Problema</TableHead>
+                  <TableHead className="min-w-72">Oportunidad de mejora</TableHead>
                   <TableHead>Línea · etapa</TableHead>
                   <TableHead>Canal</TableHead>
                   <TableHead>Impacto</TableHead>
@@ -174,7 +174,7 @@ export default async function ProblemsPage({ params, searchParams }: PageProps<"
                 {filtered.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={8} className="py-8 text-center text-sm text-soft">
-                      Ningún problema coincide con los filtros. Pruebe con otros.
+                      Ninguna oportunidad de mejora coincide con los filtros. Pruebe con otros.
                     </TableCell>
                   </TableRow>
                 ) : null}

@@ -106,7 +106,7 @@ export default async function PilotsPortfolioPage({ searchParams }: PageProps<"/
           title="¿Y por dónde es? Aún no hay pilotos"
           description={
             writer
-              ? "Todo piloto arranca con un problema de medios y una hipótesis. El asistente lo lleva paso a paso, del problema a las reglas de decisión."
+              ? "Todo piloto arranca con una oportunidad de mejora en medios y una hipótesis. El asistente lo lleva paso a paso, de la oportunidad a las reglas de decisión."
               : "Cuando el equipo cree el primer piloto, aquí va a ver qué se está probando, cuánto se invierte y qué resultó."
           }
           action={

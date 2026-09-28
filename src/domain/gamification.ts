@@ -33,6 +33,15 @@ export interface UserStats {
   insights_planted: number;
   insight_votes_received: number;
   insight_votes_given: number;
+  /** Lluvia de ideas (migración 018). */
+  ideas_created: number;
+  idea_sessions_created: number;
+  /** Puntajes dados a ideas ajenas. */
+  ideas_scored: number;
+  /** Ideas suyas que se volvieron proyecto, piloto o insight. */
+  ideas_chosen: number;
+  /** Ideas suyas que fueron a dar al cementerio. */
+  ideas_buried: number;
 }
 
 type CountKey = Exclude<keyof UserStats, "user_id" | "name" | "recent_days">;
@@ -53,7 +62,7 @@ export const POINT_RULES: PointRule[] = [
   { key: "programs_created", label: "Programa creado", points: 50, joke: "Parir un programa no es cualquier cosa." },
   { key: "programs_ready", label: "Programa configurado de punta a punta", points: 30, joke: "Lo empezó y lo terminó. Raro, pero pasa." },
   { key: "programs_crowned", label: "Programa coronado (terminó con decisiones)", points: 200, joke: "Llegó a la cima con la carga completa." },
-  { key: "problems_created", label: "Problema con evidencia", points: 15, joke: "Encontrar el hueco es la mitad del camino." },
+  { key: "problems_created", label: "Oportunidad de mejora con evidencia", points: 15, joke: "Encontrar el hueco es la mitad del camino." },
   { key: "experiments_created", label: "Ejercicio creado", points: 20, joke: "Una idea con hipótesis vale más que diez en el chat." },
   { key: "experiments_decided", label: "Ejercicio decidido", points: 60, joke: "Decidir es lo que separa a los arrieros de los opinadores." },
   { key: "winners", label: "Ganador (además del decidido)", points: 80, joke: "Le pegó. Disfrútelo, que eso no pasa todos los días." },
@@ -69,6 +78,11 @@ export const POINT_RULES: PointRule[] = [
   { key: "insight_votes_received", label: "Voto que le dieron a un insight suyo", points: 3, cap: 50, joke: "Que otros también lo hayan visto: eso sí es evidencia." },
   { key: "insights_planted", label: "Insight suyo sembrado en un proyecto", points: 50, joke: "Lo que vio se volvió trabajo. Así se crece." },
   { key: "insight_votes_given", label: "Voto a un insight ajeno", points: 1, cap: 30, joke: "Apoyar al compañero también suma. Poquito, pero suma." },
+  { key: "idea_sessions_created", label: "Aguacero de ideas armado", points: 20, joke: "Hacedor de lluvia: pone el reto y el equipo se moja." },
+  { key: "ideas_created", label: "Idea soltada en un aguacero", points: 5, cap: 60, joke: "Cinco puntos por gota. Con tope, que esto no es el diluvio universal." },
+  { key: "ideas_scored", label: "Idea ajena puntuada", points: 1, cap: 40, joke: "Juzgar ideas ajenas, por fin con puntos. Poquitos." },
+  { key: "ideas_chosen", label: "Idea suya elegida (proyecto, piloto o insight)", points: 60, joke: "Llovió, escampó y su idea quedó viva. Eso es suerte o talento." },
+  { key: "ideas_buried", label: "Idea suya enterrada", points: 1, joke: "Un punto de consolación. Por lo menos murió en su ley." },
   { key: "discarded", label: "Ejercicio descartado a tiempo", points: 5, joke: "Por lo menos lo reconoció. Algo es algo." },
   { key: "pilots_cancelled", label: "Piloto cancelado", points: 5, joke: "Descanse en paz. Cinco puntos por el entierro." },
   { key: "stale_ideas", label: "Idea quieta hace más de 30 días", points: -10, joke: "Se murió de olvido. Menos diez, y un minuto de silencio." },
@@ -158,6 +172,16 @@ export const BADGES: Badge[] = [
   { id: "ojo", title: "Ojo de águila", description: "10 insights anotados. Usted ve lo que otros ni miran.", earned: (s) => s.insights_created >= 10 },
   { id: "profeta", title: "El profeta de la vereda", description: "3 insights suyos sembrados. Lo dijo y se cumplió.", earned: (s) => s.insights_planted >= 3 },
   { id: "influencer", title: "Influencer de fonda", description: "20 votos recibidos en sus insights. Tiene seguidores.", earned: (s) => s.insight_votes_received >= 20 },
+  { id: "nube", title: "Nube cargada", description: "20 ideas soltadas en los aguaceros. Usted no piensa: llueve.", earned: (s) => s.ideas_created >= 20 },
+  { id: "hacedor", title: "Hacedor de lluvia", description: "Armó 3 aguaceros. Ni el chamán de la vereda.", earned: (s) => s.idea_sessions_created >= 3 },
+  { id: "cosecha", title: "Buena cosecha", description: "3 ideas suyas elegidas. Lo que usted riega, crece.", earned: (s) => s.ideas_chosen >= 3 },
+  {
+    id: "poeta",
+    title: "Poeta maldito",
+    description: "5 ideas suyas en el cementerio. Incomprendido en vida, como todos los grandes.",
+    dark: true,
+    earned: (s) => s.ideas_buried >= 5,
+  },
   { id: "matarife", title: "Matarife de hipótesis", description: "3 perdedores asumidos. Mató más hipótesis que el invierno en el páramo.", dark: true, earned: (s) => s.losers >= 3 },
   { id: "sepulturero", title: "El sepulturero", description: "Mandó 5 cosas a la papelera. Entierra sin llorar.", dark: true, earned: (s) => s.trashed >= 5 },
   { id: "cementerio", title: "Dueño del cementerio de ideas", description: "5 ideas quietas hace más de un mes. Aquí yacen. Que en paz descansen.", dark: true, earned: (s) => s.stale_ideas >= 5 },

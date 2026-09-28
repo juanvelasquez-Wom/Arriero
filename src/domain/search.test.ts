@@ -101,7 +101,7 @@ describe("groupResults", () => {
       [c({ kind: "metric", title: "Tasa de pago" }), c({ kind: "problem", title: "Pago rechazado" })],
       "pago",
     );
-    expect(groupResults(hits).map((g) => g.label)).toEqual(["Problemas", "Métricas"]);
+    expect(groupResults(hits).map((g) => g.label)).toEqual(["Oportunidades de mejora", "Métricas"]);
   });
 });
 

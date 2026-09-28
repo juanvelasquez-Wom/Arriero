@@ -44,8 +44,8 @@ export function onboardingSteps(c: OnboardingCounts): OnboardingStep[] {
     },
     {
       key: "problem",
-      label: "Registre el primer problema con evidencia",
-      hint: "Nada de corazonadas: los ejercicios nacen de problemas.",
+      label: "Registre la primera oportunidad de mejora con evidencia",
+      hint: "Nada de corazonadas: los ejercicios nacen de oportunidades de mejora.",
       done: c.problems > 0,
     },
     {

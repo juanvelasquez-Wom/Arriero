@@ -114,7 +114,7 @@ export default async function PortfolioPage({ params, searchParams }: PageProps<
               ) : null}
               {gaps.length ? (
                 <li>
-                  {gaps.length === 1 ? "Hay 1 hueco" : `Hay ${gaps.length} huecos`}: problemas validados sin ningún ejercicio.
+                  {gaps.length === 1 ? "Hay 1 hueco" : `Hay ${gaps.length} huecos`}: oportunidades de mejora validadas sin ningún ejercicio.
                 </li>
               ) : null}
             </ul>
@@ -122,7 +122,7 @@ export default async function PortfolioPage({ params, searchParams }: PageProps<
         ) : null}
 
         {gaps.length ? (
-          <Section title="Huecos" description="Problemas con evidencia que nadie está atacando. Cada uno pide un ejercicio.">
+          <Section title="Huecos" description="Oportunidades de mejora con evidencia que nadie está atacando. Cada una pide un ejercicio.">
             <ul className="divide-y">
               {gaps.map((g) => (
                 <li key={`${g.lineId}-${g.stageName}`} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
@@ -133,14 +133,14 @@ export default async function PortfolioPage({ params, searchParams }: PageProps<
                         {g.lineName} · {g.stageName}
                       </span>
                       : {g.validatedWithoutExperiment}{" "}
-                      {g.validatedWithoutExperiment === 1 ? "problema validado" : "problemas validados"} sin ejercicio
+                      {g.validatedWithoutExperiment === 1 ? "oportunidad validada" : "oportunidades validadas"} sin ejercicio
                     </span>
                   </span>
                   <Link
                     href={`${base}/problemas?linea=${g.lineId}&etapa=${encodeURIComponent(g.stageName)}&estado=validated`}
                     className="text-xs underline underline-offset-4"
                   >
-                    Ver problemas
+                    Ver oportunidades
                   </Link>
                 </li>
               ))}
@@ -299,7 +299,7 @@ function MatrixCell({ cell }: { cell: PortfolioCell }) {
       {cell.validatedWithoutExperiment > 0 ? (
         <div className={cn("mt-2 flex items-start gap-1 text-xs", cell.gap ? "font-medium text-ink" : "text-soft")}>
           <TriangleAlert aria-hidden className="mt-px size-3.5 shrink-0" />
-          {cell.validatedWithoutExperiment} problema(s) validado(s) sin ejercicio
+          {cell.validatedWithoutExperiment} oportunidad(es) validada(s) sin ejercicio
         </div>
       ) : null}
     </td>

@@ -65,7 +65,7 @@ function TiaOpportunitiesInner({ programId, configured, canCreateProblem }: { pr
                 canCreateProblem ? (
                   <Button asChild size="sm" variant={i === 0 ? "default" : "outline"}>
                     <Link href={o.href}>
-                      <FilePlus2 aria-hidden /> Convertir en problema
+                      <FilePlus2 aria-hidden /> Convertir en oportunidad de mejora
                     </Link>
                   </Button>
                 ) : null

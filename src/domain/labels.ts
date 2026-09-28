@@ -24,7 +24,7 @@ export const ROLE_LABEL: Record<ProgramRole, string> = {
 
 export const ROLE_DESCRIPTION: Record<ProgramRole, string> = {
   owner: "Dueño del programa: decide, invita, borra y restaura.",
-  collaborator: "Equipo interno: edita la estructura, crea problemas y ejercicios, califica ICE.",
+  collaborator: "Equipo interno: edita la estructura, crea oportunidades de mejora y ejercicios, califica ICE.",
   agency: "Ejecuta los ejercicios que tiene asignados.",
   viewer: "Solo lectura de todo el programa y los tableros.",
 };
@@ -61,8 +61,8 @@ export const CONTROL_LABEL: Record<ControlLevel, string> = {
 
 export const PROBLEM_STATUS_LABEL: Record<ProblemStatus, string> = {
   to_validate: "Por validar",
-  validated: "Validado",
-  discarded: "Descartado",
+  validated: "Validada",
+  discarded: "Descartada",
 };
 
 export const STATUS_LABEL: Record<ExperimentStatus, string> = {

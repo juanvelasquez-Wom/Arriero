@@ -62,10 +62,10 @@ export const QUIZZES: Record<CertificateKind, QuizQuestion[]> = {
     },
     {
       id: "g-problema",
-      question: "Un problema bien planteado en el Arriero trae…",
+      question: "Una oportunidad de mejora bien planteada en el Arriero trae…",
       options: ["Una corazonada bien argumentada", "Evidencia: los datos que muestran la pérdida", "Un culpable"],
       answer: 1,
-      why: "Sin evidencia no hay problema, hay carreta.",
+      why: "Sin evidencia no hay oportunidad de mejora, hay carreta.",
     },
     {
       id: "g-hipotesis",
@@ -131,7 +131,7 @@ export const QUIZZES: Record<CertificateKind, QuizQuestion[]> = {
       question: "Cada ejercicio nace de…",
       options: [
         "Una idea suelta en una reunión",
-        "Un problema con evidencia, y apunta a una métrica del árbol de la misma línea",
+        "Una oportunidad de mejora con evidencia, y apunta a una métrica del árbol de la misma línea",
         "Lo que haya quedado de presupuesto",
       ],
       answer: 1,

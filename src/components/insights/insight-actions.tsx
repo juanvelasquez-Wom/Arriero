@@ -82,12 +82,12 @@ function ToProblemDialog({ id, programs, open, onOpenChange }: { id: string; pro
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Convertir en problema</DialogTitle>
-          <DialogDescription>Elija dónde vive. El problema arranca con el insight y su fuente; usted completa la etapa y la causa.</DialogDescription>
+          <DialogTitle>Convertir en oportunidad de mejora</DialogTitle>
+          <DialogDescription>Elija dónde vive. La oportunidad arranca con el insight y su fuente; usted completa la etapa y la causa.</DialogDescription>
         </DialogHeader>
         {list.length === 0 ? (
           <p className="rounded-xl bg-wash px-3 py-2 text-sm">
-            Usted no puede crear problemas en ningún programa todavía. Pídale al owner que lo sume como colaborador.
+            Usted no puede crear oportunidades de mejora en ningún programa todavía. Pídale al owner que lo sume como colaborador.
           </p>
         ) : (
           <div className="space-y-3">
@@ -137,7 +137,7 @@ function ToProblemDialog({ id, programs, open, onOpenChange }: { id: string; pro
             disabled={!programId || !lineOk}
             onClick={() => router.push(`/programas/${programId}/problemas/nuevo?insight=${id}&linea=${lineOk}`)}
           >
-            <ClipboardList aria-hidden className="size-4" /> Seguir al problema
+            <ClipboardList aria-hidden className="size-4" /> Seguir a la oportunidad de mejora
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -181,7 +181,7 @@ export function InsightActions({ id, perms, programs, compact = false }: { id: s
     <div className="flex flex-wrap items-center gap-2">
       {perms.toProblem ? (
         <Button size={compact ? "sm" : "default"} onClick={() => setProblemOpen(true)}>
-          <ClipboardList aria-hidden className="size-4" /> Convertir en problema
+          <ClipboardList aria-hidden className="size-4" /> Convertir en oportunidad de mejora
         </Button>
       ) : null}
       {perms.toProgram ? (

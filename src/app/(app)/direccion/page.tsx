@@ -1,4 +1,4 @@
-import { ArrowRight, Compass, FileText, Gavel, TrendingUp, Users } from "lucide-react";
+import { ArrowLeft, ArrowRight, Compass, FileText, Gavel, Users } from "lucide-react";
 import { ArrieroNorthStar, DirectionPilotsSection, ExecutiveBriefView } from "@/components/app/executive-brief";
 import { CopySummaryButton } from "@/components/app/report-actions";
 import type { Metadata } from "next";
@@ -9,8 +9,9 @@ import { Fold } from "@/components/app/fold";
 import { ViewTabs } from "@/components/app/view-tabs";
 import { ExportCsvButton } from "@/components/app/export-csv-button";
 import { Term } from "@/components/app/info-tip";
-import { Callout, EmptyState, PageHeader, Section } from "@/components/app/page";
+import { EmptyState, Section } from "@/components/app/page";
 import { DemoBadge } from "@/components/app/status-badge";
+import { ExecutiveGlanceView } from "@/components/direction/executive-glance";
 import { TargetStatusSummary } from "@/components/lines/target-status";
 import { TiaCommittee } from "@/components/tia/tia-committee";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,7 @@ import { TIA_ENABLED } from "@/domain/tia";
 import { todayIso } from "@/domain/dates";
 import { formatDate, formatMetricValue, formatPercent } from "@/domain/format";
 import { buildExecutiveBrief, type BriefKey, executiveBriefToText, growthDecisionsByWeek, lastWeeks, weeklyActiveUsers, ARRIERO_NORTH_STAR_WEEKS } from "@/domain/executive";
+import { buildExecutiveGlance } from "@/domain/executive-glance";
 import { buildReport, parsePeriod, reportPeriod } from "@/domain/report";
 import { bogotaDate, directionHeadline, rollupProgram, type NorthStarStatus, type ProgramRollup } from "@/domain/rollup";
 import { TARGET_STATUS_LABEL } from "@/domain/targets";
@@ -34,7 +36,8 @@ import { recordUsage } from "@/server/usage";
 
 export const metadata: Metadata = { title: "Resumen ejecutivo" };
 
-type DirectionView = "preguntas" | "programas" | "metodo" | "pilotos" | "tia";
+/** "resumen" es el vistazo (primera pantalla); el resto es el detalle para el comité. */
+type DirectionView = "resumen" | "preguntas" | "programas" | "metodo" | "pilotos" | "tia";
 const BRIEF_KEYS: readonly BriefKey[] = ["growing", "falling", "running", "results", "learned", "value", "decide", "next", "risks"];
 
 function Headline({ label, value, hint, highlight }: { label: ReactNode; value: ReactNode; hint?: ReactNode; highlight?: boolean }) {
@@ -208,19 +211,17 @@ export default async function DirectionPage({ searchParams }: PageProps<"/direcc
   const hasPilotRole = !!(await getPilotContext()).actor.role;
   const allPilots = hasPilotRole ? await listPilotsForDirection() : [];
   const realPilots = allPilots.filter((p) => !p.is_example);
+  const pilotPool = brief.includesDemo || !realPilots.length ? allPilots : realPilots;
   const economics = new Map(snapshots.flatMap((s) => [...s.economics]));
   const [sustained, usage, pilotSection] = await Promise.all([
     loadSustainedLift(usedExperiments, economics, today).catch(() => null),
     user.isAdmin ? loadUsageDays(lastWeeks(today, ARRIERO_NORTH_STAR_WEEKS)[0]).catch(() => null) : Promise.resolve(null),
     hasPilotRole ? loadDirectionPilots(allPilots, today).catch(() => null) : Promise.resolve(null),
   ]);
-  const decisions = growthDecisionsByWeek({
-    experiments: usedExperiments,
-    pilots: brief.includesDemo || !realPilots.length ? allPilots : realPilots,
-    today,
-  });
+  const decisions = growthDecisionsByWeek({ experiments: usedExperiments, pilots: pilotPool, today });
   const wau = usage ? weeklyActiveUsers(usage, today) : null;
   const pilotsBlock = pilotSection ? <DirectionPilotsSection {...pilotSection} /> : null;
+  const glance = buildExecutiveGlance({ brief, headline: h, pilots: pilotPool, seed: today });
 
   const pending = rollups.flatMap((r) => r.pendingDecisions.map((p) => ({ ...p, programId: r.id, programName: r.name })));
   pending.sort((a, b) => a.since.localeCompare(b.since));
@@ -247,106 +248,127 @@ export default async function DirectionPage({ searchParams }: PageProps<"/direcc
     { header: "Decisiones pendientes", value: ({ r }) => r.pendingDecisions.length },
   ]);
 
-
-  // Una vista a la vez: lo esencial arriba y el resto en pestañas (?vista=) que se pueden compartir.
-  const views: { key: DirectionView; label: string; count?: number; attention?: boolean }[] = [
+  // Primera pantalla: el vistazo. El detalle para el comité, una vista a la vez (?vista=), se puede compartir.
+  const detailViews: { key: Exclude<DirectionView, "resumen">; label: string; count?: number; attention?: boolean }[] = [
     { key: "preguntas", label: "Las 9 preguntas" },
     { key: "programas", label: "Por programa", count: pending.length || undefined, attention: pending.length > 0 },
     { key: "metodo", label: "¿Funciona el método?" },
     ...(pilotsBlock ? [{ key: "pilotos" as const, label: "Pilotos de medios" }] : []),
     ...(TIA_ENABLED ? [{ key: "tia" as const, label: "Comité con la Tía" }] : []),
   ];
-  const view: DirectionView = views.some((v) => v.key === rawView) ? (rawView as DirectionView) : "preguntas";
   const question = BRIEF_KEYS.includes(rawQuestion as BriefKey) ? (rawQuestion as BriefKey) : null;
+  // Enlaces viejos: ?pregunta= sin vista abría las preguntas (antes eran la vista por defecto).
+  const view: DirectionView = detailViews.some((v) => v.key === rawView)
+    ? (rawView as DirectionView)
+    : question
+      ? "preguntas"
+      : "resumen";
   const dirHref = (p: { vista?: DirectionView; periodo?: string; pregunta?: string }) => {
     const q = new URLSearchParams();
     const vista = p.vista ?? view;
-    if (vista !== "preguntas") q.set("vista", vista);
+    if (vista !== "resumen") q.set("vista", vista);
     const periodo = p.periodo ?? periodKey;
     if (periodo !== "semana") q.set("periodo", periodo);
     if (p.pregunta && vista === "preguntas") q.set("pregunta", p.pregunta);
     return `/direccion${q.size ? `?${q}` : ""}`;
   };
+  const otherPeriod = periodKey === "semana" ? { key: "mes", label: "ver el mes" } : { key: "semana", label: "ver la semana" };
+  const programNames = brief.programs.map((p) => p.name).join(", ");
+  const tools = programs.length ? (
+    <>
+      <CopySummaryButton text={briefText} />
+      <ExportCsvButton csv={csv} name={["resumen-ejecutivo", today]} />
+    </>
+  ) : null;
 
   return (
     <>
       <AppHeader user={user} />
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
-        <PageHeader
-          className="mb-5"
-          eyebrow="Resumen ejecutivo · para dirección"
-          title="¿Estamos creciendo?"
-          description="Todos los programas en una pantalla y sin carreta. El detalle, en las pestañas."
-          actions={
-            programs.length ? (
-              <>
-                <CopySummaryButton text={briefText} />
-                <ExportCsvButton csv={csv} name={["resumen-ejecutivo", today]} />
-              </>
-            ) : null
-          }
-        />
-
+      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 sm:py-12">
         {programs.length === 0 ? (
-          <EmptyState art="diana"
-            icon={Compass}
-            title="Todavía no hay programas para mostrar"
-            description="Cuando lo agreguen a un programa, aquí va a ver su estado de un vistazo."
-            action={
-              <Button asChild variant="outline">
-                <Link href="/programas">Ir a Mis programas</Link>
-              </Button>
+          <>
+            <h1 className="mb-5 font-heading text-3xl font-extrabold">¿Estamos creciendo?</h1>
+            <EmptyState
+              art="diana"
+              icon={Compass}
+              title="Todavía no hay programas para mostrar"
+              description="Cuando lo agreguen a un programa, aquí va a ver su estado de un vistazo."
+              action={
+                <Button asChild variant="outline">
+                  <Link href="/programas">Ir a Mis programas</Link>
+                </Button>
+              }
+            />
+            {pilotsBlock ? <div className="mt-6">{pilotsBlock}</div> : null}
+          </>
+        ) : view === "resumen" ? (
+          <ExecutiveGlanceView
+            glance={glance}
+            eyebrow={
+              <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span>
+                  <span className="hidden sm:inline">Resumen ejecutivo · </span>
+                  {period.label}
+                </span>
+                <Link href={dirHref({ periodo: otherPeriod.key })} scroll={false} className="normal-case tracking-normal underline underline-offset-4 hover:text-ink">
+                  {otherPeriod.label}
+                </Link>
+              </span>
+            }
+            questionHref={(q) => dirHref({ vista: "preguntas", pregunta: q })}
+            footer={
+              <section aria-labelledby="para-el-comite" className="rounded-2xl border bg-wash/60 p-4 sm:p-5">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <h2 id="para-el-comite" className="font-heading text-lg font-extrabold">
+                      ¿Va para el comité?
+                    </h2>
+                    <p className="text-sm text-soft">
+                      Las 9 preguntas, cada programa, el método y los pilotos. Programas: {programNames}
+                      {brief.includesDemo ? " (datos de ejemplo)" : ""}.
+                    </p>
+                  </div>
+                  <Button asChild variant="outline">
+                    <Link href={dirHref({ vista: "preguntas" })}>
+                      Ver el detalle para el comité <ArrowRight aria-hidden />
+                    </Link>
+                  </Button>
+                </div>
+                <div className="mt-3 flex flex-wrap items-center gap-2 border-t pt-3">
+                  {detailViews.slice(1).map((v) => (
+                    <Link
+                      key={v.key}
+                      href={dirHref({ vista: v.key })}
+                      className="inline-flex min-h-9 items-center gap-1.5 rounded-full border bg-paper px-3 text-sm hover:bg-wash"
+                    >
+                      {v.label}
+                    </Link>
+                  ))}
+                  <span className="flex flex-wrap gap-2 sm:ml-auto">{tools}</span>
+                </div>
+              </section>
             }
           />
-        ) : null}
-        {programs.length === 0 && pilotsBlock ? <div className="mt-6">{pilotsBlock}</div> : null}
-        {programs.length === 0 ? null : (
+        ) : (
           <div className="space-y-5">
-            <Callout
-              icon={TrendingUp}
-              tone={h.answer === "yes" || h.answer === "unknown" ? "neutral" : "attention"}
-              title={<span className="text-base">{h.answerTitle}</span>}
-            >
-              {h.answerText}
-              {h.includesDemo ? " (Con datos del programa de ejemplo.)" : null}
-            </Callout>
-
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-              <Headline
-                label={<Term k="northStar">Métricas norte en la meta</Term>}
-                value={h.northStarsEvaluated ? `${h.northStarsOnTrack}/${h.northStarsEvaluated}` : "—"}
-                hint={
-                  h.northStarsTotal > h.northStarsEvaluated
-                    ? `${h.northStarsTotal - h.northStarsEvaluated} sin meta o sin datos`
-                    : `${h.northStarsOffTrack} muy atrás`
-                }
-                highlight={h.answer === "yes"}
-              />
-              <Headline label="Ejercicios en prueba" value={h.running} hint={`${h.pendingDecisions} esperando decisión`} />
-              <Headline
-                label={<Term k="winRate" />}
-                value={formatPercent(h.hitRate)}
-                hint={`${h.winnersThisMonth} ganador${h.winnersThisMonth === 1 ? "" : "es"} de ${h.closedThisMonth} cerrado${h.closedThisMonth === 1 ? "" : "s"} este mes`}
-                highlight={h.winnersThisMonth > 0}
-              />
-              <Headline
-                label={<Term k="estimatedValue">Valor estimado al mes</Term>}
-                value={formatCop(h.monthlyValue)}
-                hint={
-                  h.monthlyValue == null
-                    ? h.missingUnitValue
-                      ? `${h.missingUnitValue} ganador(es) sin valor por unidad en su métrica`
-                      : "Todavía no hay ganadores con valor"
-                    : `De ${h.valueCounted} ganador${h.valueCounted === 1 ? "" : "es"} si se escalan${h.missingUnitValue ? ` · ${h.missingUnitValue} sin valor por unidad` : ""}`
-                }
-              />
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div className="min-w-0">
+                <Link href={dirHref({ vista: "resumen" })} className="inline-flex min-h-9 items-center gap-1 text-sm text-soft hover:text-ink">
+                  <ArrowLeft aria-hidden className="size-4" /> Volver al vistazo
+                </Link>
+                <h1 className="font-heading text-2xl font-extrabold sm:text-3xl">El detalle para el comité</h1>
+                <p className="text-sm text-soft">
+                  {glance.title} · {programNames}
+                  {brief.includesDemo ? " · con datos de ejemplo" : ""}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">{tools}</div>
             </div>
 
             <ViewTabs
-              label="Secciones del resumen ejecutivo"
+              label="Secciones del detalle para el comité"
               active={view}
-              tabs={views.map((v) => ({ ...v, href: dirHref({ vista: v.key }) }))}
-              className="pt-2"
+              tabs={detailViews.map((v) => ({ ...v, href: dirHref({ vista: v.key }) }))}
             />
 
             <div key={view} className="slide-in">
@@ -362,6 +384,36 @@ export default async function DirectionPage({ searchParams }: PageProps<"/direcc
 
               {view === "programas" ? (
                 <div className="space-y-5">
+                  <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                    <Headline
+                      label={<Term k="northStar">Métricas norte en la meta</Term>}
+                      value={h.northStarsEvaluated ? `${h.northStarsOnTrack}/${h.northStarsEvaluated}` : "—"}
+                      hint={
+                        h.northStarsTotal > h.northStarsEvaluated
+                          ? `${h.northStarsTotal - h.northStarsEvaluated} sin meta o sin datos`
+                          : `${h.northStarsOffTrack} muy atrás`
+                      }
+                    />
+                    <Headline label="Ejercicios en prueba" value={h.running} hint={`${h.pendingDecisions} esperando decisión`} />
+                    <Headline
+                      label={<Term k="winRate" />}
+                      value={formatPercent(h.hitRate)}
+                      hint={`${h.winnersThisMonth} ganador${h.winnersThisMonth === 1 ? "" : "es"} de ${h.closedThisMonth} cerrado${h.closedThisMonth === 1 ? "" : "s"} este mes`}
+                      highlight={h.winnersThisMonth > 0}
+                    />
+                    <Headline
+                      label={<Term k="estimatedValue">Valor estimado al mes</Term>}
+                      value={formatCop(h.monthlyValue)}
+                      hint={
+                        h.monthlyValue == null
+                          ? h.missingUnitValue
+                            ? `${h.missingUnitValue} ganador(es) sin valor por unidad en su métrica`
+                            : "Todavía no hay ganadores con valor"
+                          : `De ${h.valueCounted} ganador${h.valueCounted === 1 ? "" : "es"} si se escalan${h.missingUnitValue ? ` · ${h.missingUnitValue} sin valor por unidad` : ""}`
+                      }
+                    />
+                  </div>
+
                   <Section title="Decisiones pendientes" description="Ya terminaron la prueba y esperan veredicto. Sin decidir no se aprende nada.">
                     {pending.length === 0 ? (
                       <p className="text-sm text-soft">¡Eso! No hay nada esperando decisión.</p>

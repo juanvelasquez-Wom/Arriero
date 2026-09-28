@@ -51,7 +51,7 @@ const cities = z
 /** Paso 1 · Problema e hipótesis. */
 export const pilotProblemSchema = z.object({
   title: z.string().trim().min(5, "Póngale un nombre de al menos 5 caracteres.").max(160),
-  problem: z.string().trim().min(10, "Cuente el problema en al menos 10 caracteres: un piloto nace de un problema.").max(4000),
+  problem: z.string().trim().min(10, "Cuente la oportunidad de mejora en al menos 10 caracteres: un piloto nace de una oportunidad de mejora.").max(4000),
   problem_evidence: optionalText(),
   hypothesis_change: optionalText(500),
   hypothesis_scope: optionalText(500),

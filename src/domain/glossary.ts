@@ -86,7 +86,7 @@ export const GLOSSARY = {
   },
   freeze: { label: "Congelamiento", simple: "Días en que no se lanza nada nuevo para no arriesgar las ventas de temporada." },
   horizon: { label: "Horizonte", simple: "Un tramo del programa con su propia meta (por ejemplo, H1 hasta enero)." },
-  evidence: { label: "Evidencia", simple: "Los datos que muestran que el problema existe. Sin evidencia, es una corazonada." },
+  evidence: { label: "Evidencia", simple: "Los datos que muestran que la oportunidad de mejora existe. Sin evidencia, es una corazonada." },
   unitValue: {
     label: "Valor por unidad",
     simple: "Cuánto vale para el negocio una unidad de esta métrica (por ejemplo, una alta ≈ $250.000). Con esto Arriero calcula el valor en pesos de cada resultado.",

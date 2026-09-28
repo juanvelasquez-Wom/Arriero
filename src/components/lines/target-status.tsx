@@ -42,7 +42,7 @@ export function TargetStatusBadge({ status, className }: { status: TargetStatus;
 function ProblemLink({ href }: { href: string }) {
   return (
     <Link href={href} className="inline-flex items-center gap-1 text-xs font-medium text-ink underline underline-offset-4">
-      <FilePlus2 aria-hidden className="size-3.5" /> Convertir en problema
+      <FilePlus2 aria-hidden className="size-3.5" /> Convertir en oportunidad de mejora
     </Link>
   );
 }

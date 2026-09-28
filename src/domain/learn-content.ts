@@ -184,7 +184,7 @@ export const LESSONS: Lesson[] = [
     title: "El embudo",
     body: [
       "Son las etapas por las que pasa una persona, desde que nos conoce hasta que vuelve a comprar.",
-      "Sirve para ubicar el problema: no es lo mismo que no lleguen a que lleguen y no compren.",
+      "Sirve para ubicar la oportunidad de mejora: no es lo mismo que no lleguen a que lleguen y no compren.",
     ],
     example: {
       line: "Recargas y paquetes",
@@ -205,9 +205,9 @@ export const LESSONS: Lesson[] = [
   {
     id: "problema",
     kicker: "Dónde se pierde valor",
-    title: "Un problema con evidencia",
+    title: "Una oportunidad de mejora con evidencia",
     body: [
-      "Un problema es una pérdida de valor ubicada en una línea, una etapa y un canal. Y trae evidencia: un dato, no una corazonada.",
+      "Una oportunidad de mejora es una pérdida de valor ubicada en una línea, una etapa y un canal. Y trae evidencia: un dato, no una corazonada.",
       "Luego se le pone una causa raíz hipotética, que el ejercicio va a poner a prueba.",
     ],
     example: {
@@ -216,7 +216,7 @@ export const LESSONS: Lesson[] = [
     },
     interaction: {
       kind: "choice",
-      question: "¿Cuál es un problema bien planteado?",
+      question: "¿Cuál es una oportunidad de mejora bien planteada?",
       options: [
         {
           id: "a",
@@ -234,7 +234,7 @@ export const LESSONS: Lesson[] = [
           id: "c",
           label: "Hay que hacer más contenido en TikTok",
           correct: false,
-          feedback: "Eso es una solución disfrazada de problema. Primero el problema.",
+          feedback: "Eso es una solución disfrazada de oportunidad. Primero la oportunidad de mejora.",
         },
       ],
     },
@@ -244,7 +244,7 @@ export const LESSONS: Lesson[] = [
     kicker: "Qué vamos a probar",
     title: "El ejercicio y su hipótesis",
     body: [
-      "Un ejercicio es cualquier cambio que se quiere probar antes de escalarlo. Siempre nace de un problema y apunta a una métrica del árbol.",
+      "Un ejercicio es cualquier cambio que se quiere probar antes de escalarlo. Siempre nace de una oportunidad de mejora y apunta a una métrica del árbol.",
       "Se escribe como hipótesis: SI hacemos esto, ENTONCES pasa esto, PORQUE creemos esto.",
     ],
     example: {
@@ -268,7 +268,7 @@ export const LESSONS: Lesson[] = [
     title: "ICE para priorizar",
     body: [
       "Hay más ideas que tiempo. ICE las ordena: Impacto, Confianza y Facilidad, cada una de 1 a 10. El ICE es el promedio.",
-      "Luego se suma o se resta por calendario y por qué tanto control tenemos del problema. Eso da el puntaje final.",
+      "Luego se suma o se resta por calendario y por qué tanto control tenemos de la oportunidad de mejora. Eso da el puntaje final.",
     ],
     example: {
       line: "Equipos móviles",
@@ -520,7 +520,7 @@ export const TOUR_STEPS: TourStep[] = [
     title: "El inicio y la barra de arriba",
     body: ["La barra de arriba lo acompaña en todas las pantallas. Desde ahí llega a todo sin perderse."],
     points: [
-      "Buscar con Ctrl K: programas, ejercicios, problemas y atajos.",
+      "Buscar con Ctrl K: programas, ejercicios, oportunidades de mejora y atajos.",
       "La mula lo devuelve al inicio.",
       "Proyectos (programas), Pilotos, Tableros y Resumen ejecutivo para dirección.",
       "La campana trae los avisos: lo que ya se puede leer, ideas quietas, congelamientos.",
@@ -553,7 +553,7 @@ export const TOUR_STEPS: TourStep[] = [
     points: [
       "Métrica norte y su eficiencia.",
       "Árbol: las métricas de entrada que mueven la norte.",
-      "Embudo: las etapas donde se ubican los problemas.",
+      "Embudo: las etapas donde se ubican las oportunidades de mejora.",
     ],
     mock: "line",
     href: "/programas",
@@ -576,12 +576,12 @@ export const TOUR_STEPS: TourStep[] = [
   },
   {
     id: "problema",
-    title: "Registrar un problema",
-    body: ["El problema dice dónde se pierde valor: línea, etapa del embudo y canal, con su evidencia."],
+    title: "Registrar una oportunidad de mejora",
+    body: ["La oportunidad de mejora dice dónde se pierde valor: línea, etapa del embudo y canal, con su evidencia."],
     points: [
       "Adjunte la evidencia: PDF, imagen o CSV.",
       "Escriba la causa raíz que sospecha.",
-      "Márquelo validado cuando el dato lo confirme.",
+      "Márquela validada cuando el dato lo confirme.",
     ],
     mock: "problem",
     href: "/programas",
@@ -591,7 +591,7 @@ export const TOUR_STEPS: TourStep[] = [
   {
     id: "ejercicios",
     title: "Crear y priorizar ejercicios",
-    body: ["De cada problema salen ejercicios. Se califican con ICE y el backlog los ordena por puntaje final."],
+    body: ["De cada oportunidad de mejora salen ejercicios. Se califican con ICE y el backlog los ordena por puntaje final."],
     points: [
       "Hipótesis SI / ENTONCES / PORQUE.",
       "ICE de 1 a 10: impacto, confianza y facilidad.",
@@ -649,11 +649,11 @@ export const TOUR_STEPS: TourStep[] = [
   {
     id: "insights",
     title: "El carriel de insights",
-    body: ["Lo que la gente ve, oye o sospecha se guarda aquí, para todos. De un insight nacen problemas, proyectos y pilotos."],
+    body: ["Lo que la gente ve, oye o sospecha se guarda aquí, para todos. De un insight nacen oportunidades de mejora, proyectos y pilotos."],
     points: [
       "El bombillo de arriba (o la tecla I) lo anota en diez segundos: una frase y su fuente.",
       "«Yo también lo he visto» suma evidencia de que no es un caso aislado.",
-      "Convertir en problema, armar proyecto o crear piloto lo deja sembrado.",
+      "Convertir en oportunidad de mejora, armar proyecto o crear piloto lo deja sembrado.",
     ],
     mock: "problem",
     href: "/insights",

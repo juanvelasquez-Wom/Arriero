@@ -125,7 +125,7 @@ export default async function BacklogPage({ params, searchParams }: PageProps<"/
     [
       { header: "#", value: ({ i }) => i + 1 },
       { header: "Ejercicio", value: ({ e }) => e.title },
-      { header: "Problema", value: ({ e }) => e.problem_title },
+      { header: "Oportunidad de mejora", value: ({ e }) => e.problem_title },
       { header: "Línea", value: ({ e }) => e.line_name },
       { header: "Etapa", value: ({ e }) => e.stage_name },
       { header: "Impacto", value: ({ e }) => e.impact },
@@ -197,10 +197,10 @@ export default async function BacklogPage({ params, searchParams }: PageProps<"/
         <EmptyState art="carriel-experimentos"
           icon={ListOrdered}
           title="Los ejercicios son los atajos. Todavía no hay ninguno."
-          description="Cada ejercicio nace de un problema con evidencia. Cree uno desde un problema y priorícelo con ICE."
+          description="Cada ejercicio nace de una oportunidad de mejora con evidencia. Cree uno desde una oportunidad y priorícelo con ICE."
           action={
             <Button asChild variant="outline">
-              <Link href={`${base}/problemas`}>Ir a los problemas</Link>
+              <Link href={`${base}/problemas`}>Ir a las oportunidades de mejora</Link>
             </Button>
           }
         />
@@ -230,7 +230,7 @@ export default async function BacklogPage({ params, searchParams }: PageProps<"/
           </nav>
           <FiltersPanel
             className="mb-3"
-            search={{ param: "q", placeholder: "Título o problema" }}
+            search={{ param: "q", placeholder: "Título u oportunidad" }}
             filters={[
               { param: "linea", label: "Línea", options: lines.map((l) => ({ value: l.id, label: l.name })) },
               { param: "estado", label: "Estado", options: EXPERIMENT_STATUSES.map((s) => ({ value: s, label: STATUS_LABEL[s] })) },

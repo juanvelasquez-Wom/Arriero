@@ -28,12 +28,12 @@ export default async function NewExperimentPage({ params, searchParams }: PagePr
         <PageHeader title="Nuevo ejercicio" />
         <EmptyState art="embudo"
           icon={ClipboardList}
-          title="Primero, un problema con evidencia"
-          description="Aquí no hay ejercicios sueltos: cada uno nace de un problema ubicado en el embudo y apunta a una métrica del árbol. ¿Y por dónde es? Por el problema."
+          title="Primero, una oportunidad de mejora con evidencia"
+          description="Aquí no hay ejercicios sueltos: cada uno nace de una oportunidad de mejora ubicada en el embudo y apunta a una métrica del árbol. ¿Y por dónde es? Por la oportunidad."
           action={
             can.createProblem(ctx.actor) ? (
               <Button asChild>
-                <Link href={`${base}/problemas/nuevo`}>Registrar un problema</Link>
+                <Link href={`${base}/problemas/nuevo`}>Registrar una oportunidad de mejora</Link>
               </Button>
             ) : null
           }

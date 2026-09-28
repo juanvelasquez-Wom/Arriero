@@ -45,11 +45,11 @@ export function StepOrigin({
   return (
     <div className="space-y-4">
       {problemsByLine.length === 0 ? (
-        <Callout icon={TriangleAlert} title="No hay problemas disponibles">
-          Primero registre un problema con evidencia: no hay ejercicio sin problema.
+        <Callout icon={TriangleAlert} title="No hay oportunidades de mejora disponibles">
+          Primero registre una oportunidad de mejora con evidencia: no hay ejercicio sin oportunidad.
         </Callout>
       ) : null}
-      <FormField id="problem_id" label="Problema" required error={errors.problem_id} description="El ejercicio ataca este problema.">
+      <FormField id="problem_id" label="Oportunidad de mejora" required error={errors.problem_id} description="El ejercicio ataca esta oportunidad.">
         <Select
           value={v.problem_id || undefined}
           onValueChange={(pid) => {
@@ -65,7 +65,7 @@ export function StepOrigin({
           }}
         >
           <SelectTrigger id="problem_id" className="w-full" aria-invalid={!!errors.problem_id}>
-            <SelectValue placeholder="Elija el problema" />
+            <SelectValue placeholder="Elija la oportunidad de mejora" />
           </SelectTrigger>
           <SelectContent>
             {problemsByLine.map((g) => (
@@ -87,7 +87,7 @@ export function StepOrigin({
         required
         error={errors.metric_id}
         description={
-          hasProblem ? "Solo métricas de la misma línea del problema. Es también la métrica principal de la prueba." : "Elija primero el problema."
+          hasProblem ? "Solo métricas de la misma línea de la oportunidad de mejora. Es también la métrica principal de la prueba." : "Elija primero la oportunidad de mejora."
         }
       >
         <Select value={v.metric_id || undefined} onValueChange={(mid) => set("metric_id", mid)} disabled={!hasProblem || designLocked}>

@@ -1,9 +1,10 @@
 "use client";
 
-import { ArrowLeft, Columns3, Compass, FolderKanban, House, Lightbulb, Megaphone, Trophy, type LucideIcon } from "lucide-react";
+import { ArrowLeft, CloudRain, Columns3, Compass, Ellipsis, FolderKanban, House, Lightbulb, Megaphone, Trophy, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { APP_SECTIONS, parentPath, sectionOf, type AppSection } from "@/domain/navigation";
 import { cn } from "@/lib/utils";
 
@@ -11,6 +12,7 @@ const ICON: Record<AppSection, LucideIcon> = {
   inicio: House,
   programas: FolderKanban,
   insights: Lightbulb,
+  ideas: CloudRain,
   pilotos: Megaphone,
   tableros: Columns3,
   direccion: Compass,
@@ -79,27 +81,32 @@ export function TopSections({ showPilots }: { showPilots: boolean }) {
   );
 }
 
-/** En el celular, las secciones van abajo, al alcance del pulgar. */
+// En el celular solo caen cuatro abajo; el resto va en «Más».
+const BOTTOM_MAIN: AppSection[] = ["inicio", "programas", "insights", "ideas"];
+
+/** En el celular, las secciones van abajo, al alcance del pulgar: cuatro fijas y «Más». */
 export function BottomSections({ showPilots }: { showPilots: boolean }) {
   const active = useActive();
-  const items = APP_SECTIONS.filter((s) => showPilots || s.key !== "pilotos");
+  const [open, setOpen] = useState(false);
+  const all = APP_SECTIONS.filter((s) => showPilots || s.key !== "pilotos");
+  const main = all.filter((s) => BOTTOM_MAIN.includes(s.key));
+  const more = all.filter((s) => !BOTTOM_MAIN.includes(s.key));
+  const moreActive = more.some((s) => s.key === active);
+  const tab = (on: boolean) => cn("flex w-full flex-col items-center gap-0.5 py-2 text-[11px] text-soft", on && "font-semibold text-ink");
+  const pill = (on: boolean) => cn("flex h-7 w-12 items-center justify-center rounded-full transition-colors", on && "bg-highlight text-[#111111]");
   return (
     <nav
       aria-label="Secciones"
       className="fixed inset-x-0 bottom-0 z-30 border-t bg-paper/95 pb-[env(safe-area-inset-bottom,0px)] backdrop-blur-md md:hidden"
     >
-      <ul className="grid" style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>
-        {items.map((s) => {
+      <ul className="grid grid-cols-5">
+        {main.map((s) => {
           const Icon = ICON[s.key];
           const on = s.key === active;
           return (
-            <li key={s.key}>
-              <Link
-                href={s.href}
-                aria-current={on ? "page" : undefined}
-                className={cn("flex flex-col items-center gap-0.5 py-2 text-[10px] text-soft", on && "font-semibold text-ink")}
-              >
-                <span className={cn("flex h-7 w-10 items-center justify-center rounded-full transition-colors", on && "bg-highlight text-[#111111]")}>
+            <li key={s.key} className="min-w-0">
+              <Link href={s.href} aria-current={on ? "page" : undefined} className={tab(on)}>
+                <span className={pill(on)}>
                   <Icon aria-hidden className="size-[18px]" />
                 </span>
                 {s.label}
@@ -107,6 +114,44 @@ export function BottomSections({ showPilots }: { showPilots: boolean }) {
             </li>
           );
         })}
+        <li className="min-w-0">
+          <Sheet open={open} onOpenChange={setOpen}>
+            <SheetTrigger asChild>
+              <button type="button" className={tab(moreActive)} aria-label="Más secciones">
+                <span className={pill(moreActive)}>
+                  <Ellipsis aria-hidden className="size-[18px]" />
+                </span>
+                Más
+              </button>
+            </SheetTrigger>
+            <SheetContent side="bottom" className="rounded-t-3xl bg-paper px-4 pt-4 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)]">
+              <SheetHeader className="p-0 pb-2">
+                <SheetTitle>Más secciones</SheetTitle>
+              </SheetHeader>
+              <ul className="grid grid-cols-2 gap-2">
+                {more.map((s) => {
+                  const Icon = ICON[s.key];
+                  const on = s.key === active;
+                  return (
+                    <li key={s.key}>
+                      <Link
+                        href={s.href}
+                        onClick={() => setOpen(false)}
+                        aria-current={on ? "page" : undefined}
+                        className={cn(
+                          "flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm font-medium",
+                          on ? "border-transparent bg-highlight text-[#111111]" : "hover:bg-wash",
+                        )}
+                      >
+                        <Icon aria-hidden className="size-5" /> {s.label}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </SheetContent>
+          </Sheet>
+        </li>
       </ul>
     </nav>
   );

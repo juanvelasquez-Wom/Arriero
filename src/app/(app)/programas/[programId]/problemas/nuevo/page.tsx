@@ -16,7 +16,7 @@ import { getProgramContext } from "@/server/auth";
 import { listLines } from "@/server/queries/programs";
 import { listStages } from "@/server/queries/structure";
 
-export const metadata: Metadata = { title: "Nuevo problema" };
+export const metadata: Metadata = { title: "Nueva oportunidad de mejora" };
 
 const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -131,18 +131,18 @@ export default async function NewProblemPage({ params, searchParams }: PageProps
   return (
     <div className="mx-auto max-w-3xl">
       <PageHeader
-        title="Nuevo problema"
+        title="Nueva oportunidad de mejora"
         description="Cargue lo que importa: dónde se pierde valor, con qué datos y por qué creemos que pasa. De aquí nacen los ejercicios."
       />
       {fromQuickStart ? (
         <Callout icon={MapIcon} className="mb-4">
-          ¡Listo pues, ya tiene el mapa! Ahora cuéntele a Arriero dónde se pierde valor: un problema con los datos que lo muestran.
+          ¡Listo pues, ya tiene el mapa! Ahora cuéntele a Arriero dónde se pierde valor: una oportunidad de mejora con los datos que la muestran.
           Después puede completar líneas base y metas en Configuración.
         </Callout>
       ) : null}
       {fromInsight ? (
         <Callout icon={Lightbulb} tone="neutral" className="mb-4">
-          Este problema nace del insight «{fromInsight.title}», de {fromInsight.author_name}. Le dejamos el texto y la fuente como evidencia: elija
+          Esta oportunidad de mejora nace del insight «{fromInsight.title}», de {fromInsight.author_name}. Le dejamos el texto y la fuente como evidencia: elija
           la etapa, cuente la causa que sospecha y guárdelo. Al guardar, el insight queda sembrado aquí.
         </Callout>
       ) : null}
@@ -159,7 +159,7 @@ export default async function NewProblemPage({ params, searchParams }: PageProps
         </Callout>
       ) : metricId ? (
         <Callout tone="neutral" className="mb-4">
-          No encontramos esa métrica (quizás la borraron). Puede registrar el problema a mano.
+          No encontramos esa métrica (quizás la borraron). Puede registrar la oportunidad de mejora a mano.
         </Callout>
       ) : null}
       <Section>

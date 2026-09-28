@@ -26,7 +26,7 @@ const FEATURE: Record<PilotDraftKind, TiaFeature> = {
 
 const TASK: Record<PilotDraftKind, string> = {
   diagnosis: `Diagnostique la línea base del piloto y sugiera cómo afinar la hipótesis.
-- En 3 a 5 viñetas: qué dice el problema y su evidencia, qué falta medir, y una hipótesis mejorada en el formato "Si hacemos [cambio] en [ámbito], esperamos mover [métrica] en [N %] porque [razón]".
+- En 3 a 5 viñetas: qué dice la oportunidad de mejora y su evidencia, qué falta medir, y una hipótesis mejorada en el formato "Si hacemos [cambio] en [ámbito], esperamos mover [métrica] en [N %] porque [razón]".
 - Es una sugerencia: la persona decide.`,
   design: `Recomiende el diseño de la prueba y señale riesgos.
 - Diga si el tipo de prueba elegido encaja con la variable (la matriz de Arriero ya trae una recomendación) y por qué.

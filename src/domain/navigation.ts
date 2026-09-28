@@ -3,12 +3,13 @@
  * cuando no hay historial dentro de la app (enlace abierto directo, pestaña nueva).
  */
 
-export type AppSection = "inicio" | "programas" | "insights" | "pilotos" | "tableros" | "direccion" | "recua";
+export type AppSection = "inicio" | "programas" | "insights" | "ideas" | "pilotos" | "tableros" | "direccion" | "recua";
 
 export const APP_SECTIONS: { key: AppSection; href: string; label: string }[] = [
   { key: "inicio", href: "/", label: "Inicio" },
   { key: "programas", href: "/programas", label: "Programas" },
   { key: "insights", href: "/insights", label: "Insights" },
+  { key: "ideas", href: "/ideas", label: "Ideas" },
   { key: "pilotos", href: "/pilotos", label: "Pilotos" },
   { key: "tableros", href: "/tableros", label: "Tableros" },
   { key: "direccion", href: "/direccion", label: "Dirección" },

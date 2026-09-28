@@ -12,7 +12,7 @@ const uuid = z.string().uuid();
 
 export async function createProblem(programId: string, input: ProblemInput): Promise<ActionResult<{ id: string }>> {
   const ctx = await getActionActor(programId);
-  if (!ctx || !can.createProblem(ctx.actor)) return fail("Su rol no puede crear problemas.");
+  if (!ctx || !can.createProblem(ctx.actor)) return fail("Su rol no puede crear oportunidades de mejora.");
   const parsed = problemSchema.safeParse(input);
   if (!parsed.success) return fromZod(parsed.error);
   const supabase = await createClient();
@@ -33,13 +33,13 @@ export async function createProblem(programId: string, input: ProblemInput): Pro
     .single();
   if (error) return failFrom(error);
   revalidatePath(`/programas/${programId}`, "layout");
-  return ok({ id: data.id }, "Problema registrado. Ahora sí sabemos por dónde es.");
+  return ok({ id: data.id }, "Oportunidad de mejora registrada. Ahora sí sabemos por dónde es.");
 }
 
 export async function updateProblem(programId: string, problemId: string, input: ProblemInput): Promise<ActionResult> {
   const ctx = await getActionActor(programId);
-  if (!ctx || !can.editProblem(ctx.actor)) return fail("Su rol no puede editar problemas.");
-  if (!uuid.safeParse(problemId).success) return fail("Problema inválido.");
+  if (!ctx || !can.editProblem(ctx.actor)) return fail("Su rol no puede editar oportunidades de mejora.");
+  if (!uuid.safeParse(problemId).success) return fail("Oportunidad de mejora inválida.");
   const parsed = problemSchema.safeParse(input);
   if (!parsed.success) return fromZod(parsed.error);
   const supabase = await createClient();
@@ -49,7 +49,7 @@ export async function updateProblem(programId: string, problemId: string, input:
     .eq("id", problemId);
   if (error) return failFrom(error);
   revalidatePath(`/programas/${programId}`, "layout");
-  return ok(undefined, "Problema actualizado. De una.");
+  return ok(undefined, "Oportunidad de mejora actualizada. De una.");
 }
 
 /** Registra un archivo ya subido a Storage (la subida la valida la política de Storage). */

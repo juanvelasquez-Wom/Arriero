@@ -87,7 +87,7 @@ export function suggestIce(input: IceAssistInput): IceSuggestion {
     }
   } else if (input.problem?.impact) {
     impact = IMPACT_FROM_PROBLEM[input.problem.impact];
-    impactWhy = `Sale del impacto ${IMPACT_LABEL[input.problem.impact]} del problema. Con el efecto esperado y el valor por unidad de la métrica se calcula en pesos.`;
+    impactWhy = `Sale del impacto ${IMPACT_LABEL[input.problem.impact]} de la oportunidad de mejora. Con el efecto esperado y el valor por unidad de la métrica se calcula en pesos.`;
   } else {
     impactWhy = "Falta el efecto esperado (paso 4) o el valor por unidad de la métrica para calcularlo.";
   }
@@ -99,20 +99,20 @@ export function suggestIce(input: IceAssistInput): IceSuggestion {
     let c = 4;
     if (input.problem.status === "validated") {
       c += 2;
-      why.push("El problema está validado (+2).");
+      why.push("La oportunidad de mejora está validada (+2).");
     } else if (input.problem.status === "discarded") {
       c -= 1;
-      why.push("El problema está descartado (−1).");
+      why.push("La oportunidad de mejora está descartada (−1).");
     } else {
-      why.push("El problema todavía está por validar (sin bono).");
+      why.push("La oportunidad de mejora todavía está por validar (sin bono).");
     }
     if ((input.problem.evidence ?? "").trim().length >= SOLID_EVIDENCE_CHARS) {
       c += 1;
-      why.push("La evidencia del problema está bien escrita (+1).");
+      why.push("La evidencia de la oportunidad está bien escrita (+1).");
     }
     if (input.problem.attachments > 0) {
       c += 1;
-      why.push(`El problema tiene ${input.problem.attachments} adjunto${input.problem.attachments === 1 ? "" : "s"} (+1).`);
+      why.push(`La oportunidad de mejora tiene ${input.problem.attachments} adjunto${input.problem.attachments === 1 ? "" : "s"} (+1).`);
     }
     const similar = findSimilar(input.draftText, [...(input.learnings ?? [])], (l) => l.text, { limit: 5 });
     const wins = similar.filter((s) => s.item.verdict === "winner").length;
@@ -123,7 +123,7 @@ export function suggestIce(input: IceAssistInput): IceSuggestion {
     c += delta;
     confidence = clamp(c);
   } else {
-    why.push("Elija el problema para sugerir la confianza.");
+    why.push("Elija la oportunidad de mejora para sugerir la confianza.");
   }
 
   return { impact, confidence, monthlyValue: monthly, why: { impact: impactWhy, confidence: why } };

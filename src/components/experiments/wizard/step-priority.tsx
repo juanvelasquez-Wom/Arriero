@@ -181,7 +181,7 @@ export function StepPriority({
           label={<Term k="control" />}
           description={
             problem && !controlTouched && v.control === problem.control
-              ? "Viene del problema. ¿Depende de nosotros o de terceros?"
+              ? "Viene de la oportunidad de mejora. ¿Depende de nosotros o de terceros?"
               : "¿Depende de nosotros o de terceros?"
           }
         >

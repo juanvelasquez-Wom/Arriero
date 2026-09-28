@@ -5,9 +5,9 @@ import type { PilotStepKey } from "@/domain/pilots/flow";
 
 export const PILOT_STEP_HELP: Record<PilotStepKey, StepHelp> = {
   problema: {
-    title: "Problema e hipótesis",
+    title: "Oportunidad de mejora e hipótesis",
     what: "Qué está pasando en medios, con qué evidencia, y qué cambio cree que lo mejora. La hipótesis dice qué hacemos, dónde, qué esperamos mover, cuánto y por qué.",
-    why: "Un piloto sin problema es cargar por cargar. Con la hipótesis escrita antes, nadie acomoda la historia después de ver los números.",
+    why: "Un piloto sin oportunidad de mejora es cargar por cargar. Con la hipótesis escrita antes, nadie acomoda la historia después de ver los números.",
     example:
       "Si hacemos videos UGC en lugar de estáticos en CTWA Pospago, esperamos mover la tasa de venta en 10 % porque la gente confía más en alguien como uno.",
     tip: "El % esperado alimenta la calculadora de potencia del paso 3. Sea realista: mejor 8 % creíble que 50 % soñado.",

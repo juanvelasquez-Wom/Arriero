@@ -61,7 +61,7 @@ export function pilotReviewRows(
 
   return [
     { label: "Piloto", value: p.title, step: "problema", filled: true },
-    { label: "Problema", value: p.problem?.trim() || PENDING, step: "problema", filled: !!p.problem?.trim() },
+    { label: "Oportunidad de mejora", value: p.problem?.trim() || PENDING, step: "problema", filled: !!p.problem?.trim() },
     { label: "Hipótesis", value: sentence, step: "problema", filled: !sentence.includes("[") },
     {
       label: "Qué se prueba",

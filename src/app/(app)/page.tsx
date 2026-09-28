@@ -1,4 +1,4 @@
-import { ArrowRight, Trophy } from "lucide-react";
+import { ArrowRight, CloudRain, Trophy } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AppHeader } from "@/components/app/app-header";
@@ -132,6 +132,18 @@ export default async function HomePage() {
           ))}
         </ul>
 
+        {/* Franja chiquita: la lluvia de ideas sin romper la grilla de arriba. */}
+        <Link
+          href="/ideas"
+          className="group mt-3 flex items-center gap-2 rounded-2xl border border-dashed bg-paper px-4 py-2.5 text-sm transition-colors hover:bg-wash"
+        >
+          <CloudRain aria-hidden className="size-4 shrink-0" />
+          <span className="min-w-0 flex-1">
+            <strong>¿Lluvia de ideas?</strong> <span className="text-soft">Arme un aguacero: un reto, ideas sin filtro y al final se decide.</span>
+          </span>
+          <ArrowRight aria-hidden className="size-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
+        </Link>
+
         <ul className="stagger mt-4 grid gap-4 sm:grid-cols-3">
           {learning.map((p) => (
             <li key={p.href} className="pop-in">
@@ -146,7 +158,7 @@ export default async function HomePage() {
             <LevelUpWatcher userId={user.id} points={myPoints} />
             <Link
               href="/recua"
-              className="lift group mt-4 flex flex-wrap items-center gap-3 rounded-2xl bg-[#111111] px-5 py-4 text-[#F6F6F4] shadow-card"
+              className="lift group mt-4 flex flex-col items-start gap-3 rounded-2xl bg-[#111111] px-5 py-4 text-[#F6F6F4] shadow-card sm:flex-row sm:items-center"
             >
               <Trophy aria-hidden className="wiggle-on-hover size-7 shrink-0 text-highlight" />
               <div className="min-w-0 flex-1">

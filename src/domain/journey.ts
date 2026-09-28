@@ -33,7 +33,7 @@ export function journeyStages(input: {
   const ejecutar = n(BY_STATUS.ejecutar);
   return [
     { key: "ver", label: "Ver", what: "métricas en el mapa", count: input.metrics, path: "/carga", attention: false },
-    { key: "entender", label: "Entender", what: "problemas", count: input.problems, path: "/problemas", attention: false },
+    { key: "entender", label: "Entender", what: "oportunidades de mejora", count: input.problems, path: "/problemas", attention: false },
     { key: "decidir", label: "Decidir", what: "ideas y priorizados", count: n(BY_STATUS.decidir), path: "/ejercicios", attention: false },
     { key: "experimentar", label: "Experimentar", what: "en diseño", count: n(BY_STATUS.experimentar), path: "/tableros/kanban", attention: false },
     { key: "ejecutar", label: "Ejecutar", what: "en prueba o lectura", count: ejecutar, path: "/tableros/gantt", attention: ejecutar > 0 },

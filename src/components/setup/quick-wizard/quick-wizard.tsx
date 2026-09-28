@@ -20,6 +20,7 @@ import {
   type QuickDuration,
   type QuickLineInput,
 } from "@/domain/quick-start";
+import { linkIdea } from "@/server/actions/ideas";
 import { linkInsight } from "@/server/actions/insights";
 import { saveQuickStart } from "@/server/actions/setup";
 import { QUICK_STEPS, STEP_TEXT, stepForField, validateQuickStep, type QuickStepKey } from "./flow";
@@ -34,11 +35,14 @@ export function QuickWizard({
   today,
   fullHref,
   insight,
+  idea,
 }: {
   today: string;
   fullHref: string;
   /** Si el programa nace de un insight: al crearlo, el insight queda «Sembrado» en él. */
   insight?: { id: string; title: string } | null;
+  /** Si nace de una idea de la lluvia de ideas: al crearlo, la idea queda vinculada. */
+  idea?: { id: string; title: string } | null;
 }) {
   const router = useRouter();
   const step = useStepper(QUICK_STEPS);
@@ -92,6 +96,10 @@ export function QuickWizard({
       if (insight) {
         const linked = await linkInsight(insight.id, { programId: r.data.programId });
         if (!linked.ok) toast.error(`El programa quedó, pero no se pudo marcar el insight: ${linked.error}`);
+      }
+      if (idea) {
+        const linked = await linkIdea(idea.id, { programId: r.data.programId });
+        if (!linked.ok) toast.error(`El programa quedó, pero no se pudo vincular la idea: ${linked.error}`);
       }
       if (r.data.partialError) {
         toast.error(r.data.partialError, { duration: 12000 });

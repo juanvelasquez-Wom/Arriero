@@ -111,15 +111,15 @@ export function StepSummary({
 
       <div className="rounded-2xl border border-l-4 border-l-highlight bg-paper shadow-card p-5">
         <h2 className="flex items-center gap-2 text-lg font-bold">
-          <ClipboardList className="size-4" aria-hidden /> Siguiente paso: su primer problema
+          <ClipboardList className="size-4" aria-hidden /> Siguiente paso: su primera oportunidad de mejora
         </h2>
         <p className="mt-1 text-sm">
-          En este modelo no hay ideas sueltas: todo ejercicio nace de un <strong>problema con evidencia</strong>, ubicado en una línea y una
+          En este modelo no hay ideas sueltas: todo ejercicio nace de una <strong>oportunidad de mejora con evidencia</strong>, ubicada en una línea y una
           etapa del embudo. Registre dónde se está perdiendo valor hoy y con qué datos lo sabe. Del dato al camino.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
           <Button size="lg" onClick={() => finish(`/programas/${programId}/problemas/nuevo`)} disabled={pending}>
-            {pending ? <Spinner /> : null} Termine y registre el primer problema
+            {pending ? <Spinner /> : null} Termine y registre la primera oportunidad de mejora
           </Button>
           <Button variant="ghost" className="underline underline-offset-4" onClick={() => finish(`/programas/${programId}`)} disabled={pending}>
             Termine y vaya al programa

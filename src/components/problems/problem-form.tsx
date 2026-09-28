@@ -80,7 +80,7 @@ export function ProblemForm({
           applyFieldErrors(r.fieldErrors, form.setError);
           return;
         }
-        toast.success("Problema actualizado. De una.");
+        toast.success("Oportunidad de mejora actualizada. De una.");
         onDone?.();
         router.refresh();
         return;
@@ -97,9 +97,9 @@ export function ProblemForm({
       }
       if (insightId) {
         const linked = await linkInsight(insightId, { problemId: r.data.id });
-        if (!linked.ok) toast.error(`El problema quedó, pero no se pudo marcar el insight: ${linked.error}`);
+        if (!linked.ok) toast.error(`La oportunidad de mejora quedó, pero no se pudo marcar el insight: ${linked.error}`);
       }
-      toast.success(insightId ? "Problema registrado y el insight quedó sembrado. ¡Eso!" : "Problema registrado. Ahora sí sabemos por dónde es.");
+      toast.success(insightId ? "Oportunidad de mejora registrada y el insight quedó sembrado. ¡Eso!" : "Oportunidad de mejora registrada. Ahora sí sabemos por dónde es.");
       router.push(`/programas/${programId}/problemas/${r.data.id}`);
     });
   });
@@ -167,14 +167,14 @@ export function ProblemForm({
           </FormField>
         </div>
 
-        <FormField id="title" label="Problema" required description="Qué pasa, en una frase." error={errors.title?.message}>
+        <FormField id="title" label="Oportunidad de mejora" required description="Qué pasa, en una frase." error={errors.title?.message}>
           <Input id="title" placeholder="El costo por conversación subió 35% en seis semanas." {...form.register("title")} />
         </FormField>
         <FormField
           id="evidence"
           label={<Term k="evidence" />}
           required
-          description="Los datos que muestran el problema. Nada de corazonadas."
+          description="Los datos que muestran la oportunidad. Nada de corazonadas."
           error={errors.evidence?.message}
         >
           <Textarea id="evidence" rows={3} {...form.register("evidence")} />
@@ -260,7 +260,7 @@ export function ProblemForm({
               Cancelar
             </Button>
           ) : null}
-          <SubmitButton pending={pending}>{problemId ? "Guardar cambios" : "Crear problema"}</SubmitButton>
+          <SubmitButton pending={pending}>{problemId ? "Guardar cambios" : "Crear oportunidad de mejora"}</SubmitButton>
         </div>
       </FieldGroup>
     </form>

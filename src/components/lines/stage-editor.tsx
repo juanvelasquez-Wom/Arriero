@@ -258,7 +258,7 @@ function StageFormDialog({
         <DialogHeader>
           <DialogTitle>{stage ? `Editar etapa “${stage.name}”` : "Nueva etapa del embudo"}</DialogTitle>
           <DialogDescription>
-            Las etapas ordenan el recorrido del cliente. Cada problema se ubica en una etapa.
+            Las etapas ordenan el recorrido del cliente. Cada oportunidad de mejora se ubica en una etapa.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={onSubmit} noValidate>

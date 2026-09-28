@@ -47,7 +47,7 @@ export default async function InsightsPage({ searchParams }: PageProps<"/insight
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-soft">Repositorio de insights</p>
           <h1 className="mt-1 text-balance font-heading text-3xl font-extrabold sm:text-4xl">El carriel de insights</h1>
           <p className="mt-1 max-w-prose text-soft">
-            Aquí se guarda lo que la gente ve, oye y sospecha, antes de que se lo lleve el viento. De aquí salen los problemas, los proyectos y los
+            Aquí se guarda lo que la gente ve, oye y sospecha, antes de que se lo lleve el viento. De aquí salen las oportunidades de mejora, los proyectos y los
             pilotos. Una idea por insight, con su fuente, y a sembrar.
           </p>
         </header>
