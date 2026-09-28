@@ -21,6 +21,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Credits } from "@/components/brand/credits";
+import { FeedbackBubble } from "@/components/brand/feedback-bubble";
+import { TalkingMule } from "@/components/brand/talking-mule";
 import { SLOGAN } from "@/components/brand/phrases";
 import { cn } from "@/lib/utils";
 
@@ -114,9 +116,14 @@ export function ProgramSidebar(props: ProgramNavProps) {
     <aside className="hidden w-64 shrink-0 border-r bg-paper px-3 py-5 lg:block">
       <div className="sticky top-20 flex max-h-[calc(100vh-6rem)] flex-col gap-6 overflow-y-auto">
         <NavList {...props} />
-        <div className="mt-auto space-y-2 px-2.5">
-          <p className="font-heading text-xs font-semibold text-soft">{SLOGAN}</p>
-          <Credits />
+        <div className="mt-auto space-y-3 px-1">
+          {/* La mula camina por la trocha del menú; si le hacen clic, opina. */}
+          <TalkingMule />
+          <FeedbackBubble />
+          <div className="space-y-2 px-1.5">
+            <p className="font-heading text-xs font-semibold text-soft">{SLOGAN}</p>
+            <Credits />
+          </div>
         </div>
       </div>
     </aside>

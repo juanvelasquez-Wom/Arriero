@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { AppHeader } from "@/components/app/app-header";
 import { Credits } from "@/components/brand/credits";
+import { FeedbackBubble } from "@/components/brand/feedback-bubble";
 import { BrandIcon, type BrandIconName } from "@/components/brand/icons";
 import { TalkingMule } from "@/components/brand/talking-mule";
 import { LevelUpWatcher } from "@/components/recua/level-up-watcher";
@@ -202,7 +203,8 @@ export default async function HomePage() {
           </section>
         ) : null}
 
-        <footer className="mt-12 border-t pt-6">
+        <footer className="mt-12 space-y-4 border-t pt-6">
+          <FeedbackBubble compact className="max-w-2xl" />
           <Credits />
         </footer>
       </main>
