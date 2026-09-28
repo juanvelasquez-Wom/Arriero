@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { hypothesisSentence } from "@/domain/pilots/flow";
 import { pilotProblemSchema, type PilotProblemInput } from "@/lib/validation/pilots";
+import { linkInsight } from "@/server/actions/insights";
 import { createPilot, savePilotLinks, savePilotProblem } from "@/server/actions/pilots";
 import type { LinkOptions, PilotMember } from "@/server/queries/pilots";
 import { NumberInput } from "./inputs";
@@ -31,9 +32,11 @@ export interface StepProblemProps {
   links: PilotLinksValue;
   linkOptions: LinkOptions;
   members: PilotMember[];
+  /** Si el piloto nace de un insight: al crearlo, el insight queda «Sembrado» en él. */
+  insightId?: string;
 }
 
-export function StepProblem({ pilotId, initial, links: initialLinks, linkOptions, members }: StepProblemProps) {
+export function StepProblem({ pilotId, initial, links: initialLinks, linkOptions, members, insightId }: StepProblemProps) {
   const router = useRouter();
   const [error, setError] = useState<string>();
   const [pending, startTransition] = useTransition();
@@ -83,6 +86,10 @@ export function StepProblem({ pilotId, initial, links: initialLinks, linkOptions
               return;
             }
             id = r.data.id;
+            if (insightId) {
+              const linked = await linkInsight(insightId, { pilotId: id });
+              if (!linked.ok) toast.error("El piloto quedó creado, pero no se pudo marcar el insight", { description: linked.error });
+            }
           }
           if (!sameLinks(links, savedLinks)) {
             const r = await savePilotLinks(id, links);

@@ -29,6 +29,7 @@ describe("sectionOf", () => {
     expect(sectionOf("/tableros")).toBe("tableros");
     expect(sectionOf("/direccion")).toBe("direccion");
     expect(sectionOf("/recua")).toBe("recua");
+    expect(sectionOf("/insights/abc")).toBe("insights");
     expect(sectionOf("/aprender")).toBeNull();
   });
 });

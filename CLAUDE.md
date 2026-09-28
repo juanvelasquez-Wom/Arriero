@@ -406,3 +406,30 @@ Migración `014_matriz_hallazgos` e informe en el artefacto "Auditoría integral
   - `currentStreak`, `rankUsers`, apodos por puesto y frases.
 - **Celebración:** `LevelUpWatcher` celebra en este navegador cuando la persona sube de nivel.
 - **Tests:** `tests/db/recua.test.ts`, que se salta si la migración no está.
+
+## 15. Carriel de insights (repositorio de insights)
+
+- **Qué es:** un repositorio global, visible para todas las personas con sesión, de observaciones con su fuente ("me di cuenta de que…"). De ahí nacen problemas, programas y pilotos. Sigue la idea de *atomic research*: una idea por insight, siempre con su fuente, evidencia opcional y votos de otras personas como señal de que no es un caso aislado.
+- **Captura rápida:** el bombillo de la barra (o la tecla **I**) abre `QuickInsightButton` (`components/insights/quick-insight.tsx`). Solo la frase es obligatoria; la fuente se elige con un clic y lo demás va plegado (evidencia, referencia, línea, etapa, canal y etiquetas). Se guarda con Ctrl+Enter.
+- **Pantallas:**
+  - `/insights`, con vistas en `?vista=` (todos, sin sembrar, los más calientes, sembrados, los míos, archivados), búsqueda `?q=` y filtros `?fuente=` y `?linea=`.
+  - `/insights/[id]`: detalle, lo que sembró, parecidos (`similarInsights`) y acciones. Con `?editar=1` se edita.
+- **Sembrar:**
+  - "Convertir en problema" → `/programas/<id>/problemas/nuevo?insight=<id>&linea=<id>`, con el formulario prellenado (`problemPrefillFromInsight`).
+  - "Armar proyecto" → `/programas/nuevo?insight=<id>`.
+  - "Crear piloto" → `/pilotos/nuevo?insight=<id>`.
+  - Al guardar, `linkInsight` llama la RPC `link_insight`, que deja el insight en «Sembrado» con el vínculo. Solo la puede usar quien es miembro del programa, o quien tiene rol en Pilotos.
+- **Base de datos:** la migración `017_insights` crea:
+  - Las tablas `insights` e `insight_votes`, con RLS: todos ven; cada quien escribe lo suyo; el autor o un admin edita, valida, archiva y borra.
+  - La guarda `private.insights_guard`: el autor y lo sembrado no se cambian con un `update`, y «Sembrado» solo lo pone la RPC.
+  - Las RPC `link_insight` y `delete_insight`.
+  - La redefinición de `gamification_stats`, que ahora devuelve también `insights_created`, `insights_planted`, `insight_votes_received` e `insight_votes_given`.
+- **La Recua:**
+  - Puntos: +10 por insight anotado (tope 60), +3 por voto recibido (tope 50), +50 por insight sembrado y +1 por voto dado (tope 30).
+  - Insignias: Ojo de águila, El profeta de la vereda, Influencer de fonda y la oscura El acumulador.
+- **Código:**
+  - Reglas puras en `src/domain/insights.ts`: fuentes, estados, `heat`, `filterInsights`, `insightCounts`, `insightActions` y `parseTags`.
+  - Validación en `lib/validation/insights.ts`.
+  - Acciones en `server/actions/insights.ts`.
+  - Lecturas en `server/queries/insights.ts`.
+  - Tests en `tests/db/insights.test.ts`, que se salta si la migración no está.

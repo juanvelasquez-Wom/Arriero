@@ -13,6 +13,7 @@ import {
 import { signOut } from "@/server/actions/auth";
 import type { SessionUser } from "@/server/auth";
 import { getPilotContext } from "@/server/pilot-auth";
+import { QuickInsightButton } from "@/components/insights/quick-insight";
 import { BackButton, BottomSections, TopSections } from "./app-nav";
 import { CommandSearch } from "./command-search";
 import { ExplanationsMenuItem } from "./explanations-toggle";
@@ -65,6 +66,7 @@ export async function AppHeader({
             <TopSections showPilots={showPilots} />
           </div>
           <CommandSearch programId={programId} canCreateExperiment={canCreateExperiment} />
+          <QuickInsightButton />
           <NotificationsBell userId={user.id} />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

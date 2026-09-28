@@ -17,6 +17,10 @@ import {
   Sparkles,
   Swords,
   Cross,
+  Eye,
+  Megaphone,
+  Package,
+  WandSparkles,
   type LucideIcon,
 } from "lucide-react";
 import { BADGES, ghostLine, levelFor, LEVELS, nudge, positionTitle, type Badge, type RankedUser } from "@/domain/gamification";
@@ -37,6 +41,10 @@ const BADGE_ICON: Record<string, LucideIcon> = {
   sepulturero: Shovel,
   cementerio: Cross,
   kamikaze: Rocket,
+  ojo: Eye,
+  profeta: WandSparkles,
+  influencer: Megaphone,
+  acumulador: Package,
 };
 
 export const initials = (name: string) =>

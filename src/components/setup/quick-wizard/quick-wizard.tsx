@@ -20,6 +20,7 @@ import {
   type QuickDuration,
   type QuickLineInput,
 } from "@/domain/quick-start";
+import { linkInsight } from "@/server/actions/insights";
 import { saveQuickStart } from "@/server/actions/setup";
 import { QUICK_STEPS, STEP_TEXT, stepForField, validateQuickStep, type QuickStepKey } from "./flow";
 import { CalendarScreen, DatesScreen, LinesScreen, NameScreen, SummaryScreen } from "./screens";
@@ -29,7 +30,16 @@ import { CalendarScreen, DatesScreen, LinesScreen, NameScreen, SummaryScreen } f
  * fechas, calendario) y un resumen antes de crear. Usa el mismo plan de
  * dominio y la misma server action que el formulario de una sola pantalla.
  */
-export function QuickWizard({ today, fullHref }: { today: string; fullHref: string }) {
+export function QuickWizard({
+  today,
+  fullHref,
+  insight,
+}: {
+  today: string;
+  fullHref: string;
+  /** Si el programa nace de un insight: al crearlo, el insight queda «Sembrado» en él. */
+  insight?: { id: string; title: string } | null;
+}) {
   const router = useRouter();
   const step = useStepper(QUICK_STEPS);
   const [name, setName] = useState("");
@@ -79,6 +89,10 @@ export function QuickWizard({ today, fullHref }: { today: string; fullHref: stri
         return;
       }
       setCreated(true);
+      if (insight) {
+        const linked = await linkInsight(insight.id, { programId: r.data.programId });
+        if (!linked.ok) toast.error(`El programa quedó, pero no se pudo marcar el insight: ${linked.error}`);
+      }
       if (r.data.partialError) {
         toast.error(r.data.partialError, { duration: 12000 });
       } else {

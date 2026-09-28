@@ -13,7 +13,7 @@ export default async function GuidePage() {
       <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6 sm:py-10">
         <header className="rise mb-5">
           <h1 className="text-2xl font-extrabold sm:text-3xl">Quiero saber cómo utilizar el Arriero</h1>
-          <p className="mt-1 text-[15px] text-soft">Doce pasos por la app, de la barra de arriba a los permisos. Al final, examen y cartón de Arriero de la Herramienta.</p>
+          <p className="mt-1 text-[15px] text-soft">Trece pasos por la app, de la barra de arriba a los permisos. Al final, examen y cartón de Arriero de la Herramienta.</p>
         </header>
         <TourDeck userName={user.name || ""} />
       </main>

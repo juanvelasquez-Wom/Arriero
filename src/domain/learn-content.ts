@@ -647,6 +647,20 @@ export const TOUR_STEPS: TourStep[] = [
     scope: "global",
   },
   {
+    id: "insights",
+    title: "El carriel de insights",
+    body: ["Lo que la gente ve, oye o sospecha se guarda aquí, para todos. De un insight nacen problemas, proyectos y pilotos."],
+    points: [
+      "El bombillo de arriba (o la tecla I) lo anota en diez segundos: una frase y su fuente.",
+      "«Yo también lo he visto» suma evidencia de que no es un caso aislado.",
+      "Convertir en problema, armar proyecto o crear piloto lo deja sembrado.",
+    ],
+    mock: "problem",
+    href: "/insights",
+    hrefLabel: "Ir al carriel",
+    scope: "global",
+  },
+  {
     id: "pilotos",
     title: "Pilotos de medios",
     body: ["Pruebas controladas de cambios en medios para medir incrementalidad antes de escalar. Tienen su propio flujo de aprobación."],

@@ -29,6 +29,10 @@ export interface UserStats {
   pilots_cancelled: number;
   pilot_data_days: number;
   trashed: number;
+  insights_created: number;
+  insights_planted: number;
+  insight_votes_received: number;
+  insight_votes_given: number;
 }
 
 type CountKey = Exclude<keyof UserStats, "user_id" | "name" | "recent_days">;
@@ -61,6 +65,10 @@ export const POINT_RULES: PointRule[] = [
   { key: "pilots_created", label: "Piloto de medios creado", points: 40, joke: "Probar antes de gastar: bendito sea." },
   { key: "pilots_decided", label: "Piloto decidido", points: 150, joke: "Cerró el piloto con veredicto. Ovación de pie." },
   { key: "pilot_data_days", label: "Día con datos de piloto cargados", points: 5, joke: "El dato de hoy es el veredicto de mañana." },
+  { key: "insights_created", label: "Insight anotado en el carriel", points: 10, cap: 60, joke: "Ojo de arriero: lo vio y lo anotó antes de que se le olvidara." },
+  { key: "insight_votes_received", label: "Voto que le dieron a un insight suyo", points: 3, cap: 50, joke: "Que otros también lo hayan visto: eso sí es evidencia." },
+  { key: "insights_planted", label: "Insight suyo sembrado en un proyecto", points: 50, joke: "Lo que vio se volvió trabajo. Así se crece." },
+  { key: "insight_votes_given", label: "Voto a un insight ajeno", points: 1, cap: 30, joke: "Apoyar al compañero también suma. Poquito, pero suma." },
   { key: "discarded", label: "Ejercicio descartado a tiempo", points: 5, joke: "Por lo menos lo reconoció. Algo es algo." },
   { key: "pilots_cancelled", label: "Piloto cancelado", points: 5, joke: "Descanse en paz. Cinco puntos por el entierro." },
   { key: "stale_ideas", label: "Idea quieta hace más de 30 días", points: -10, joke: "Se murió de olvido. Menos diez, y un minuto de silencio." },
@@ -147,9 +155,19 @@ export const BADGES: Badge[] = [
   { id: "piloto", title: "Piloto de la Aeropostal", description: "Cerró un piloto de medios con veredicto.", earned: (s) => s.pilots_decided >= 1 },
   { id: "coronado", title: "Coronó la montaña", description: "Terminó un programa con decisiones. Pa' enmarcar.", earned: (s) => s.programs_crowned >= 1 },
   { id: "chismoso", title: "Chismoso oficial", description: "20 comentarios. Si no está en el chat, está aquí.", earned: (s) => s.comments >= 20 },
+  { id: "ojo", title: "Ojo de águila", description: "10 insights anotados. Usted ve lo que otros ni miran.", earned: (s) => s.insights_created >= 10 },
+  { id: "profeta", title: "El profeta de la vereda", description: "3 insights suyos sembrados. Lo dijo y se cumplió.", earned: (s) => s.insights_planted >= 3 },
+  { id: "influencer", title: "Influencer de fonda", description: "20 votos recibidos en sus insights. Tiene seguidores.", earned: (s) => s.insight_votes_received >= 20 },
   { id: "matarife", title: "Matarife de hipótesis", description: "3 perdedores asumidos. Mató más hipótesis que el invierno en el páramo.", dark: true, earned: (s) => s.losers >= 3 },
   { id: "sepulturero", title: "El sepulturero", description: "Mandó 5 cosas a la papelera. Entierra sin llorar.", dark: true, earned: (s) => s.trashed >= 5 },
   { id: "cementerio", title: "Dueño del cementerio de ideas", description: "5 ideas quietas hace más de un mes. Aquí yacen. Que en paz descansen.", dark: true, earned: (s) => s.stale_ideas >= 5 },
+  {
+    id: "acumulador",
+    title: "El acumulador",
+    description: "10 insights y ninguno sembrado. Guarda insights como la abuela guarda bolsas del mercado.",
+    dark: true,
+    earned: (s) => s.insights_created >= 10 && s.insights_planted === 0,
+  },
   { id: "kamikaze", title: "Piloto kamikaze", description: "Canceló un piloto. Valiente, o desesperado. Nunca sabremos.", dark: true, earned: (s) => s.pilots_cancelled >= 1 },
 ];
 

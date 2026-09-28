@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Columns3, Compass, FolderKanban, House, Megaphone, Trophy, type LucideIcon } from "lucide-react";
+import { ArrowLeft, Columns3, Compass, FolderKanban, House, Lightbulb, Megaphone, Trophy, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 const ICON: Record<AppSection, LucideIcon> = {
   inicio: House,
   programas: FolderKanban,
+  insights: Lightbulb,
   pilotos: Megaphone,
   tableros: Columns3,
   direccion: Compass,
@@ -70,7 +71,7 @@ export function TopSections({ showPilots }: { showPilots: boolean }) {
             )}
           >
             <Icon aria-hidden className="size-4" />
-            <span className="hidden lg:inline">{s.label}</span>
+            <span className="hidden xl:inline">{s.label}</span>
           </Link>
         );
       })}
@@ -96,9 +97,9 @@ export function BottomSections({ showPilots }: { showPilots: boolean }) {
               <Link
                 href={s.href}
                 aria-current={on ? "page" : undefined}
-                className={cn("flex flex-col items-center gap-0.5 py-2 text-[11px] text-soft", on && "font-semibold text-ink")}
+                className={cn("flex flex-col items-center gap-0.5 py-2 text-[10px] text-soft", on && "font-semibold text-ink")}
               >
-                <span className={cn("flex h-7 w-12 items-center justify-center rounded-full transition-colors", on && "bg-highlight text-[#111111]")}>
+                <span className={cn("flex h-7 w-10 items-center justify-center rounded-full transition-colors", on && "bg-highlight text-[#111111]")}>
                   <Icon aria-hidden className="size-[18px]" />
                 </span>
                 {s.label}

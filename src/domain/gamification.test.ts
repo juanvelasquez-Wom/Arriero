@@ -40,6 +40,10 @@ function stats(over: Partial<UserStats> = {}): UserStats {
     pilots_cancelled: 0,
     pilot_data_days: 0,
     trashed: 0,
+    insights_created: 0,
+    insights_planted: 0,
+    insight_votes_received: 0,
+    insight_votes_given: 0,
     ...over,
   };
 }
@@ -107,6 +111,16 @@ describe("rankUsers", () => {
     expect(r[0].ghost).toBe(true);
     expect(r[1].ghost).toBe(false);
     expect(r[0].badges.map((b) => b.id)).toContain("fundador");
+  });
+});
+
+describe("insights en La Recua", () => {
+  it("suman con topes y dan insignias", () => {
+    const r = computeScore(stats({ insights_created: 100, insights_planted: 1, insight_votes_received: 2, insight_votes_given: 1 }), TODAY);
+    expect(r.points).toBe(60 * 10 + 50 + 6 + 1);
+    const acumulador = BADGES.find((b) => b.id === "acumulador")!;
+    expect(acumulador.earned(stats({ insights_created: 10 }), 0)).toBe(true);
+    expect(acumulador.earned(stats({ insights_created: 10, insights_planted: 1 }), 0)).toBe(false);
   });
 });
 

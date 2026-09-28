@@ -1,10 +1,12 @@
-import { Coffee, Map as MapIcon, Sparkles } from "lucide-react";
+import { Coffee, Lightbulb, Map as MapIcon, Sparkles } from "lucide-react";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Callout, PageHeader, Section } from "@/components/app/page";
 import { ProblemForm } from "@/components/problems/problem-form";
 import { todayIso } from "@/domain/dates";
 import { draftProblemFromMetric, EVIDENCE_MAX_WEEKS, pickHorizon } from "@/domain/evidence";
+import { problemPrefillFromInsight } from "@/domain/insights";
+import { getInsight } from "@/server/queries/insights";
 import { can } from "@/domain/permissions";
 import { parseProblemPrefill } from "@/domain/tia-insights";
 import type { MetricDirection } from "@/domain/types";
@@ -93,6 +95,14 @@ export default async function NewProblemPage({ params, searchParams }: PageProps
   // Borrador desde la URL (p. ej. "Convertir en problema" de La Tía): textos recortados y
   // solo línea y etapa que existan en el programa.
   const prefill = parseProblemPrefill(sp, { lines, stages });
+  // Desde el carriel de insights: título y evidencia salen del insight (leído con RLS).
+  const insightParam = typeof sp.insight === "string" && uuidRe.test(sp.insight) ? sp.insight : null;
+  const fromInsight = insightParam ? await getInsight(insightParam, ctx.user.id) : null;
+  const insightDraft = fromInsight ? problemPrefillFromInsight(fromInsight) : null;
+  if (insightDraft) {
+    prefill.title ??= insightDraft.titulo;
+    prefill.evidence = [prefill.evidence, insightDraft.evidencia].filter(Boolean).join("\n\n") || null;
+  }
   const lineParam = prefill.lineId ?? undefined;
   const fromQuickStart = sp.desde === "arranque";
   const fromTia = sp.desde === "tia" && !!(prefill.title || prefill.evidence);
@@ -130,6 +140,12 @@ export default async function NewProblemPage({ params, searchParams }: PageProps
           Después puede completar líneas base y metas en Configuración.
         </Callout>
       ) : null}
+      {fromInsight ? (
+        <Callout icon={Lightbulb} tone="neutral" className="mb-4">
+          Este problema nace del insight «{fromInsight.title}», de {fromInsight.author_name}. Le dejamos el texto y la fuente como evidencia: elija
+          la etapa, cuente la causa que sospecha y guárdelo. Al guardar, el insight queda sembrado aquí.
+        </Callout>
+      ) : null}
       {fromTia ? (
         <Callout icon={Coffee} tone="neutral" className="mb-4">
           La Tía le dejó el borrador con lo que vio en los datos. Revíselo, complete la causa que sospecha y ajuste lo que haga falta:
@@ -153,6 +169,7 @@ export default async function NewProblemPage({ params, searchParams }: PageProps
           stages={stages}
           defaults={defaults}
           defaultLineId={lineParam ?? fromMetric?.lineId}
+          insightId={fromInsight?.id}
         />
       </Section>
     </div>

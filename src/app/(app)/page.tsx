@@ -78,6 +78,12 @@ export default async function HomePage() {
           },
     );
   }
+  doing.push({
+    href: "/insights",
+    title: "Anotar un insight",
+    body: "¿Vio algo en el chat, en el tablero o en la tienda? Guárdelo en el carriel antes de que se le olvide. Diez segundos, prometido.",
+    art: "diana",
+  });
   const learning: Path[] = [
     {
       href: "/direccion",
@@ -118,10 +124,10 @@ export default async function HomePage() {
           </div>
         </section>
 
-        <ul className={cn("stagger mt-4 grid gap-4", doing.length > 1 ? "sm:grid-cols-2" : "")}>
+        <ul className={cn("stagger mt-4 grid gap-4 sm:grid-cols-2", doing.length === 3 && "lg:grid-cols-3")}>
           {doing.map((p) => (
-            <li key={p.href} className="pop-in">
-              <PathCard path={p} big />
+            <li key={p.href} className="pop-in sm:last:odd:col-span-2 lg:last:odd:col-span-1">
+              <PathCard path={p} big stack={doing.length === 3} />
             </li>
           ))}
         </ul>
@@ -145,7 +151,7 @@ export default async function HomePage() {
               <Trophy aria-hidden className="wiggle-on-hover size-7 shrink-0 text-highlight" />
               <div className="min-w-0 flex-1">
                 <div className="font-heading text-lg font-extrabold leading-tight">
-                  {me ? `Usted va de ${me.position} en La Recua · ${levelFor(myPoints).level.title}` : "La Recua: el escalafón de los arrieros"}
+                  {me ? `Usted va en el puesto ${me.position} de La Recua · ${levelFor(myPoints).level.title}` : "La Recua: el escalafón de los arrieros"}
                 </div>
                 <p className="text-sm text-[#F6F6F4]/70">
                   {me ? `${myPoints.toLocaleString("es-CO")} puntos. ${nudge(myPoints)}` : "Todavía no tiene puntos. Entre, cree, decida: la mula anota todo."}
@@ -192,13 +198,14 @@ export default async function HomePage() {
   );
 }
 
-function PathCard({ path, big = false }: { path: Path; big?: boolean }) {
+/** `stack`: con tres tarjetas grandes en fila, en pantallas anchas el ícono va arriba para que el texto respire. */
+function PathCard({ path, big = false, stack = false }: { path: Path; big?: boolean; stack?: boolean }) {
   return (
     <Link
       href={path.href}
       className={cn(
         "lift group relative flex h-full gap-4 overflow-hidden rounded-2xl border p-5 shadow-card",
-        big ? "items-center sm:p-6" : "flex-col",
+        big ? cn("items-center sm:p-6", stack && "lg:flex-col lg:items-start") : "flex-col",
         path.primary ? "border-transparent bg-highlight text-[#111111]" : "bg-paper",
       )}
     >
@@ -212,7 +219,10 @@ function PathCard({ path, big = false }: { path: Path; big?: boolean }) {
       </div>
       <ArrowRight
         aria-hidden
-        className={cn("size-5 shrink-0 transition-transform group-hover:translate-x-1", big ? "" : "absolute right-5 top-5")}
+        className={cn(
+          "size-5 shrink-0 transition-transform group-hover:translate-x-1",
+          big ? (stack ? "lg:absolute lg:top-6 lg:right-6" : "") : "absolute top-5 right-5",
+        )}
       />
     </Link>
   );

@@ -89,8 +89,8 @@ describe("LESSONS", () => {
 });
 
 describe("TOUR_STEPS", () => {
-  it("tiene 12 pasos con ids únicos y contenido", () => {
-    expect(TOUR_STEPS).toHaveLength(12);
+  it("tiene 13 pasos con ids únicos y contenido", () => {
+    expect(TOUR_STEPS).toHaveLength(13);
     const ids = TOUR_STEPS.map((s) => s.id);
     expect(new Set(ids).size).toBe(ids.length);
     for (const s of TOUR_STEPS) {

@@ -18,6 +18,7 @@ import { CONTROL_LABEL, IMPACT_LABEL, PROBLEM_STATUS_LABEL } from "@/domain/labe
 import { CONTROL_LEVELS, IMPACT_LEVELS, PROBLEM_STATUSES } from "@/domain/types";
 import { ATTACHMENT_ACCEPT, validateAttachment } from "@/lib/validation/problems";
 import { problemSchema, type ProblemInput } from "@/lib/validation/problems";
+import { linkInsight } from "@/server/actions/insights";
 import { createProblem, updateProblem } from "@/server/actions/problems";
 
 interface Option {
@@ -32,6 +33,7 @@ export function ProblemForm({
   problemId,
   defaults,
   defaultLineId,
+  insightId,
   onDone,
 }: {
   programId: string;
@@ -40,6 +42,8 @@ export function ProblemForm({
   problemId?: string;
   defaults?: ProblemInput;
   defaultLineId?: string;
+  /** Si el problema nace de un insight: al crearlo, el insight queda «Sembrado» en él. */
+  insightId?: string;
   onDone?: () => void;
 }) {
   const router = useRouter();
@@ -91,7 +95,11 @@ export function ProblemForm({
         const up = await uploadAttachments(programId, "problem", r.data.id, files);
         for (const e of up.errors) toast.error(e);
       }
-      toast.success("Problema registrado. Ahora sí sabemos por dónde es.");
+      if (insightId) {
+        const linked = await linkInsight(insightId, { problemId: r.data.id });
+        if (!linked.ok) toast.error(`El problema quedó, pero no se pudo marcar el insight: ${linked.error}`);
+      }
+      toast.success(insightId ? "Problema registrado y el insight quedó sembrado. ¡Eso!" : "Problema registrado. Ahora sí sabemos por dónde es.");
       router.push(`/programas/${programId}/problemas/${r.data.id}`);
     });
   });

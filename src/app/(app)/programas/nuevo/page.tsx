@@ -1,4 +1,6 @@
+import { Lightbulb } from "lucide-react";
 import type { Metadata } from "next";
+import { getInsight } from "@/server/queries/insights";
 import { redirect } from "next/navigation";
 import { AppHeader } from "@/components/app/app-header";
 import { GrowthPrimer } from "@/components/setup/growth-primer";
@@ -24,6 +26,8 @@ export default async function NewProgramPage({ searchParams }: PageProps<"/progr
   if (!user.isAdmin) redirect("/programas");
   const sp = await searchParams;
   const today = todayIso();
+  const insightParam = typeof sp.insight === "string" && /^[0-9a-f-]{36}$/i.test(sp.insight) ? sp.insight : null;
+  const insight = insightParam ? await getInsight(insightParam, user.id) : null;
 
   let content: React.ReactNode;
   if (sp.paso === "programa") {
@@ -52,7 +56,16 @@ export default async function NewProgramPage({ searchParams }: PageProps<"/progr
           <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">Arme su proyecto de growth</h1>
           <p className="mt-1 text-soft">Una pregunta a la vez. Arriero pone el resto con lo típico de telco. Menos carreta, más camino.</p>
         </div>
-        <QuickWizard today={today} fullHref={FULL_HREF} />
+        {insight ? (
+          <p className="mb-4 flex gap-2 rounded-2xl border-l-4 border-highlight bg-paper px-4 py-3 text-sm">
+            <Lightbulb aria-hidden className="mt-0.5 size-4 shrink-0" />
+            <span>
+              Este proyecto nace del insight «{insight.title}», de {insight.author_name}. Al crearlo, el insight queda sembrado aquí. De ahí sale
+              su primer problema.
+            </span>
+          </p>
+        ) : null}
+        <QuickWizard today={today} fullHref={FULL_HREF} insight={insight ? { id: insight.id, title: insight.title } : null} />
         <div className="mt-6">
           <GrowthPrimer defaultOpen={false} />
         </div>

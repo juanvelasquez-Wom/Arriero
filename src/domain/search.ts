@@ -211,6 +211,7 @@ export function resolveShortcut(
 export const SHORTCUTS_HELP: { keys: string[]; label: string; inProgram?: boolean }[] = [
   { keys: ["Ctrl", "K"], label: "Buscar en sus programas" },
   { keys: ["?"], label: "Ver estos atajos" },
+  { keys: ["I"], label: "Anotar un insight" },
   { keys: ["N"], label: "Nuevo ejercicio", inProgram: true },
   { keys: ["G", "B"], label: "Ir al backlog de ejercicios", inProgram: true },
   { keys: ["G", "K"], label: "Ir al Kanban", inProgram: true },
