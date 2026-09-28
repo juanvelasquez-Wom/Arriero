@@ -92,26 +92,40 @@ function Signature({ name, role, path }: { name: string; role: string; path: str
   );
 }
 
-/** Sello amarillo: el texto del anillo se reparte solo (textLength) para que nunca se monte. */
+/**
+ * Sello amarillo. Dos arcos para que todo se lea al derecho: arriba en el sentido
+ * del reloj y abajo al revés (así el texto de abajo no queda patas arriba).
+ */
 function Seal() {
   return (
     <svg aria-hidden viewBox="0 0 140 140" className="h-[13.5cqw] w-[13.5cqw] rotate-[-12deg]">
       <defs>
-        {/* Círculo que arranca arriba a la izquierda y gira en el sentido del reloj. */}
-        <path id="seal-ring" d="M70 70 m -52 0 a 52 52 0 1 1 104 0 a 52 52 0 1 1 -104 0" />
+        {/* Arriba: de izquierda a derecha por encima. Las letras crecen hacia afuera. */}
+        <path id="seal-top" d="M 22 70 A 48 48 0 0 1 118 70" />
+        {/* Abajo: de izquierda a derecha por debajo. Las letras crecen hacia el centro. */}
+        <path id="seal-bottom" d="M 12 70 A 58 58 0 0 0 128 70" />
       </defs>
       <circle cx="70" cy="70" r="68" fill="#F2C200" />
       <circle cx="70" cy="70" r="64" fill="none" stroke="#1F1F1F" strokeWidth="1.6" />
       <circle cx="70" cy="70" r="41" fill="none" stroke="#1F1F1F" strokeWidth="1.6" />
-      <text fill="#1F1F1F" fontSize="11" fontWeight="800" fontFamily="Inter, Arial, sans-serif">
-        <textPath href="#seal-ring" textLength="322" lengthAdjust="spacing">
-          100% GARANTIZADO ★ NO MÁS CARRETA ★
-        </textPath>
-      </text>
-      <text x="70" y="66" textAnchor="middle" fill="#1F1F1F" fontSize="19" fontWeight="900" fontFamily="Inter, Arial, sans-serif">
+      <g fill="#1F1F1F" fontSize="11" fontWeight="800" letterSpacing="1.1" fontFamily="Inter, Arial, sans-serif">
+        <text>
+          <textPath href="#seal-top" startOffset="50%" textAnchor="middle">
+            100% GARANTIZADO
+          </textPath>
+        </text>
+        <text>
+          <textPath href="#seal-bottom" startOffset="50%" textAnchor="middle">
+            NO MÁS CARRETA
+          </textPath>
+        </text>
+        <text x="11" y="74" fontSize="10">★</text>
+        <text x="120" y="74" fontSize="10">★</text>
+      </g>
+      <text x="70" y="68" textAnchor="middle" fill="#1F1F1F" fontSize="19" fontWeight="900" fontFamily="Inter, Arial, sans-serif">
         ¡ARRE!
       </text>
-      <text x="70" y="82" textAnchor="middle" fill="#1F1F1F" fontSize="9" fontWeight="800" letterSpacing="1.5" fontFamily="Inter, Arial, sans-serif">
+      <text x="70" y="83" textAnchor="middle" fill="#1F1F1F" fontSize="9" fontWeight="800" letterSpacing="1.5" fontFamily="Inter, Arial, sans-serif">
         ORIGINAL
       </text>
     </svg>
