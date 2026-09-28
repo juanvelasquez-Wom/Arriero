@@ -387,3 +387,9 @@ Migración `014_matriz_hallazgos` e informe en el artefacto "Auditoría integral
   - `/tableros` (general, de solo lectura) junta ejercicios y pilotos en `?vista=gantt|kanban|ruta`. La ruta "Ahora / Siguiente / Después" lleva un semáforo de salud por tarjeta.
   - Mapeo de estados, WIP, envejecimiento y salud en `src/domain/boards.ts`; lectura con RLS en `src/server/queries/boards.ts`.
 - **Aprender** (`/aprender`, 11 lecciones con una interacción cada una) y **Guía** (`/guia`, 12 pasos): contenido en `src/domain/learn-content.ts` y componentes en `src/components/learn/`. El avance se guarda en `localStorage`.
+- **Examen y cartón:** al terminar `/aprender` o `/guia` se presenta un examen de 10 preguntas y con 7 buenas se gana el cartón (certificado).
+  - Preguntas, calificación, nivel y número del cartón en `src/domain/certificates.ts`.
+  - Componentes en `components/learn/certificate-quiz.tsx` y `certificate.tsx`.
+  - "Descargar en PDF" abre la impresión del navegador. Al imprimir solo sale una copia del cartón, puesta directo en `<body>` (`.print-portal` en `globals.css`), en una hoja A4 horizontal.
+  - El resultado se guarda en `localStorage` (`arriero:carton:<tipo>`).
+- **Inicio con humor:** saludo según la hora de Bogotá (`src/domain/greeting.ts`) y la mula de la trocha, que opina al hacerle clic (`components/brand/talking-mule.tsx`).

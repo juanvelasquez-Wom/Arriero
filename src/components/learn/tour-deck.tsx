@@ -1,18 +1,20 @@
 "use client";
 
-import { ArrowUpRight, GraduationCap, RotateCcw } from "lucide-react";
+import { Award, ArrowUpRight, GraduationCap, RotateCcw } from "lucide-react";
 import Link from "next/link";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { BrandIcon } from "@/components/brand/icons";
 import { celebrate } from "@/components/brand/celebrate";
 import { Button } from "@/components/ui/button";
 import { TOUR_STEPS } from "@/domain/learn-content";
+import { CertificateQuiz } from "./certificate-quiz";
 import { DeckDots, DeckNav, DeckProgressBar, scrollDeckTop, SwipeCard, useDeckProgress } from "./deck-shell";
 import { TourMockView } from "./tour-mocks";
 
 const STORAGE_KEY = "arriero:guia";
 
-export function TourDeck() {
+export function TourDeck({ userName }: { userName: string }) {
+  const [quiz, setQuiz] = useState(false);
   const total = TOUR_STEPS.length;
   const [progress, save] = useDeckProgress(STORAGE_KEY, total);
   const { index, finished } = progress;
@@ -42,6 +44,10 @@ export function TourDeck() {
     go(index - 1);
   }, [finished, index, total, save, go]);
 
+  if (finished && quiz) {
+    return <CertificateQuiz kind="arriero" defaultName={userName} onExit={() => setQuiz(false)} />;
+  }
+
   if (finished) {
     return (
       <div>
@@ -52,6 +58,18 @@ export function TourDeck() {
           <p className="mx-auto mt-2 max-w-md text-[15px] text-soft">
             Programa, líneas, carga semanal, problemas, ejercicios, tableros, pilotos y dirección. Lo demás se aprende andando.
           </p>
+          <div className="mx-auto mt-6 max-w-md rounded-2xl bg-highlight p-4 text-left text-[#111111]">
+            <div className="flex items-center gap-3">
+              <Award className="size-8 shrink-0" aria-hidden />
+              <div>
+                <div className="font-heading text-lg font-extrabold leading-tight">¿Y el cartón qué?</div>
+                <p className="text-sm text-[#111111]/80">10 preguntas sobre la herramienta. Con 7 buenas se gana su cartón de Arriero de la Herramienta. Para colgarlo en el cubículo.</p>
+              </div>
+            </div>
+            <Button size="lg" className="mt-3 h-12 w-full bg-[#111111] text-[#F6F6F4] hover:bg-[#111111]/90" onClick={() => setQuiz(true)}>
+              Presentar el examen
+            </Button>
+          </div>
           <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
             <Button asChild size="lg" className="h-12 text-base">
               <Link href="/">Hágale pues</Link>

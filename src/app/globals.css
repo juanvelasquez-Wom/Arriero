@@ -396,13 +396,61 @@
 .home-trail {
   animation: home-trail 16s ease-in-out infinite;
 }
+/* La mula mira hacia donde camina; el globo de texto no se voltea. */
+.home-trail-face {
+  animation: home-trail-face 16s linear infinite;
+}
+.home-trail.paused,
+.home-trail.paused .home-trail-face {
+  animation-play-state: paused;
+}
 @keyframes home-trail {
-  0% { left: 0; transform: scaleX(1); }
-  48% { left: calc(100% - 2.5rem); transform: scaleX(1); }
-  50% { left: calc(100% - 2.5rem); transform: scaleX(-1); }
-  98% { left: 0; transform: scaleX(-1); }
-  100% { left: 0; transform: scaleX(1); }
+  0% { left: 0; }
+  48%, 50% { left: calc(100% - 2.75rem); }
+  98%, 100% { left: 0; }
+}
+@keyframes home-trail-face {
+  0%, 49% { transform: scaleX(1); }
+  49.01%, 99% { transform: scaleX(-1); }
+  99.01%, 100% { transform: scaleX(1); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .home-trail { animation: none; }
+  .home-trail, .home-trail-face { animation: none; }
+}
+
+/* Cartón (certificado): se imprime una copia puesta directo en <body> (fuera de
+   animaciones y transformaciones), en una hoja A4 horizontal, con sus colores. */
+.print-portal {
+  display: none;
+}
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 0;
+  }
+  html,
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+  }
+  body:has(> .print-portal) > *:not(.print-portal) {
+    display: none !important;
+  }
+  body > .print-portal {
+    display: block !important;
+    width: 297mm;
+    height: 210mm;
+    overflow: hidden;
+  }
+  .print-portal * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .print-portal .print-certificate {
+    width: 297mm !important;
+    height: 210mm !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
 }

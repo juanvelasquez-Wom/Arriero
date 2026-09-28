@@ -1,12 +1,13 @@
 "use client";
 
-import { BookOpen, Home, PlayCircle, RotateCcw } from "lucide-react";
+import { Award, BookOpen, Home, PlayCircle, RotateCcw } from "lucide-react";
 import Link from "next/link";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { BrandIcon, type BrandIconName } from "@/components/brand/icons";
 import { celebrate } from "@/components/brand/celebrate";
 import { Button } from "@/components/ui/button";
 import { LESSONS } from "@/domain/learn-content";
+import { CertificateQuiz } from "./certificate-quiz";
 import { DeckDots, DeckNav, DeckProgressBar, scrollDeckTop, SwipeCard, useDeckProgress } from "./deck-shell";
 import { LessonInteractionView } from "./interactions";
 
@@ -26,7 +27,8 @@ const ART: Record<string, BrandIconName> = {
   piloto: "celular-ruta",
 };
 
-export function LessonDeck() {
+export function LessonDeck({ userName }: { userName: string }) {
+  const [quiz, setQuiz] = useState(false);
   const total = LESSONS.length;
   const [progress, save] = useDeckProgress(STORAGE_KEY, total);
   const { index, finished } = progress;
@@ -56,6 +58,10 @@ export function LessonDeck() {
     go(index - 1);
   }, [finished, index, total, save, go]);
 
+  if (finished && quiz) {
+    return <CertificateQuiz kind="growth" defaultName={userName} onExit={() => setQuiz(false)} />;
+  }
+
   if (finished) {
     return (
       <div>
@@ -67,6 +73,18 @@ export function LessonDeck() {
             Ya sabe lo esencial: norte, árbol, embudo, problemas con evidencia, ejercicios con hipótesis, ICE, calendario, veredicto,
             aprendizaje y pilotos. Menos carreta, más crecimiento.
           </p>
+          <div className="mx-auto mt-6 max-w-md rounded-2xl bg-highlight p-4 text-left text-[#111111]">
+            <div className="flex items-center gap-3">
+              <Award className="size-8 shrink-0" aria-hidden />
+              <div>
+                <div className="font-heading text-lg font-extrabold leading-tight">¿Y el cartón qué?</div>
+                <p className="text-sm text-[#111111]/80">10 preguntas sobre lo que acaba de ver. Con 7 buenas se gana su cartón de Arriero en Growth, firmado por la Mula Mayor.</p>
+              </div>
+            </div>
+            <Button size="lg" className="mt-3 h-12 w-full bg-[#111111] text-[#F6F6F4] hover:bg-[#111111]/90" onClick={() => setQuiz(true)}>
+              Presentar el examen
+            </Button>
+          </div>
           <div className="mt-6 grid gap-2 sm:grid-cols-3">
             <Button asChild size="lg" className="h-12">
               <Link href="/programas">

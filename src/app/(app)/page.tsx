@@ -4,8 +4,9 @@ import Link from "next/link";
 import { AppHeader } from "@/components/app/app-header";
 import { Credits } from "@/components/brand/credits";
 import { BrandIcon, type BrandIconName } from "@/components/brand/icons";
-import { Mule } from "@/components/brand/logo";
+import { TalkingMule } from "@/components/brand/talking-mule";
 import { phraseOfTheDay } from "@/components/brand/phrases";
+import { bogotaHour, greetingFor } from "@/domain/greeting";
 import { canWritePilots } from "@/domain/pilots/flow";
 import { cn } from "@/lib/utils";
 import { isDatabaseReady, requireUser } from "@/server/auth";
@@ -31,6 +32,7 @@ export default async function HomePage() {
   const [programs, pilotCtx] = await Promise.all([listMyPrograms(user.id), getPilotContext().catch(() => null)]);
   const pilotActor = pilotCtx?.actor.role ? pilotCtx.actor : null;
   const newbie = programs.length === 0;
+  const hi = greetingFor(bogotaHour());
 
   // Hacer (arriba, grandes) y entender (abajo).
   const doing: Path[] = [
@@ -38,14 +40,14 @@ export default async function HomePage() {
       ? {
           href: "/programas/nuevo",
           title: "Crear un proyecto de growth",
-          body: "Líneas, metas y ejercicios en cinco pasitos. El asistente lo lleva de la mano.",
+          body: "Líneas, metas y ejercicios en cinco pasitos. Más fácil que organizar un paseo de olla.",
           art: "mapa",
           primary: true,
         }
       : {
           href: "/programas",
           title: "Ver mis proyectos de growth",
-          body: "Los programas donde usted ya está montado, con lo que toca hoy en cada uno.",
+          body: "Los programas donde usted ya está montado, con lo que toca hoy en cada uno. Sin excusas.",
           art: "mapa",
           primary: true,
         },
@@ -56,13 +58,13 @@ export default async function HomePage() {
         ? {
             href: "/pilotos/nuevo",
             title: "Crear un piloto de medios",
-            body: "¿Meta, radio, una landing nueva? Pruébelo con grupo de control antes de meterle toda la plata.",
+            body: "¿Meta, radio, una landing nueva? Pruébelo con grupo control antes de meterle toda la plata (y toda la fe).",
             art: "carriel-experimentos",
           }
         : {
             href: "/pilotos",
             title: "Ver los pilotos de medios",
-            body: "Las pruebas en Meta, Google y demás medios: cómo van y qué se aprendió.",
+            body: "Las pruebas en Meta, Google y demás medios: cómo van y qué se aprendió. Chismosear también es aprender.",
             art: "carriel-experimentos",
           },
     );
@@ -70,21 +72,21 @@ export default async function HomePage() {
   const learning: Path[] = [
     {
       href: "/direccion",
-      title: "Soy de dirección: ¿cómo vamos?",
-      body: "Qué crece, qué ganó y qué hay que decidir. Todo en una página, sin carreta.",
+      title: "Me creo CMO y quiero ver el status de todo",
+      body: "Qué crece, qué ganó y qué hay que decidir, en una página. Para leer entre reunión y reunión con cara de «yo ya sabía».",
       art: "montana-cima",
     },
     {
       href: "/aprender",
       title: "No sé nada de growth y quiero aprender",
-      body: "Diez minuticos, con ejemplos de telco y sin palabras raras. Prometido.",
+      body: "Once ideas en cinco minuticos, con examen y cartón al final. Si pierde, no le contamos a nadie.",
       art: "tinto",
       tag: newbie ? "Empiece por aquí" : undefined,
     },
     {
       href: "/guia",
       title: "¿Cómo se usa el Arriero?",
-      body: "Un recorrido paso a paso por la app, de la carga semanal al veredicto.",
+      body: "Un recorrido por la app, de la carga del lunes al veredicto. También da cartón, pa' colgar en el cubículo.",
       art: "celular-ruta",
     },
   ];
@@ -94,15 +96,16 @@ export default async function HomePage() {
       <AppHeader user={user} />
       <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 sm:py-12">
         <section className="rise">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-soft">Buenas, {firstName(user.name || user.email)}</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-soft">
+            {hi.hello}, {firstName(user.name || user.email)}
+          </p>
           <h1 className="mt-1 text-balance font-heading text-3xl font-extrabold sm:text-4xl">¿Pa&apos; dónde arrancamos hoy?</h1>
-          <p className="mt-2 max-w-prose text-soft">«{phraseOfTheDay(user.id)}»</p>
-          {/* El camino: la mula va y viene por la trocha. */}
-          <div aria-hidden className="relative mt-6 h-10 overflow-hidden">
-            <div className="absolute inset-x-0 bottom-2 border-b-2 border-dashed border-line" />
-            <div className="home-trail absolute bottom-2">
-              <Mule className="mule-walk w-10" />
-            </div>
+          <p className="mt-2 max-w-prose text-soft">
+            {hi.quip} «{phraseOfTheDay(user.id)}»
+          </p>
+          {/* La trocha: la mula va y viene, y si le hacen clic, opina. */}
+          <div className="mt-4">
+            <TalkingMule />
           </div>
         </section>
 
@@ -124,7 +127,7 @@ export default async function HomePage() {
 
         {programs.length ? (
           <section className="mt-10">
-            <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-soft">Siga donde iba</h2>
+            <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-soft">Siga donde iba (la mula se acuerda)</h2>
             <ul className="mt-3 flex flex-wrap gap-2">
               {programs.slice(0, 3).map((p) => (
                 <li key={p.id}>
