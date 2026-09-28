@@ -316,7 +316,7 @@ Línea ejecutiva y sobria: **grises + amarillo como único acento**. Tokens en `
 Migración `014_matriz_hallazgos` e informe en el artefacto "Auditoría integral Arriero". Lo que cambió en el sistema:
 
 - **Seguridad:**
-  - `/dev/entrar` solo responde a peticiones locales, y `npm run dev` escucha en `127.0.0.1`.
+  - `/dev/entrar` solo responde a peticiones locales (una petición desde la red llega con la IP como host y responde 404).
   - Las invitaciones nunca devuelven un enlace mágico de una cuenta existente. Un owner solo suma a quien ya tiene cuenta; las cuentas nuevas las crea el admin.
   - `safeNext` es único (`src/domain/redirect.ts`).
   - Cabeceras CSP, frame-ancestors, HSTS y nosniff en `next.config.ts`.

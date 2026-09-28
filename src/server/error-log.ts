@@ -12,6 +12,8 @@ export function redact(text: string): string {
 export async function reportServerError(input: { error: unknown; source: string }) {
   const err = input.error;
   const message = redact(err instanceof Error ? err.message : String(err)).slice(0, 1000) || "Error sin mensaje";
+  // Ruido, no errores: la persona se fue de la página antes de que terminara de cargar.
+  if (/destination stream closed early|aborted|NEXT_REDIRECT|NEXT_NOT_FOUND/i.test(message)) return;
   const digest = typeof err === "object" && err !== null && "digest" in err ? String((err as { digest: unknown }).digest) : null;
   const detail = err instanceof Error && err.stack ? redact(err.stack).split("\n").slice(0, 8).join("\n").slice(0, 2000) : null;
   try {
