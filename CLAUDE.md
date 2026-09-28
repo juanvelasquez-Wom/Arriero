@@ -71,7 +71,7 @@ Fuente de verdad del dominio: [`docs/modelo-growth-marketing-wom.pdf`](docs/mode
 | Crear primer admin | `npm run create-admin -- --email <correo> --name "<nombre>"` |
 | Borrar archivos pendientes de Storage | `npm run storage:drain` |
 
-Proyecto de Supabase: ref `orehfqgrohqdoxmboczu`. No se crea otro. Variables en `.env.local` (plantilla en `.env.example`): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, `NEXT_PUBLIC_SITE_URL`, `CRON_SECRET`, y para La Tía `ANTHROPIC_API_KEY`, `TIA_MODEL`, `TIA_DAILY_LIMIT`.
+Proyecto de Supabase: ref `orehfqgrohqdoxmboczu`. No se crea otro. Variables en `.env.local` (plantilla en `.env.example`): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, `NEXT_PUBLIC_SITE_URL`, `CRON_SECRET`, y para La Tía `NEXT_PUBLIC_TIA_ENABLED`, `ANTHROPIC_API_KEY`, `TIA_MODEL` (Sonnet), `TIA_MODEL_FAST` (Haiku), `TIA_DAILY_LIMIT`, `TIA_USD_COP` (ver §17).
 
 ## 4. Arquitectura
 
@@ -83,7 +83,7 @@ supabase/
                               004 RPC · 005 RLS · 006 Storage y Realtime · 008 mensajes de error en usted
                               009 auditoría V0 (hipótesis obligatoria para diseñar, save_experiment_variants,
                               metrics.unit_value, experiment_comments) · 010 avisos (notifications + job diario)
-                              011 La Tía (tia_messages, tia_usage) · 012 Pilotos de medios · 013 integraciones de Pilotos (ver §11)
+                              011 La Tía (tia_messages, hoy sin uso; tia_usage) · 012 Pilotos de medios · 013 integraciones de Pilotos (ver §11)
 scripts/                      create-admin.mts, drain-storage-queue.mts (usan la secret key)
 src/
   proxy.ts                    refresca la sesión y protege todo salvo login/recuperar/auth/confirm/api/cron
@@ -465,3 +465,24 @@ Migración `014_matriz_hallazgos` e informe en el artefacto "Auditoría integral
   - Validación en `lib/validation/ideas.ts`, acciones en `server/actions/ideas.ts`, lecturas en `server/queries/ideas.ts` y componentes en `components/ideas/`.
   - Tests en `src/domain/ideas.test.ts` y `tests/db/ideas.test.ts` (se salta si la migración no está).
 - **SQL para el SQL Editor:** `arriero-lluvia-de-ideas.sql` junta la 016, la 017 y la 018 con sus registros en `schema_migrations`, y se puede correr dos veces.
+
+## 17. La Tía copiloto (29 sep 2026)
+
+- **Qué es:** un chat en toda la app (botón flotante «La Tía», franja en el inicio y atajo «Hágalo con La Tía» en `/programas/nuevo` y `/pilotos/nuevo`). Entiende qué quiere hacer la persona, le pide lo que falta, **crea el proyecto o el piloto**, **anota avances** y **opina**. Reemplaza al chat «Pregúntele a la Tía» del programa (se borraron `components/tia/tia-chat.tsx`, `api/tia/chat` y `actions/tia-chat.ts`; la tabla `tia_messages` queda sin uso).
+- **Quién manda:** la conversación la lleva el código, no Claude. Preguntas, botones, resúmenes y confirmaciones salen de plantillas en `src/domain/tia-copilot.ts` (cero tokens). Claude solo entra en dos casos:
+  - **Entender un mensaje libre** (Haiku, `TIA_MODEL_FAST`): `EXTRACT_SYSTEM` en `tia-copilot-prompt.ts` devuelve un JSON corto `{m, p, a}` con el modo y los campos. Sistema fijo con `cache_control`; lista de referencias (`refs`, códigos cortos y estables como `E3f9a2c`) solo cuando el mensaje puede ser un avance (`needsRefs`).
+  - **Opinar** (`copilot_advice`): Sonnet (`TIA_MODEL`) si hay que interpretar datos; Haiku si es una duda de uso (`isHowTo`, sin datos). Respuesta corta (máx. 150 palabras) con datos recortados (`briefFor` en `server/tia/copilot.ts`).
+- **Sin Claude se entiende:** fechas («el lunes», «15 oct», «en 2 semanas»), números («20 palos», «1,5 millones»), sí/no, «después», líneas de negocio, medios del catálogo, estados y referencias por nombre (`src/domain/tia-parse.ts` y `localAnswer`). Un texto libre que responde la pregunta hecha se guarda tal cual. Los términos del glosario («¿qué es ICE?») se responden desde `domain/glossary.ts`.
+- **Qué crea y actualiza** (siempre con las mismas server actions de la interfaz: RLS, roles y validaciones intactos; nunca decide ni escala):
+  - Proyecto → `saveQuickStart` y, si la persona la contó, la primera oportunidad de mejora (`createProblem`). Solo admin.
+  - Piloto → `createPilot` (borrador) + `savePilotDesign` (tipo de prueba, grupos por defecto `armsFor`, fechas, plata y medios del catálogo). Rol creador o aprobador.
+  - Avances → oportunidad de mejora nueva, comentario en un ejercicio (`addComment`), mover un ejercicio (`transitionExperiment`, sin «Decidido»: eso se hace en el ejercicio con el aprendizaje), valor de la semana (`saveWeeklyValues`), incidente, arranque y cierre de un piloto.
+  - Antes de guardar muestra un resumen y pide confirmación («Créelo, Tía» / «Cambiar algo» / «Cancelar»).
+- **Avisos proactivos al abrir** (`copilotNudges`, sin Claude): pilotos aprobados con fecha de arranque vencida, pilotos en prueba con fin vencido y ejercicios en prueba que ya cumplieron la duración mínima.
+- **Estado:** viaja con el navegador (`sessionStorage`, `arriero:tia:copiloto`), no en la base; el servidor lo revisa en cada turno (`sanitizeState`). El servidor solo lee lo que el turno necesita (armando un proyecto no consulta ejercicios ni pilotos).
+- **Costos** (`src/domain/tia-cost.ts` y `tia-copilot-cost.ts`, con los prompts reales; USD 1 ≈ COP 4.000; Sonnet asumido a USD 3 / 15 por millón):
+  - Crear un proyecto ≈ COP 4 (una llamada a Haiku); con consejo de Sonnet al final ≈ COP 34; escribiendo todo a mano ≈ COP 46.
+  - Crear un piloto ≈ COP 8; con revisión del diseño ≈ COP 37; a mano ≈ COP 53.
+  - Anotar un avance ≈ COP 8. Una pregunta de opinión ≈ COP 30 (más si el programa tiene muchos ejercicios).
+  - Cada llamada queda en `tia_usage` (`copilot` y `copilot_advice`) y cuenta para `TIA_DAILY_LIMIT`; los botones no cuentan. Un admin ve en el panel cuánto va costando la charla.
+- **Tests:** `src/domain/tia-copilot.test.ts`.

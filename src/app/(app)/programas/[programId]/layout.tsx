@@ -3,12 +3,10 @@ import { AppHeader } from "@/components/app/app-header";
 import { ProgramMobileNav, ProgramSidebar } from "@/components/app/program-nav";
 import { RealtimeRefresh } from "@/components/app/realtime-refresh";
 import { DemoBadge } from "@/components/app/status-badge";
-import { TiaChat } from "@/components/tia/tia-chat";
 import { ROLE_LABEL } from "@/domain/labels";
 import { can } from "@/domain/permissions";
 import { getProgramContext } from "@/server/auth";
 import { listLines } from "@/server/queries/programs";
-import { tiaStatus } from "@/server/tia/run";
 import { recordUsage } from "@/server/usage";
 import { getPilotContext } from "@/server/pilot-auth";
 
@@ -16,7 +14,7 @@ export default async function ProgramLayout({ children, params }: LayoutProps<"/
   const { programId } = await params;
   const ctx = await getProgramContext(programId);
   recordUsage("programas", ctx.user.id);
-  const [lines, tia, pilots] = await Promise.all([listLines(programId), tiaStatus().catch(() => ({ configured: false, left: null })), getPilotContext().catch(() => null)]);
+  const [lines, pilots] = await Promise.all([listLines(programId), getPilotContext().catch(() => null)]);
   const nav = {
     programId,
     lines: lines.map((l) => ({ id: l.id, name: l.name })),
@@ -45,7 +43,6 @@ export default async function ProgramLayout({ children, params }: LayoutProps<"/
           </Link>
           {ctx.program.is_demo ? <DemoBadge className="shrink-0" /> : null}
           <span className="shrink-0 rounded-full border px-2 py-0.5 text-xs text-soft">{ctx.role ? ROLE_LABEL[ctx.role] : "Admin"}</span>
-          <TiaChat programId={programId} programName={ctx.program.name} configured={tia.configured} left={tia.left} />
         </div>
       </AppHeader>
       <div className="flex flex-1">

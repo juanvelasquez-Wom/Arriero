@@ -8,6 +8,7 @@ import Link from "next/link";
 import { EmptyState } from "@/components/app/page";
 import { PilotWizardShell } from "@/components/pilots/wizard/pilot-wizard-shell";
 import { StepProblem } from "@/components/pilots/wizard/step-problem";
+import { TiaShortcut } from "@/components/tia/tia-copilot";
 import { EMPTY_PROBLEM, EMPTY_PROGRESS } from "@/components/pilots/wizard/wizard-values";
 import { Button } from "@/components/ui/button";
 import { canWritePilots } from "@/domain/pilots/flow";
@@ -61,6 +62,9 @@ export default async function NewPilotPage({ searchParams }: PageProps<"/pilotos
 
   return (
     <PilotWizardShell pilotId={null} current="problema" done={stepsDone(EMPTY_PROGRESS)}>
+      {!insight && !idea ? (
+        <TiaShortcut mode="pilot" text="¿Se lo cuenta mejor a La Tía? Dígale qué quiere probar y en qué medio; ella arma el borrador con grupos, fechas y plata." />
+      ) : null}
       {insight ? (
         <p className="mb-4 flex gap-2 rounded-2xl border-l-4 border-highlight bg-paper px-4 py-3 text-sm">
           <Lightbulb aria-hidden className="mt-0.5 size-4 shrink-0" />

@@ -5,6 +5,7 @@ import { getInsight } from "@/server/queries/insights";
 import { redirect } from "next/navigation";
 import { AppHeader } from "@/components/app/app-header";
 import { GrowthPrimer } from "@/components/setup/growth-primer";
+import { TiaShortcut } from "@/components/tia/tia-copilot";
 import { STEP_HELP } from "@/components/setup/help-content";
 import { QuickWizard } from "@/components/setup/quick-wizard/quick-wizard";
 import { StepProgram } from "@/components/setup/steps/step-program";
@@ -60,6 +61,9 @@ export default async function NewProgramPage({ searchParams }: PageProps<"/progr
           <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">Arme su proyecto de growth</h1>
           <p className="mt-1 text-soft">Una pregunta a la vez. Arriero pone el resto con lo típico de telco. Menos carreta, más camino.</p>
         </div>
+        {!insight && !idea ? (
+          <TiaShortcut mode="project" text="¿Más rápido? Cuéntele a La Tía qué proyecto quiere, en una frase, y ella lo arma y le pregunta solo lo que falte." />
+        ) : null}
         {insight ? (
           <p className="mb-4 flex gap-2 rounded-2xl border-l-4 border-highlight bg-paper px-4 py-3 text-sm">
             <Lightbulb aria-hidden className="mt-0.5 size-4 shrink-0" />

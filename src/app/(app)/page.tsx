@@ -7,6 +7,7 @@ import { FeedbackBubble } from "@/components/brand/feedback-bubble";
 import { BrandIcon, type BrandIconName } from "@/components/brand/icons";
 import { TalkingMule } from "@/components/brand/talking-mule";
 import { LevelUpWatcher } from "@/components/recua/level-up-watcher";
+import { TiaHomeStrip } from "@/components/tia/tia-copilot";
 import { phraseOfTheDay } from "@/components/brand/phrases";
 import { levelFor, nudge } from "@/domain/gamification";
 import { bogotaHour, greetingFor } from "@/domain/greeting";
@@ -124,6 +125,8 @@ export default async function HomePage() {
             <TalkingMule />
           </div>
         </section>
+
+        <TiaHomeStrip canProject={user.isAdmin} canPilot={!!pilotActor && canWritePilots(pilotActor)} />
 
         <ul className={cn("stagger mt-4 grid gap-4 sm:grid-cols-2", doing.length === 3 && "lg:grid-cols-3")}>
           {doing.map((p) => (

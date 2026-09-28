@@ -5,7 +5,10 @@ import "server-only";
 
 const API_URL = "https://api.anthropic.com/v1/messages";
 const API_VERSION = "2023-06-01";
-export const DEFAULT_TIA_MODEL = "claude-sonnet-5";
+/** Modelo para opinar e interpretar (TIA_MODEL). */
+export const DEFAULT_TIA_MODEL = "claude-sonnet-5-5";
+/** Modelo barato para entender mensajes y respuestas cortas (TIA_MODEL_FAST). */
+export const DEFAULT_TIA_FAST_MODEL = "claude-haiku-4-5-20251001";
 
 export interface TiaMessage {
   role: "user" | "assistant";
@@ -17,12 +20,18 @@ export interface TiaRequest {
   messages: TiaMessage[];
   maxTokens?: number;
   temperature?: number;
+  /** Modelo de esta llamada (por defecto, tiaModel()). */
+  model?: string;
+  /** Marca el sistema como cacheable: si se repite igual, Claude lo cobra al 10 %. */
+  cacheSystem?: boolean;
 }
 
 export interface TiaUsage {
   model: string;
   inputTokens: number;
   outputTokens: number;
+  cacheReadTokens?: number;
+  cacheWriteTokens?: number;
 }
 
 export interface TiaReply {
@@ -47,6 +56,10 @@ export function tiaModel(): string {
   return process.env.TIA_MODEL || DEFAULT_TIA_MODEL;
 }
 
+export function tiaFastModel(): string {
+  return process.env.TIA_MODEL_FAST || DEFAULT_TIA_FAST_MODEL;
+}
+
 function headers() {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw new TiaError("La Tía todavía no está conectada: falta la llave de Claude en el servidor.", "not_configured");
@@ -59,10 +72,10 @@ function headers() {
 
 function body(req: TiaRequest, stream: boolean) {
   return JSON.stringify({
-    model: tiaModel(),
+    model: req.model ?? tiaModel(),
     max_tokens: req.maxTokens ?? 1200,
     temperature: req.temperature ?? 0.4,
-    system: req.system,
+    system: req.cacheSystem ? [{ type: "text", text: req.system, cache_control: { type: "ephemeral" } }] : req.system,
     messages: req.messages,
     stream,
   });
@@ -88,13 +101,19 @@ export async function askTia(req: TiaRequest): Promise<TiaReply> {
   if (!res.ok) throw errorFor(res.status);
   const data = (await res.json()) as {
     content?: { type: string; text?: string }[];
-    usage?: { input_tokens?: number; output_tokens?: number };
+    usage?: { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number; cache_creation_input_tokens?: number };
     model?: string;
   };
   const text = (data.content ?? []).filter((c) => c.type === "text").map((c) => c.text ?? "").join("");
   return {
     text,
-    usage: { model: data.model ?? tiaModel(), inputTokens: data.usage?.input_tokens ?? 0, outputTokens: data.usage?.output_tokens ?? 0 },
+    usage: {
+      model: data.model ?? req.model ?? tiaModel(),
+      inputTokens: data.usage?.input_tokens ?? 0,
+      outputTokens: data.usage?.output_tokens ?? 0,
+      cacheReadTokens: data.usage?.cache_read_input_tokens ?? 0,
+      cacheWriteTokens: data.usage?.cache_creation_input_tokens ?? 0,
+    },
   };
 }
 

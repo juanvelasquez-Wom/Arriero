@@ -1,4 +1,5 @@
 import { DatabaseNotReady } from "@/components/app/database-not-ready";
+import { TiaCopilot } from "@/components/tia/tia-copilot";
 import { isDatabaseReady, requireUser } from "@/server/auth";
 import { recordUsage } from "@/server/usage";
 
@@ -10,5 +11,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!(await isDatabaseReady())) return <DatabaseNotReady />;
   recordUsage("app", user.id);
   // pb-16: en el celular la barra de secciones va fija abajo.
-  return <div className="flex min-h-screen flex-1 flex-col bg-wash pb-16 md:pb-0">{children}</div>;
+  return (
+    <div className="flex min-h-screen flex-1 flex-col bg-wash pb-16 md:pb-0">
+      {children}
+      {/* La Tía, copiloto en toda la app. El costo de la charla solo lo ve un admin. */}
+      <TiaCopilot showCost={user.isAdmin} />
+    </div>
+  );
 }
