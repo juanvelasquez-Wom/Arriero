@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-// login → arranque rápido (programa + línea con métricas, árbol y embudo) →
+// login → inicio → asistente del programa (programa + línea con métricas, árbol y embudo) →
 // problema → buscador global → ejercicio (asistente de 5 pasos) → En prueba →
 // borrarlo → restaurarlo desde la papelera.
 //
@@ -30,15 +30,21 @@ test("flujo principal de un ejercicio", async ({ page }) => {
   await page.getByLabel("Correo").fill(process.env.E2E_EMAIL!);
   await page.getByLabel("Contraseña").fill(process.env.E2E_PASSWORD!);
   await page.getByRole("button", { name: "Entrar" }).click();
-  await expect(page).toHaveURL(/\/programas$/);
+  await expect(page).toHaveURL(/\/$/);
 
-  // Arranque rápido: "Crear programa" abre directo el formulario corto (Pospago ya viene marcada).
-  await page.getByRole("link", { name: /Crear programa/ }).first().click();
+  // Desde el inicio, "Crear un proyecto de growth" abre el asistente paso a paso (Pospago ya viene marcada).
+  await page.getByRole("link", { name: /Crear un proyecto de growth/ }).first().click();
   await expect(page).toHaveURL(/\/programas\/nuevo$/);
-  await expect(page.getByRole("heading", { name: /Arme el programa de una/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Arme su proyecto de growth/ })).toBeVisible();
   await page.getByRole("textbox", { name: /Nombre del programa/ }).fill(programName);
+  await page.getByRole("button", { name: /^Siga/ }).click(); // → líneas
+  await page.getByRole("button", { name: /^Siga/ }).click(); // → fechas
+  await page.getByRole("button", { name: /^Siga/ }).click(); // → calendario
   // Sin calendario telco: así ningún congelamiento bloquea el lanzamiento de la prueba.
-  await page.getByRole("checkbox", { name: /calendario típico de telco/ }).click();
+  // El radio va oculto dentro de su tarjeta: se hace clic en la tarjeta, como una persona.
+  await page.locator("label", { has: page.getByRole("radio", { name: /No, sin calendario comercial/ }) }).click();
+  await expect(page.getByRole("radio", { name: /No, sin calendario comercial/ })).toBeChecked();
+  await page.getByRole("button", { name: /^Siga/ }).click(); // → resumen
   await page.getByRole("button", { name: /Arme el programa/ }).click();
 
   // El arranque lleva directo a registrar el primer problema, con la línea elegida.
@@ -114,6 +120,6 @@ test("flujo principal de un ejercicio", async ({ page }) => {
   await page.getByRole("button", { name: "Restaurar" }).first().click();
   await expect(page.getByText(/la papelera está vacía/i)).toBeVisible();
 
-  await page.getByRole("link", { name: "Backlog de ejercicios" }).click();
+  await page.getByRole("link", { name: "Ejercicios", exact: true }).first().click();
   await expect(page.getByRole("link", { name: experimentTitle })).toBeVisible();
 });

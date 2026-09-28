@@ -15,12 +15,13 @@ import {
   type DragStartEvent,
   type KeyboardCoordinateGetter,
 } from "@dnd-kit/core";
-import { ArrowRightLeft, Clock, GripVertical, Info, Lock, User } from "lucide-react";
-import Link from "next/link";
+import { ArrowRightLeft, Eye, EyeOff, GripVertical, Lock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, type KeyboardEventHandler, type MouseEventHandler, type ReactNode, type TouchEventHandler } from "react";
 import { toast } from "sonner";
+import { BoardCard, BoardColumnFrame } from "@/components/boards/board-parts";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,9 +32,19 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  BOARD_COLUMN_LABEL,
+  BOARD_COLUMNS,
+  dropOptions,
+  EXPERIMENT_COLUMN_STATUSES,
+  experimentColumn,
+  isAging,
+  wipState,
+  type BoardColumnKey,
+} from "@/domain/boards";
 import { formatScore } from "@/domain/format";
 import { STATUS_LABEL } from "@/domain/labels";
-import { STATUS_ORDER, TRANSITIONS } from "@/domain/lifecycle";
+import { TRANSITIONS } from "@/domain/lifecycle";
 import { canTransition } from "@/domain/permissions";
 import type { Actor, ExperimentStatus } from "@/domain/types";
 import { cn } from "@/lib/utils";
@@ -85,15 +96,17 @@ const columnCoordinates: KeyboardCoordinateGetter = (event, { context }) => {
   return { x: next.rect.left + 8, y: next.rect.top + 48 };
 };
 
-const COLUMN_HINT: Partial<Record<ExperimentStatus, string>> = {
-  decided: "El veredicto, la decisión y el aprendizaje se registran desde el detalle del ejercicio; sin ellos la transición se rechaza.",
-  scaled: "Solo ejercicios decididos con la decisión «Escalar».",
-  discarded: "Se puede descartar desde Idea, Priorizado o En diseño.",
-};
-
+/**
+ * Kanban del programa: cinco columnas (Por hacer, En diseño, En prueba, En
+ * lectura, Cerrado) con límites WIP; Descartado queda detrás de un botón. Las
+ * reglas de transición y permisos son las de `domain/lifecycle` y `permissions`.
+ */
 export function Kanban({ programId, cards, actor }: { programId: string; cards: KanbanCardData[]; actor: Actor }) {
   const router = useRouter();
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [showDiscarded, setShowDiscarded] = useState(false);
+  // Soltar en una columna con más de un destino posible: se pregunta cuál.
+  const [choice, setChoice] = useState<{ card: KanbanCardData; options: ExperimentStatus[] } | null>(null);
   // Tarjeta → destino mientras la transición está en curso. Tras un éxito se
   // mantiene hasta que llegan los datos nuevos (cambia `statusChangedAt`).
   const [pending, setPending] = useState<Record<string, { since: string; to: ExperimentStatus }>>({});
@@ -105,9 +118,11 @@ export function Kanban({ programId, cards, actor }: { programId: string; cards: 
   );
 
   const byId = new Map(cards.map((c) => [c.id, c]));
-  const active = activeId ? byId.get(activeId) ?? null : null;
+  const active = activeId ? (byId.get(activeId) ?? null) : null;
   const activeTargets = active ? allowedTargets(actor, active) : [];
   const detailHref = (id: string) => `/programas/${programId}/ejercicios/${id}`;
+  const discardedCount = cards.filter((c) => c.status === "discarded").length;
+  const columns: BoardColumnKey[] = showDiscarded ? [...BOARD_COLUMNS, "discarded"] : [...BOARD_COLUMNS];
 
   function onDragStart(e: DragStartEvent) {
     setActiveId(String(e.active.id));
@@ -116,20 +131,28 @@ export function Kanban({ programId, cards, actor }: { programId: string; cards: 
   async function onDragEnd(e: DragEndEvent) {
     setActiveId(null);
     const card = byId.get(String(e.active.id));
-    const to = e.over?.id as ExperimentStatus | undefined;
-    if (!card || !to || to === card.status) return;
-    await move(card, to);
-  }
-
-  /** Mismo flujo para arrastrar y para el menú «Mover a…». */
-  async function move(card: KanbanCardData, to: ExperimentStatus) {
-
-    if (!TRANSITIONS[card.status].includes(to)) {
+    const column = e.over?.id as BoardColumnKey | undefined;
+    if (!card || !column || column === experimentColumn(card.status)) return;
+    const options = dropOptions(TRANSITIONS[card.status], column);
+    if (options.length === 0) {
       const allowed = TRANSITIONS[card.status].map((s) => STATUS_LABEL[s]);
       toast.error(
-        `No se puede pasar de ${STATUS_LABEL[card.status]} a ${STATUS_LABEL[to]}.` +
+        `No se puede pasar de ${STATUS_LABEL[card.status]} a ${BOARD_COLUMN_LABEL[column]}.` +
           (allowed.length ? ` Desde ${STATUS_LABEL[card.status]} solo puede pasar a ${allowed.join(" o ")}.` : ""),
       );
+      return;
+    }
+    if (options.length > 1) {
+      setChoice({ card, options });
+      return;
+    }
+    await move(card, options[0]);
+  }
+
+  /** Mismo flujo para arrastrar, para el menú «Mover a…» y para la elección al soltar. */
+  async function move(card: KanbanCardData, to: ExperimentStatus) {
+    if (!TRANSITIONS[card.status].includes(to)) {
+      toast.error(`No se puede pasar de ${STATUS_LABEL[card.status]} a ${STATUS_LABEL[to]}.`);
       return;
     }
     if (!canTransition(actor, { owner_id: card.ownerId, status: card.status }, to)) {
@@ -163,17 +186,17 @@ export function Kanban({ programId, cards, actor }: { programId: string; cards: 
       }
     } catch {
       clear();
-      toast.error("No se pudo mover el ejercicio. Revise su conexión e intente de nuevo. ¡Qué pena con usted!");
+      toast.error("No se pudo mover el ejercicio. Revise su conexión e intente de nuevo.");
     }
   }
 
   const pendingTo = (c: KanbanCardData) => (pending[c.id]?.since === c.statusChangedAt ? pending[c.id].to : null);
+  const colLabel = (id: unknown) => BOARD_COLUMN_LABEL[id as BoardColumnKey] ?? "la columna";
 
   const announcements: Announcements = {
     onDragStart: ({ active: a }) => `Tomó «${byId.get(String(a.id))?.title ?? "el ejercicio"}».`,
-    onDragOver: ({ over }) => (over ? `Sobre la columna ${STATUS_LABEL[over.id as ExperimentStatus]}.` : "Fuera de las columnas."),
-    onDragEnd: ({ over }) =>
-      over ? `Soltó en ${STATUS_LABEL[over.id as ExperimentStatus]}. Validando la transición…` : "Soltó fuera de las columnas; no se movió.",
+    onDragOver: ({ over }) => (over ? `Sobre la columna ${colLabel(over.id)}.` : "Fuera de las columnas."),
+    onDragEnd: ({ over }) => (over ? `Soltó en ${colLabel(over.id)}. Validando la transición…` : "Soltó fuera de las columnas; no se movió."),
     onDragCancel: () => "Movimiento cancelado; la tarjeta no se movió.",
   };
 
@@ -191,20 +214,27 @@ export function Kanban({ programId, cards, actor }: { programId: string; cards: 
         },
       }}
     >
+      <div className="mb-2 flex justify-end">
+        <Button type="button" variant="ghost" size="sm" onClick={() => setShowDiscarded((v) => !v)} aria-pressed={showDiscarded}>
+          {showDiscarded ? <EyeOff aria-hidden /> : <Eye aria-hidden />}
+          {showDiscarded ? "Ocultar descartados" : `Ver descartados (${discardedCount})`}
+        </Button>
+      </div>
       <div className="-mx-4 overflow-x-auto px-4 pb-3 lg:mx-0 lg:px-0">
         <div className="flex w-max gap-3">
-          {STATUS_ORDER.map((status) => (
-            <KanbanColumn
-              key={status}
-              status={status}
-              cards={cards.filter((c) => c.status === status)}
-              dragging={!!active}
-              isValidTarget={activeTargets.includes(status)}
-              isSource={active?.status === status}
-            >
-              {cards
-                .filter((c) => c.status === status)
-                .map((c) => {
+          {columns.map((column) => {
+            const inColumn = cards.filter((c) => experimentColumn(c.status) === column);
+            const validTarget = !!active && dropOptions(activeTargets, column).length > 0;
+            return (
+              <DroppableColumn
+                key={column}
+                column={column}
+                count={inColumn.length}
+                dragging={!!active}
+                isValidTarget={validTarget}
+                isSource={!!active && experimentColumn(active.status) === column}
+              >
+                {inColumn.map((c) => {
                   const targets = allowedTargets(actor, c);
                   const movingTo = pendingTo(c);
                   return (
@@ -221,81 +251,81 @@ export function Kanban({ programId, cards, actor }: { programId: string; cards: 
                     />
                   );
                 })}
-            </KanbanColumn>
-          ))}
+              </DroppableColumn>
+            );
+          })}
         </div>
       </div>
-      <DragOverlay dropAnimation={null}>{active ? <CardBody card={active} overlay /> : null}</DragOverlay>
+      <DragOverlay dropAnimation={null}>{active ? <CardView card={active} overlay /> : null}</DragOverlay>
+
+      <Dialog open={!!choice} onOpenChange={(open) => !open && setChoice(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>¿A qué estado lo pasa?</DialogTitle>
+            <DialogDescription>{choice ? `«${choice.card.title}» puede quedar en cualquiera de estos.` : null}</DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-2">
+            {choice?.options.map((to) => {
+              const Icon = STATUS_FILL[to].icon;
+              return (
+                <Button
+                  key={to}
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    const card = choice.card;
+                    setChoice(null);
+                    void move(card, to);
+                  }}
+                >
+                  <Icon aria-hidden /> {STATUS_LABEL[to]}
+                </Button>
+              );
+            })}
+          </div>
+        </DialogContent>
+      </Dialog>
     </DndContext>
   );
 }
 
-function KanbanColumn({
-  status,
-  cards,
+function DroppableColumn({
+  column,
+  count,
   dragging,
   isValidTarget,
   isSource,
   children,
 }: {
-  status: ExperimentStatus;
-  cards: KanbanCardData[];
+  column: BoardColumnKey;
+  count: number;
   dragging: boolean;
   isValidTarget: boolean;
   isSource: boolean;
   children: ReactNode;
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id: status });
-  const { icon: Icon } = STATUS_FILL[status];
-  const hint = COLUMN_HINT[status];
-  const headingId = `kanban-col-${status}`;
+  const { setNodeRef, isOver } = useDroppable({ id: column });
   return (
-    <section
-      ref={setNodeRef}
-      aria-labelledby={headingId}
+    <BoardColumnFrame
+      column={column}
+      wip={wipState(column, count)}
+      containerRef={setNodeRef}
+      isEmpty={count === 0}
+      emptyText={dragging && isValidTarget ? "Suéltelo aquí para moverlo" : "Por aquí no hay ejercicios"}
       className={cn(
-        "flex w-72 shrink-0 flex-col rounded-2xl border bg-wash/60 transition-colors",
-        status === "in_test" && "border-t-4 border-t-highlight",
         dragging && isValidTarget && "border-dashed border-ink/60 bg-paper",
         dragging && !isValidTarget && !isSource && "opacity-60",
         isOver && isValidTarget && "ring-2 ring-ink",
         isOver && !isValidTarget && !isSource && "ring-2 ring-gray-3",
       )}
+      headerExtra={
+        dragging && isValidTarget && column === "closed" ? (
+          <p className="mt-1 rounded bg-highlight/15 px-1.5 py-1 text-[11px]">Pide veredicto, decisión y aprendizaje registrados en el detalle.</p>
+        ) : null
+      }
     >
-      <header className="flex items-center gap-2 border-b px-3 py-2">
-        <Icon aria-hidden className="size-4 shrink-0" />
-        <h2 id={headingId} className="text-sm font-bold">
-          {STATUS_LABEL[status]}
-        </h2>
-        <span className="ml-auto rounded-full border bg-paper px-2 text-xs tabular-nums" aria-label={`${cards.length} ejercicios`}>
-          {cards.length}
-        </span>
-        {hint ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button type="button" className="rounded p-0.5 text-soft hover:text-ink" aria-label={`Ayuda: ${hint}`}>
-                <Info aria-hidden className="size-3.5" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">{hint}</TooltipContent>
-          </Tooltip>
-        ) : null}
-      </header>
-      {dragging && isValidTarget && status === "decided" ? (
-        <p className="border-b bg-highlight/15 px-3 py-1.5 text-xs">
-          Requiere veredicto, decisión y aprendizaje registrados en el detalle.
-        </p>
-      ) : null}
-      <div className="flex min-h-32 flex-1 flex-col gap-2 p-2">
-        {cards.length === 0 ? (
-          <p className="px-1 py-4 text-center text-xs text-soft">
-            {dragging && isValidTarget ? "Suéltelo aquí para moverlo" : "Por aquí no hay ejercicios"}
-          </p>
-        ) : (
-          children
-        )}
-      </div>
-    </section>
+      {children}
+    </BoardColumnFrame>
   );
 }
 
@@ -318,10 +348,7 @@ function KanbanCard({
   targets: ExperimentStatus[];
   onMove: (to: ExperimentStatus) => void;
 }) {
-  const { attributes, listeners, setNodeRef, setActivatorNodeRef } = useDraggable({
-    id: card.id,
-    disabled: !draggable,
-  });
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef } = useDraggable({ id: card.id, disabled: !draggable });
   return (
     <div
       ref={setNodeRef}
@@ -329,7 +356,7 @@ function KanbanCard({
       onTouchStart={listeners?.onTouchStart as TouchEventHandler<HTMLDivElement> | undefined}
       className={cn("relative", hidden && "opacity-40", draggable && "cursor-grab active:cursor-grabbing")}
     >
-      <CardBody
+      <CardView
         card={card}
         href={href}
         pendingTo={pendingTo}
@@ -363,16 +390,8 @@ function KanbanCard({
   );
 }
 
-/** Alternativa al arrastre (táctil, teclado o simplemente preferencia): lista los destinos permitidos. */
-function MoveMenu({
-  card,
-  targets,
-  onMove,
-}: {
-  card: KanbanCardData;
-  targets: ExperimentStatus[];
-  onMove: (to: ExperimentStatus) => void;
-}) {
+/** Alternativa al arrastre (táctil, teclado o preferencia): lista los destinos permitidos. */
+function MoveMenu({ card, targets, onMove }: { card: KanbanCardData; targets: ExperimentStatus[]; onMove: (to: ExperimentStatus) => void }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -380,7 +399,7 @@ function MoveMenu({
           type="button"
           variant="ghost"
           size="xs"
-          className="mt-2 -ml-1 text-soft"
+          className="mt-1.5 -ml-1 text-soft"
           aria-label={`Mover «${card.title}» a…`}
           // Que el menú no dispare el arrastre de la tarjeta.
           onMouseDown={(e) => e.stopPropagation()}
@@ -405,7 +424,7 @@ function MoveMenu({
   );
 }
 
-function CardBody({
+function CardView({
   card,
   href,
   handle,
@@ -420,56 +439,30 @@ function CardBody({
   pendingTo?: ExperimentStatus | null;
   overlay?: boolean;
 }) {
+  const column = experimentColumn(card.status);
+  const grouped = EXPERIMENT_COLUMN_STATUSES[column].length > 1;
+  // En Por hacer el puntaje ayuda a escoger qué sigue.
+  const score = column === "todo" && card.finalScore != null ? ` · Puntaje ${formatScore(card.finalScore)}` : "";
   return (
-    <article
-      aria-busy={pendingTo ? true : undefined}
-      className={cn(
-        "rounded-xl border bg-paper p-3 text-sm shadow-card transition-shadow hover:shadow-md",
-        card.status === "in_test" && "border-l-4 border-l-highlight",
-        overlay && "w-68 rotate-1 cursor-grabbing shadow-lg ring-2 ring-ink",
-      )}
-    >
-      <div className="flex items-start gap-2">
-        <h3 className="min-w-0 flex-1 font-medium leading-snug">
-          {href ? (
-            <Link href={href} draggable={false} className="hover:underline">
-              {card.title}
-            </Link>
-          ) : (
-            card.title
-          )}
-        </h3>
-        {handle}
-      </div>
-      <div className="mt-1 truncate text-xs text-soft">{card.lineName}</div>
-      <dl className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs tabular-nums">
-        <div className="flex min-w-0 items-center gap-1">
-          <dt>
-            <User aria-hidden className="size-3.5" />
-            <span className="sr-only">Responsable</span>
-          </dt>
-          <dd className="truncate">{card.ownerName ?? "Sin responsable"}</dd>
-        </div>
-        <div className="flex items-center gap-1">
-          <dt className="text-soft">Puntaje</dt>
-          <dd className="font-semibold">{formatScore(card.finalScore)}</dd>
-        </div>
-        <div className="flex items-center gap-1" title="Días en el estado actual">
-          <dt>
-            <Clock aria-hidden className="size-3.5" />
-            <span className="sr-only">Días en el estado actual</span>
-          </dt>
-          <dd>
-            {card.days} día{card.days === 1 ? "" : "s"}
-          </dd>
-        </div>
-      </dl>
-      {pendingTo ? (
-        <div role="status" className="mt-2 flex items-center gap-1.5 rounded bg-wash px-2 py-1 text-xs">
-          <Spinner className="size-3.5" /> Moviendo a {STATUS_LABEL[pendingTo]}…
-        </div>
-      ) : null}
-      {footer}
-    </article>
+    <BoardCard
+      title={card.title}
+      href={href}
+      chip={card.lineName || "Sin línea"}
+      ownerName={card.ownerName}
+      days={card.days}
+      aging={isAging(column, card.days)}
+      statusLabel={grouped || score ? `${grouped ? STATUS_LABEL[card.status] : ""}${score}`.replace(/^ · /, "") : null}
+      highlight={card.status === "in_test"}
+      overlay={overlay}
+      handle={handle}
+      footer={footer}
+      status={
+        pendingTo ? (
+          <div role="status" className="mt-2 flex items-center gap-1.5 rounded bg-wash px-2 py-1 text-xs">
+            <Spinner className="size-3.5" /> Moviendo a {STATUS_LABEL[pendingTo]}…
+          </div>
+        ) : null
+      }
+    />
   );
 }

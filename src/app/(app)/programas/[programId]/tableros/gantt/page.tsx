@@ -1,25 +1,28 @@
-import { CalendarRange, GitMerge, TriangleAlert } from "lucide-react";
+import { CalendarRange, TriangleAlert } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Callout, EmptyState } from "@/components/app/page";
+import { EmptyState } from "@/components/app/page";
+import { TimelineGantt, type TimelineBar, type TimelineGroup } from "@/components/boards/timeline-gantt";
 import { DashboardFrame, FilteredOutNote } from "@/components/dashboards/dashboard-frame";
-import { Gantt, type GanttBar, type GanttGroup } from "@/components/dashboards/gantt";
 import { Button } from "@/components/ui/button";
+import { experimentColumn } from "@/domain/boards";
 import { asCollisionCandidate, collisionPairs, describeCollision } from "@/domain/collisions";
 import { firstParam } from "@/domain/dashboard-filters";
 import { addDays, maxDate, minDate } from "@/domain/dates";
 import { formatDateRange, formatMonth, formatShortDate } from "@/domain/format";
 import {
   barGeometry,
+  boardPixelsPerDay,
   buildTimeline,
   crossesFreeze,
-  pixelsPerDay,
+  displaySpan,
   positionOf,
   timelineColumns,
+  type DisplaySpan,
   type GanttZoom,
   type Timeline,
 } from "@/domain/gantt";
-import type { IsoDate } from "@/domain/types";
+import { STATUS_LABEL } from "@/domain/labels";
 import { cn } from "@/lib/utils";
 import { loadDashboard } from "../_lib/data";
 
@@ -27,17 +30,18 @@ export const metadata: Metadata = { title: "Gantt" };
 
 const RUNNING = new Set(["in_test", "in_reading"]);
 
-function bar(timeline: Timeline, start: IsoDate | null, end: IsoDate | null, ongoing = false): GanttBar | null {
-  const g = barGeometry(timeline, start, end);
-  if (!g || !start) return null;
-  return { ...g, range: formatDateRange(start, end ?? start), ongoing };
+function toBar(timeline: Timeline, span: DisplaySpan | null): TimelineBar | null {
+  if (!span) return null;
+  const g = barGeometry(timeline, span.start, span.end);
+  return g ? { ...g, range: formatDateRange(span.start, span.end), mode: span.mode, ongoing: span.ongoing } : null;
 }
 
 export default async function GanttPage({ params, searchParams }: PageProps<"/programas/[programId]/tableros/gantt">) {
   const { programId } = await params;
   const sp = await searchParams;
   const data = await loadDashboard(programId, sp);
-  const zoom: GanttZoom = firstParam(sp.zoom) === "mes" ? "month" : "week";
+  // El mes es la vista por defecto: se lee de un vistazo. La semana, a pedido.
+  const zoom: GanttZoom = firstParam(sp.zoom) === "semana" ? "week" : "month";
 
   // Rango: el del programa; si falta, el de los ejercicios y el calendario.
   const allDates = [
@@ -47,7 +51,7 @@ export default async function GanttPage({ params, searchParams }: PageProps<"/pr
   const start = data.program.start_date ?? minDate(...allDates) ?? data.today;
   const end = data.program.end_date ?? maxDate(...allDates, addDays(start, 90)) ?? addDays(start, 90);
   const timeline = buildTimeline(start, end);
-  const widthPx = timeline.totalDays * pixelsPerDay(zoom);
+  const widthPx = timeline.totalDays * boardPixelsPerDay(zoom);
 
   const months = timelineColumns(timeline, "month", formatMonth);
   const weeks = zoom === "week" ? timelineColumns(timeline, "week", (d) => formatShortDate(d)) : null;
@@ -61,38 +65,50 @@ export default async function GanttPage({ params, searchParams }: PageProps<"/pr
     data.today >= timeline.start && data.today <= timeline.end ? positionOf(timeline, data.today) + 100 / timeline.totalDays / 2 : null;
 
   const visibleLines = data.filters.linea ? data.lines.filter((l) => l.id === data.filters.linea) : data.lines;
-  const groups: GanttGroup[] = visibleLines.map((line) => ({
-    lineId: line.id,
-    lineName: line.name,
-    items: data.filtered
+  const freezeNames = new Map(data.filtered.map((e) => [e.id, crossesFreeze(e, data.calendar).map((f) => f.name)]));
+  const groups: TimelineGroup[] = visibleLines.map((line) => ({
+    key: line.id,
+    label: line.name,
+    emptyText: "Sin ejercicios con estos filtros.",
+    rows: data.filtered
       .filter((e) => e.line_id === line.id)
       .sort((a, b) => (a.actual_start ?? a.planned_start ?? "9999").localeCompare(b.actual_start ?? b.planned_start ?? "9999"))
       .map((e) => {
-        const ongoing = !e.actual_end && RUNNING.has(e.status) && !!e.actual_start;
-        const actualEnd = ongoing ? maxDate(e.actual_start, data.today) : e.actual_end;
-        const planned = bar(timeline, e.planned_start, e.planned_end);
-        const actual = bar(timeline, e.actual_start, actualEnd, ongoing);
+        const span = displaySpan(e, RUNNING.has(e.status), data.today);
+        const bar = toBar(timeline, span);
+        const freezes = freezeNames.get(e.id) ?? [];
         return {
           id: e.id,
           title: e.title,
-          status: e.status,
+          href: `/programas/${programId}/ejercicios/${e.id}`,
           ownerName: e.owner_name,
-          planned,
-          actual,
-          freezes: crossesFreeze(e, data.calendar).map((f) => f.name),
-          noDates: !e.planned_start && !e.actual_start,
-          outOfRange: !planned && !actual && !!(e.planned_start || e.actual_start),
+          statusLabel: STATUS_LABEL[e.status],
+          tone: experimentColumn(e.status),
+          bar,
+          emptyText: span ? "Fuera del rango del programa" : "Sin fechas todavía",
+          warning: freezes.length ? `Se cruza con ${freezes.map((f) => `«${f}»`).join(", ")}: en congelamiento no se lanzan ejercicios.` : null,
         };
       }),
   }));
-  const crossing = groups.flatMap((g) => g.items).filter((i) => i.freezes.length > 0);
+
+  const crossing = data.filtered.filter((e) => (freezeNames.get(e.id) ?? []).length > 0);
   // Ejercicios que corren a la vez en la misma línea y tocan la misma etapa o canal.
   const collisions = collisionPairs(data.filtered.map(asCollisionCandidate), data.today);
+  const alerts = [
+    crossing.length ? `${crossing.length} ${crossing.length === 1 ? "cruza" : "cruzan"} un congelamiento` : null,
+    collisions.length ? `${collisions.length} ${collisions.length === 1 ? "pareja corre" : "parejas corren"} a la vez` : null,
+  ].filter(Boolean);
 
-  const zoomHref = (z: "semana" | "mes") => `?${new URLSearchParams({ ...data.current, zoom: z }).toString()}`;
+  const zoomHref = (z: "semana" | "mes") => {
+    const next = { ...data.current };
+    if (z === "semana") next.zoom = "semana";
+    else delete next.zoom;
+    const qs = new URLSearchParams(next).toString();
+    return qs ? `?${qs}` : "?";
+  };
   const zoomLinks = (
-    <div role="group" aria-label="Zoom de la línea de tiempo" className="inline-flex rounded-xl border bg-paper p-0.5 shadow-card">
-      {(["semana", "mes"] as const).map((z) => {
+    <div role="group" aria-label="Escala de la línea de tiempo" className="inline-flex rounded-xl border bg-paper p-0.5 shadow-card">
+      {(["mes", "semana"] as const).map((z) => {
         const active = (z === "mes") === (zoom === "month");
         return (
           <Button key={z} asChild size="sm" variant="ghost" className={cn(active && "bg-gray-1 font-semibold")}>
@@ -110,14 +126,15 @@ export default async function GanttPage({ params, searchParams }: PageProps<"/pr
       programId={programId}
       active="gantt"
       title="Gantt"
-      description="Todos los ejercicios en la línea de tiempo del programa, por línea, con congelamientos, picos y el punto de decisión. Así se ve el camino."
+      description="Una barra por ejercicio: rellena si ya arrancó, punteada si todavía es plan. Arriba, el calendario del programa."
       actions={zoomLinks}
       fields={data.globalFields}
       current={data.current}
       query={data.query}
     >
       {data.lines.length === 0 ? (
-        <EmptyState art="mapa"
+        <EmptyState
+          art="mapa"
           icon={CalendarRange}
           title="Todavía no hay líneas de negocio"
           description="El Gantt agrupa los ejercicios por línea. Cree las líneas del programa en la configuración para empezar."
@@ -128,12 +145,13 @@ export default async function GanttPage({ params, searchParams }: PageProps<"/pr
           }
         />
       ) : data.filtered.length === 0 ? (
-        <EmptyState art="camino"
+        <EmptyState
+          art="camino"
           icon={CalendarRange}
           title="Camino despejado: todavía no hay ejercicios"
           description={
             <>
-              Cada ejercicio aparece aquí con su barra planeada y la real apenas tenga fechas.
+              Cada ejercicio aparece aquí apenas tenga fechas.
               <FilteredOutNote active={data.filtersActive} />
             </>
           }
@@ -144,15 +162,24 @@ export default async function GanttPage({ params, searchParams }: PageProps<"/pr
           }
         />
       ) : (
-        <div className="space-y-4">
-          {crossing.length ? (
-            <Callout icon={TriangleAlert} title={`${crossing.length} ejercicio(s) se cruzan con un congelamiento`}>
-              {crossing.map((c) => c.title).join(" · ")}. En congelamiento no se lanzan ejercicios: revise sus fechas.
-            </Callout>
-          ) : null}
-          {collisions.length ? (
-            <Callout icon={GitMerge} title={`Ojo: ${collisions.length} ${collisions.length === 1 ? "pareja de ejercicios se cruza" : "parejas de ejercicios se cruzan"}`}>
-              <ul className="space-y-1">
+        <div className="space-y-3">
+          {alerts.length ? (
+            <details className="group rounded-xl border border-highlight bg-highlight/15 px-3.5 py-2 text-sm">
+              <summary className="flex cursor-pointer list-none items-center gap-2 font-medium">
+                <TriangleAlert aria-hidden className="size-4 shrink-0" />
+                Ojo: {alerts.join(" · ")}.
+                <span className="ml-auto text-xs font-normal underline underline-offset-2 group-open:hidden">Ver cuáles</span>
+                <span className="ml-auto hidden text-xs font-normal underline underline-offset-2 group-open:inline">Ocultar</span>
+              </summary>
+              <ul className="mt-2 space-y-1 text-[13px]">
+                {crossing.map((e) => (
+                  <li key={e.id}>
+                    <Link href={`/programas/${programId}/ejercicios/${e.id}`} className="font-medium underline underline-offset-2">
+                      {e.title}
+                    </Link>
+                    <span className="text-soft"> · cruza {(freezeNames.get(e.id) ?? []).map((f) => `«${f}»`).join(", ")}</span>
+                  </li>
+                ))}
                 {collisions.map((p) => (
                   <li key={`${p.a.id}-${p.b.id}`}>
                     <Link href={`/programas/${programId}/ejercicios/${p.a.id}`} className="font-medium underline underline-offset-2">
@@ -169,22 +196,24 @@ export default async function GanttPage({ params, searchParams }: PageProps<"/pr
                   </li>
                 ))}
               </ul>
-              <p className="mt-1">Si corren a la vez sobre la misma etapa o canal, no se sabe cuál movió la métrica. Separe las fechas.</p>
-            </Callout>
+              <p className="mt-1.5 text-xs text-soft">
+                En congelamiento no se lanzan ejercicios; y si dos corren a la vez sobre la misma etapa o canal, no se sabe cuál movió la métrica.
+              </p>
+            </details>
           ) : null}
-          <Gantt
-            programId={programId}
+          <TimelineGantt
             widthPx={widthPx}
             months={months}
             weeks={weeks}
             events={events}
             todayLeft={todayLeft}
             groups={groups}
+            ariaLabel="Línea de tiempo de ejercicios (desplácese horizontalmente)"
           />
           <p className="text-xs text-soft">
             Rango: {formatDateRange(timeline.start, timeline.end)}
             {data.program.start_date && data.program.end_date ? " (fechas del programa)" : " (calculado con los ejercicios y el calendario)"}.
-            Haga clic en una barra para abrir el detalle del ejercicio.
+            Haga clic en una barra para abrir el ejercicio.
           </p>
         </div>
       )}

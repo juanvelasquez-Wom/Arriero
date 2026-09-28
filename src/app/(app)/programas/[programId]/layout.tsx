@@ -34,7 +34,10 @@ export default async function ProgramLayout({ children, params }: LayoutProps<"/
         nav={<ProgramMobileNav {...nav} />}
       >
         <div className="flex min-w-0 items-center gap-2">
-          <span aria-hidden className="hidden text-soft sm:inline">
+          <Link href="/programas" className="shrink-0 text-sm text-soft hover:text-ink hover:underline">
+            Programas
+          </Link>
+          <span aria-hidden className="text-soft">
             /
           </span>
           <Link href={`/programas/${programId}`} className="min-w-0 truncate text-sm font-semibold hover:underline">

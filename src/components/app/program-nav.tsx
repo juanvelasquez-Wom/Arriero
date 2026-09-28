@@ -2,11 +2,8 @@
 
 import {
   BookOpenCheck,
-  CalendarRange,
-  ChartColumn,
   ClipboardList,
   Columns3,
-  Grid3x3,
   LayoutDashboard,
   ListOrdered,
   Settings2,
@@ -16,7 +13,6 @@ import {
   Menu,
   FileText,
   UsersRound,
-  Megaphone,
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -44,14 +40,16 @@ export interface ProgramNavProps {
   showPilots?: boolean;
 }
 
-function useGroups({ programId, lines, showTrash, showSettings, showPilots }: ProgramNavProps) {
+function useGroups({ programId, lines, showTrash, showSettings }: ProgramNavProps) {
   const base = `/programas/${programId}`;
   const groups: { title?: string; items: NavItem[] }[] = [
     {
       items: [
         { href: base, label: "Resumen", icon: LayoutDashboard, exact: true },
-        { href: `${base}/informe`, label: "Informe para el comité", icon: FileText },
-        ...(showSettings ? [{ href: `${base}/configuracion`, label: "Configuración", icon: Settings2 }] : []),
+        { href: `${base}/ejercicios`, label: "Ejercicios", icon: ListOrdered },
+        { href: `${base}/problemas`, label: "Problemas", icon: ClipboardList },
+        { href: `${base}/carga`, label: "Carga semanal", icon: CalendarPlus },
+        { href: `${base}/tableros`, label: "Tableros", icon: Columns3 },
       ],
     },
     {
@@ -59,27 +57,16 @@ function useGroups({ programId, lines, showTrash, showSettings, showPilots }: Pr
       items: lines.map((l) => ({ href: `${base}/lineas/${l.id}`, label: l.name, icon: Waypoints })),
     },
     {
-      title: "Operación",
+      title: "Más",
       items: [
-        { href: `${base}/carga`, label: "Carga semanal", icon: CalendarPlus },
-        { href: `${base}/problemas`, label: "Problemas", icon: ClipboardList },
-        { href: `${base}/ejercicios`, label: "Backlog de ejercicios", icon: ListOrdered },
         { href: `${base}/aprendizajes`, label: "Aprendizajes", icon: BookOpenCheck },
+        { href: `${base}/informe`, label: "Informe para el comité", icon: FileText },
         { href: `${base}/equipo`, label: "Equipo y carga", icon: UsersRound },
-      ],
-    },
-    {
-      title: "Tableros",
-      items: [
-        { href: `${base}/tableros/gantt`, label: "Gantt", icon: CalendarRange },
-        { href: `${base}/tableros/kanban`, label: "Kanban", icon: Columns3 },
-        { href: `${base}/tableros/resultados`, label: "Resultados", icon: ChartColumn },
-        { href: `${base}/tableros/portafolio`, label: "Portafolio y velocidad", icon: Grid3x3 },
+        ...(showSettings ? [{ href: `${base}/configuracion`, label: "Configuración", icon: Settings2 }] : []),
+        ...(showTrash ? [{ href: `${base}/papelera`, label: "Papelera", icon: Trash2 }] : []),
       ],
     },
   ];
-  if (showPilots) groups.push({ title: "Medios", items: [{ href: "/pilotos", label: "Pilotos de medios", icon: Megaphone }] });
-  if (showTrash) groups.push({ items: [{ href: `${base}/papelera`, label: "Papelera", icon: Trash2 }] });
   return groups;
 }
 

@@ -354,3 +354,36 @@ Migración `014_matriz_hallazgos` e informe en el artefacto "Auditoría integral
   - registro de errores;
   - escrituras de las integraciones (`ad_facts`, datos `mcp`) y lectura de tokens en Vault;
   - envío del resumen semanal, filtrando por membresía de cada persona.
+
+## 13. Navegación y pantallas simples (rediseño del 28 sep 2026)
+
+- **Inicio** (`/`, `src/app/(app)/page.tsx`): cinco caminos grandes.
+  - Crear un proyecto de growth, o "Ver mis proyectos" si no es admin.
+  - Crear un piloto de medios, o verlos si la persona solo es lectora.
+  - Dirección (`/direccion`), Aprender growth (`/aprender`) y Cómo se usa el Arriero (`/guia`).
+  - Debajo, "Siga donde iba" con los últimos programas.
+  - Después del login se llega aquí (`DEFAULT_AFTER_LOGIN = "/"`). La lista de programas vive en `/programas`.
+- **Barra de arriba** (`app-header.tsx` y `app-nav.tsx`):
+  - Una sola fila: Volver · logo · secciones (Inicio, Programas, Pilotos, Tableros, Dirección) · buscar · avisos · usuario.
+  - El tema, las explicaciones, el resumen semanal, la guía, los usuarios y los errores van en el menú de usuario.
+  - El contexto (el programa abierto) va en una segunda fila delgada.
+  - En el celular, las secciones van fijas abajo; por eso el layout lleva `pb-16`.
+- **Volver** (`BackButton`): vuelve atrás en el historial si la persona ya navegó dentro de la app; si no, va a la ruta padre (`parentPath` en `src/domain/navigation.ts`, que salta carpetas sin página como `lineas` y `admin`).
+- **Menú del programa:**
+  - Arriba: Resumen, Ejercicios, Problemas, Carga semanal, Tableros.
+  - Luego las Líneas.
+  - En "Más": Aprendizajes, Informe, Equipo, Configuración y Papelera.
+- **Menos contenido por pantalla:**
+  - Pestañas en la URL (`ViewTabs`), plegables (`Fold`, con `<details>`) y filtros detrás de un botón (`FiltersPanel`), en `src/components/app/`.
+  - El detalle del ejercicio muestra una sola acción principal; lo demás queda en "Otras opciones".
+  - `/direccion` responde las 9 preguntas una por vista (`?vista=` y `?pregunta=`).
+  - El detalle del piloto tiene las pestañas Resumen, Diseño y Chequeo e incidentes.
+- **Asistentes paso a paso** (`src/components/app/step-wizard.tsx`, una pregunta por pantalla):
+  - `/programas/nuevo` (`components/setup/quick-wizard/`): nombre → líneas → fechas → calendario → resumen. Usa el mismo `saveQuickStart`.
+  - Pilotos (`components/pilots/wizard/sub-flow.ts`): cada uno de los 5 pasos partido en subpantallas. Se sigue guardando una vez por paso.
+- **Tableros:**
+  - Gantt del programa: una barra por ejercicio, rellena si es real y punteada si es plan, con el mes por defecto (`components/boards/timeline-gantt.tsx`).
+  - Kanban del programa: 5 columnas (Por hacer, En diseño, En prueba, En lectura, Cerrado), límites WIP y aviso de tarjetas quietas.
+  - `/tableros` (general, de solo lectura) junta ejercicios y pilotos en `?vista=gantt|kanban|ruta`. La ruta "Ahora / Siguiente / Después" lleva un semáforo de salud por tarjeta.
+  - Mapeo de estados, WIP, envejecimiento y salud en `src/domain/boards.ts`; lectura con RLS en `src/server/queries/boards.ts`.
+- **Aprender** (`/aprender`, 11 lecciones con una interacción cada una) y **Guía** (`/guia`, 12 pasos): contenido en `src/domain/learn-content.ts` y componentes en `src/components/learn/`. El avance se guarda en `localStorage`.

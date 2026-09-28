@@ -3,12 +3,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Callout, PageHeader } from "@/components/app/page";
+import { ViewTabs } from "@/components/app/view-tabs";
 import { DemoBadge } from "@/components/app/status-badge";
 import { PilotActions } from "@/components/pilots/detail/pilot-actions";
 import { PilotDataTab } from "@/components/pilots/detail/pilot-data-tab";
 import { PilotLogTab } from "@/components/pilots/detail/pilot-log-tab";
 import { PilotReadingTab } from "@/components/pilots/detail/pilot-reading-tab";
-import { PilotSummaryTab } from "@/components/pilots/detail/pilot-summary-tab";
+import { PilotDesignTab, PilotOperationTab, PilotSummaryTab } from "@/components/pilots/detail/pilot-summary-tab";
 import { PilotStatusBadge, PilotTestTypeBadge } from "@/components/pilots/pilot-badges";
 import { PilotTiaDraft } from "@/components/pilots/pilot-tia-drafts";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,8 @@ export const metadata: Metadata = { title: "Piloto" };
 
 const TABS = [
   { key: "resumen", label: "Resumen" },
+  { key: "diseno", label: "Diseño" },
+  { key: "chequeo", label: "Chequeo e incidentes" },
   { key: "datos", label: "Datos" },
   { key: "lectura", label: "Lectura" },
   { key: "bitacora", label: "Bitácora" },
@@ -52,9 +55,14 @@ export default async function PilotPage({ params, searchParams }: PageProps<"/pi
   const analysis = analyzePilotDetail(detail, catalogs);
   const best = analysis?.primary?.comparisons.find((c) => c.armId === analysis.primary?.bestArmId);
   const idx = pathIndex(p.status);
+  const checklistPending = detail.checklist.filter((c) => c.status !== "ok").length;
 
   const tabContent = async () => {
     switch (tab) {
+      case "diseno":
+        return <PilotDesignTab detail={detail} catalogs={catalogs} />;
+      case "chequeo":
+        return <PilotOperationTab detail={detail} actor={actor} />;
       case "datos":
         return <PilotDataTab detail={detail} catalogs={catalogs} canLoad={canLoadData(actor, p.status) && !p.deleted_at} />;
       case "lectura": {
@@ -134,7 +142,7 @@ export default async function PilotPage({ params, searchParams }: PageProps<"/pi
             canRestore={isPilotApprover(actor)}
             missing={detail.missing}
             overlaps={overlaps.map((o) => `${o.otherTitle}: ${o.text}`)}
-            checklist={{ total: detail.checklist.length, pending: detail.checklist.filter((c) => c.status !== "ok").length }}
+            checklist={{ total: detail.checklist.length, pending: checklistPending }}
             plannedStart={p.planned_start}
             actualStart={p.actual_start}
             suggestion={analysis?.suggestion ?? null}
@@ -143,24 +151,18 @@ export default async function PilotPage({ params, searchParams }: PageProps<"/pi
         </div>
       </section>
 
-      <nav aria-label="Secciones del piloto" className="-mx-1 mb-6 overflow-x-auto px-1">
-        <ul className="flex w-max gap-1 border-b">
-          {TABS.map((t) => (
-            <li key={t.key}>
-              <Link
-                href={`/pilotos/${pilotId}?tab=${t.key}`}
-                aria-current={t.key === tab ? "page" : undefined}
-                className={cn(
-                  "relative -mb-px flex min-h-11 items-center border-b-2 border-transparent px-3 text-sm text-soft transition-colors hover:text-ink",
-                  t.key === tab && "border-highlight font-semibold text-ink",
-                )}
-              >
-                {t.label}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </nav>
+      <ViewTabs
+        label="Secciones del piloto"
+        active={tab}
+        tabs={TABS.map((t) => ({
+          key: t.key,
+          label: t.label,
+          href: `/pilotos/${pilotId}?tab=${t.key}`,
+          attention:
+            (t.key === "chequeo" && checklistPending > 0 && (p.status === "approved" || p.status === "draft" || p.status === "in_review")) ||
+            (t.key === "resumen" && overlaps.length > 0),
+        }))}
+      />
 
       <div key={tab} className="slide-in">
         {await tabContent()}

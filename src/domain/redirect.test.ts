@@ -9,7 +9,7 @@ describe("safeNext", () => {
 
   it("rechaza destinos externos o raros", () => {
     for (const bad of ["//evil.com", "/\\evil.com", "\\\\evil.com", "https://evil.com", "evil.com", "/\u0000x", "", null, undefined, " //evil.com"]) {
-      expect(safeNext(bad as string)).toBe("/programas");
+      expect(safeNext(bad as string)).toBe("/");
     }
   });
 

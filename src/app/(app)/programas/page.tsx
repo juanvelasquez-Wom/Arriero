@@ -1,19 +1,16 @@
-import { ArrowRight, CalendarRange, Compass, FolderKanban, Megaphone, Plus, Users } from "lucide-react";
+import { ArrowRight, CalendarRange, FolderKanban, Plus } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AppHeader } from "@/components/app/app-header";
 import { EmptyState, PageHeader } from "@/components/app/page";
 import { DemoBadge } from "@/components/app/status-badge";
 import { Credits } from "@/components/brand/credits";
-import { phraseOfTheDay } from "@/components/brand/phrases";
 import { Button } from "@/components/ui/button";
 import { ROLE_LABEL } from "@/domain/labels";
 import { formatDateRange } from "@/domain/format";
 import { isDatabaseReady, requireUser } from "@/server/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { findDemoProgramId } from "@/server/demo/loader";
-import { getPilotContext } from "@/server/pilot-auth";
-import { countActivePilots } from "@/server/queries/direction";
 import { listDeletedPrograms, listMyPrograms } from "@/server/queries/programs";
 
 // El admin ve el estado del ejemplo aunque esté en la papelera (existe una sola vez).
@@ -24,40 +21,28 @@ async function demoState() {
 import { DemoControls } from "./demo-controls";
 import { DeletedPrograms } from "./deleted-programs";
 
-export const metadata: Metadata = { title: "Mis programas" };
-
-const firstName = (n: string) => n.split(/[\s@.]+/)[0] || n;
+export const metadata: Metadata = { title: "Programas" };
 
 export default async function ProgramsPage() {
   const user = await requireUser();
   // El layout ya muestra el aviso; aquí solo evitamos consultar tablas inexistentes.
   if (!(await isDatabaseReady())) return null;
-  const [programs, deleted, demo, pilotCtx] = await Promise.all([
+  const [programs, deleted, demo] = await Promise.all([
     listMyPrograms(user.id),
     listDeletedPrograms(),
     user.isAdmin ? demoState() : Promise.resolve(null),
-    getPilotContext().catch(() => null),
   ]);
-  // Pilotos de medios: solo para quien tiene rol en ese módulo.
-  const activePilots = pilotCtx?.actor.role ? await countActivePilots() : null;
-  const showPilots = !!pilotCtx?.actor.role;
 
   return (
     <>
       <AppHeader user={user} />
       <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-10">
         <PageHeader
-          eyebrow={`Buenas, ${firstName(user.name || user.email)}`}
-          title="¿Y por dónde es hoy?"
-          description={`«${phraseOfTheDay(user.id)}» Estos son sus programas: cada uno junta las líneas de negocio, el calendario comercial y el equipo que mueve los ejercicios.`}
+          title="Sus programas"
+          description="Cada programa junta sus líneas de negocio, el calendario comercial y el equipo que mueve los ejercicios."
           actions={
             user.isAdmin ? (
               <>
-                <Button asChild variant="outline">
-                  <Link href="/admin/usuarios">
-                    <Users aria-hidden /> Usuarios
-                  </Link>
-                </Button>
                 <DemoControls demo={demo} />
                 <Button asChild>
                   <Link href="/programas/nuevo">
@@ -68,50 +53,6 @@ export default async function ProgramsPage() {
             ) : null
           }
         />
-
-        {programs.length ? (
-          <Link
-            href="/direccion"
-            className="lift group mb-6 flex flex-wrap items-center gap-4 rounded-2xl bg-[#111111] p-5 text-[#f6f6f4] shadow-card"
-          >
-            <Compass aria-hidden className="size-8 shrink-0 text-highlight" />
-            <div className="min-w-0 flex-1">
-              <div className="font-heading text-lg font-extrabold">Resumen ejecutivo: ¿estamos creciendo?</div>
-              <p className="text-sm text-[#f6f6f4]/70">
-                Para dirección: qué crece, qué cae, qué ganó, qué aprendimos, cuánto vale y qué hay que decidir, de todos los programas en una página.
-              </p>
-            </div>
-            <span className="inline-flex items-center gap-1 rounded-full bg-highlight px-3 py-1.5 text-sm font-semibold text-[#111111]">
-              Ver resumen <ArrowRight aria-hidden className="size-4 transition-transform group-hover:translate-x-1" />
-            </span>
-          </Link>
-        ) : null}
-
-        {showPilots ? (
-          <Link
-            href="/pilotos"
-            className="lift group mb-6 flex flex-wrap items-center gap-4 rounded-2xl border bg-paper p-5 shadow-card"
-          >
-            <Megaphone aria-hidden className="size-8 shrink-0" />
-            <div className="min-w-0 flex-1">
-              <div className="font-heading text-lg font-extrabold">Pilotos de medios</div>
-              <p className="text-sm text-soft">
-                Las pruebas en Meta, Google y demás medios: diseño, aprobación, lectura y aprendizajes.
-                {activePilots != null ? (
-                  <>
-                    {" "}
-                    <span className="font-semibold text-ink tabular-nums">
-                      {activePilots === 0 ? "Ninguno activo ahora." : `${activePilots} ${activePilots === 1 ? "activo" : "activos"} ahora.`}
-                    </span>
-                  </>
-                ) : null}
-              </p>
-            </div>
-            <span className="inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-sm font-semibold">
-              Ver pilotos <ArrowRight aria-hidden className="size-4 transition-transform group-hover:translate-x-1" />
-            </span>
-          </Link>
-        ) : null}
 
         {programs.length === 0 ? (
           <EmptyState art="mapa"

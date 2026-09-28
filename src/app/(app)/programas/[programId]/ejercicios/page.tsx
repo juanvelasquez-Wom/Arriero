@@ -6,7 +6,7 @@ import { ExportCsvButton } from "@/components/app/export-csv-button";
 import { Term } from "@/components/app/info-tip";
 import { EmptyState, PageHeader } from "@/components/app/page";
 import { StatusBadge } from "@/components/app/status-badge";
-import { UrlFilters } from "@/components/app/url-filters";
+import { FiltersPanel } from "@/components/app/filters-panel";
 import { BacklogSelection, BulkActionBar, RowCheckbox, SelectAllCheckbox } from "@/components/experiments/backlog-bulk";
 import { QuickIce } from "@/components/experiments/quick-ice";
 import { Button } from "@/components/ui/button";
@@ -179,7 +179,7 @@ export default async function BacklogPage({ params, searchParams }: PageProps<"/
     <div className="mx-auto max-w-7xl">
       <PageHeader
         title="Backlog de ejercicios"
-        description="Del dato al camino: ordenado por puntaje final (ICE + bono de calendario − penalidad de control)."
+        description="Ordenado por puntaje final: ICE + bono de calendario − penalidad de control."
         actions={
           <>
             {experiments.length ? <ExportCsvButton csv={csv} name={["backlog", ctx.program.name, today]} /> : null}
@@ -206,26 +206,30 @@ export default async function BacklogPage({ params, searchParams }: PageProps<"/
         />
       ) : (
         <BacklogSelection>
-          <nav aria-label="Vistas rápidas" className="mb-3 flex flex-wrap gap-2">
-            {BACKLOG_VIEWS.map((v) => {
-              const active = view === v;
-              return (
-                <Link
-                  key={v}
-                  href={active ? viewHref(null) : viewHref(v)}
-                  aria-current={active ? "page" : undefined}
-                  scroll={false}
-                  className={cn(
-                    "inline-flex h-8 items-center rounded-full border px-3 text-sm font-medium",
-                    active ? "border-ink bg-ink text-paper" : "bg-paper text-ink hover:bg-wash",
-                  )}
-                >
-                  {BACKLOG_VIEW_LABEL[v]}
-                </Link>
-              );
-            })}
+          <nav aria-label="Vistas rápidas" className="-mx-1 mb-3 overflow-x-auto px-1">
+            <ul className="flex w-max gap-2">
+              {BACKLOG_VIEWS.map((v) => {
+                const active = view === v;
+                return (
+                  <li key={v}>
+                    <Link
+                      href={active ? viewHref(null) : viewHref(v)}
+                      aria-current={active ? "page" : undefined}
+                      scroll={false}
+                      className={cn(
+                        "inline-flex h-9 items-center rounded-full border px-3 text-sm font-medium whitespace-nowrap",
+                        active ? "border-ink bg-ink text-paper" : "bg-paper text-ink hover:bg-wash",
+                      )}
+                    >
+                      {BACKLOG_VIEW_LABEL[v]}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
           </nav>
-          <UrlFilters
+          <FiltersPanel
+            className="mb-3"
             search={{ param: "q", placeholder: "Título o problema" }}
             filters={[
               { param: "linea", label: "Línea", options: lines.map((l) => ({ value: l.id, label: l.name })) },
@@ -233,10 +237,16 @@ export default async function BacklogPage({ params, searchParams }: PageProps<"/
               { param: "responsable", label: "Responsable", options: members.map((m) => ({ value: m.user_id, label: m.name })) },
               { param: "etapa", label: "Etapa", options: stageNames.map((s) => ({ value: s, label: s })) },
             ]}
+            aside={
+              <span className="text-xs text-soft tabular-nums">
+                {filtered.length} de {experiments.length}
+                {defaultOpen ? " · solo abiertos" : ""}
+              </span>
+            }
           />
           {defaultOpen ? (
-            <p className="mb-2 text-xs text-soft">
-              Mostrando los ejercicios abiertos. Use “Todos” o filtre por estado para ver los decididos, escalados o descartados.
+            <p data-explain className="mb-2 text-xs text-soft">
+              Los decididos, escalados y descartados salen con “Todos” o filtrando por estado.
             </p>
           ) : null}
 
@@ -257,30 +267,27 @@ export default async function BacklogPage({ params, searchParams }: PageProps<"/
                   ) : null}
                   <span className="pt-0.5 text-sm font-semibold tabular-nums text-soft">{i + 1}</span>
                   <div className="min-w-0 flex-1">
-                    <Link href={`${base}/ejercicios/${e.id}`} className="font-medium hover:underline">
+                    <Link href={`${base}/ejercicios/${e.id}`} className="line-clamp-2 font-medium hover:underline">
                       {e.title}
                     </Link>
-                    <div className="text-xs text-soft">
+                    <div className="truncate text-xs text-soft">
                       {e.line_name}
-                      {e.stage_name ? ` · ${e.stage_name}` : ""}
+                      {e.stage_name ? ` · ${e.stage_name}` : ""} · {e.owner_name ?? "Sin asignar"}
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-lg font-semibold tabular-nums">{scoreCell(e)}</div>
-                    <div className="text-[11px] text-soft">Puntaje</div>
+                  <div className="text-right tabular-nums">
+                    <div className="text-lg font-semibold">{scoreCell(e)}</div>
+                    <div className="text-[11px] whitespace-nowrap text-soft">ICE {formatScore(e.ice_score)}</div>
                   </div>
                 </div>
-                <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs">
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
                   <StatusBadge status={e.status} />
-                  <span className="tabular-nums">ICE {formatScore(e.ice_score)}</span>
-                  <span className="text-soft">{filtersText(e)}</span>
-                  <span className="text-soft">{e.owner_name ?? "Sin asignar"}</span>
-                </div>
-                <div className="mt-2 flex items-center justify-between gap-2">
-                  {iceCell(e)}
-                  {can.deleteExperiment(ctx.actor, e) ? (
-                    <DeleteButton entity="experiment" id={e.id} programId={programId} name={e.title} variant="ghost" iconOnly />
-                  ) : null}
+                  <div className="flex items-center gap-1">
+                    {iceCell(e)}
+                    {can.deleteExperiment(ctx.actor, e) ? (
+                      <DeleteButton entity="experiment" id={e.id} programId={programId} name={e.title} variant="ghost" iconOnly />
+                    ) : null}
+                  </div>
                 </div>
               </article>
             ))}
@@ -301,16 +308,9 @@ export default async function BacklogPage({ params, searchParams }: PageProps<"/
                       <SelectAllCheckbox ids={visibleIds} />
                     </TableHead>
                   ) : null}
-                  <TableHead className="w-12 text-right">#</TableHead>
+                  <TableHead className="w-10 text-right">#</TableHead>
                   <TableHead className="min-w-64">Ejercicio</TableHead>
-                  <TableHead>Línea · etapa</TableHead>
                   <TableHead>{canScore ? <Term k="ice">I · C · F</Term> : <Term k="ice" />}</TableHead>
-                  <TableHead className="text-right">
-                    <Term k="ice" />
-                  </TableHead>
-                  <TableHead>
-                    <Term k="filters" />
-                  </TableHead>
                   <TableHead className="text-right">
                     <Term k="finalScore">Puntaje</Term>
                   </TableHead>
@@ -334,16 +334,18 @@ export default async function BacklogPage({ params, searchParams }: PageProps<"/
                       <Link href={`${base}/ejercicios/${e.id}`} className="font-medium hover:underline">
                         {e.title}
                       </Link>
-                      <div className="line-clamp-1 text-xs text-soft">{e.problem_title}</div>
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {e.line_name}
-                      <div className="text-xs text-soft">{e.stage_name}</div>
+                      <div className="line-clamp-1 text-xs text-soft" title={e.problem_title}>
+                        {e.line_name}
+                        {e.stage_name ? ` · ${e.stage_name}` : ""} · {e.problem_title}
+                      </div>
                     </TableCell>
                     <TableCell>{iceCell(e)}</TableCell>
-                    <TableCell className="text-right tabular-nums">{formatScore(e.ice_score)}</TableCell>
-                    <TableCell className="text-xs whitespace-nowrap tabular-nums">{filtersText(e)}</TableCell>
-                    <TableCell className="text-right text-base font-semibold tabular-nums">{scoreCell(e)}</TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      <div className="text-base font-semibold">{scoreCell(e)}</div>
+                      <div className="text-[11px] whitespace-nowrap text-soft">
+                        ICE {formatScore(e.ice_score)} · {filtersText(e)}
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <StatusBadge status={e.status} />
                     </TableCell>
@@ -357,7 +359,7 @@ export default async function BacklogPage({ params, searchParams }: PageProps<"/
                 ))}
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={canBulk ? 11 : 10} className="py-8 text-center text-sm text-soft">
+                    <TableCell colSpan={canBulk ? 8 : 7} className="py-8 text-center text-sm text-soft">
                       Ningún ejercicio coincide con los filtros. Ese camino no era: pruebe con otros.
                     </TableCell>
                   </TableRow>

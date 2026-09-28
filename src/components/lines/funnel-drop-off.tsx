@@ -1,6 +1,7 @@
 import { ArrowDown, ArrowUp, Minus, TrendingDown, Waypoints } from "lucide-react";
 import Link from "next/link";
-import { Callout, EmptyState, Section } from "@/components/app/page";
+import { Fold } from "@/components/app/fold";
+import { Callout, Section } from "@/components/app/page";
 import { Button } from "@/components/ui/button";
 import { formatMetricValue, formatPercent, formatShortDate, formatSignedPercent } from "@/domain/format";
 import type { FunnelDropResult, FunnelDropStage } from "@/domain/funnel";
@@ -37,32 +38,30 @@ export function FunnelDropOff({ result, loadHref }: { result: FunnelDropResult; 
   if (result.status === "no_stages") return null;
   if (result.status === "no_metrics") {
     return (
-      <Section title="Caída del embudo" description={description}>
-        <EmptyState
-          art="embudo"
-          icon={TrendingDown}
-          title="Asígnele una métrica a cada etapa para ver dónde se cae la gente"
-          description="En el editor de etapas, elija la métrica que mide cada una (p. ej. visitas, carritos, ventas). Con los valores semanales, aquí aparece cuánto pasa de una etapa a la otra."
-        />
+      <Section title="Caída del embudo">
+        <p className="flex items-start gap-2 text-sm text-soft">
+          <TrendingDown aria-hidden className="mt-0.5 size-4 shrink-0" />
+          Asígnele una métrica a cada etapa (en las etapas, más abajo) y con los valores semanales aquí se ve dónde se cae la gente.
+        </p>
       </Section>
     );
   }
   if (result.status === "no_values") {
     return (
-      <Section title="Caída del embudo" description={description}>
-        <EmptyState
-          art="embudo"
-          icon={TrendingDown}
-          title="Falta cargar los valores de las etapas"
-          description="Las etapas ya tienen métrica, pero todavía no hay valores semanales. Cárguelos y aquí se ve dónde se cae la gente."
-          action={
-            <Button asChild variant="outline">
-              <Link href={loadHref}>
-                <Waypoints aria-hidden /> Ir a la carga semanal
-              </Link>
-            </Button>
-          }
-        />
+      <Section
+        title="Caída del embudo"
+        actions={
+          <Button asChild variant="outline" size="sm">
+            <Link href={loadHref}>
+              <Waypoints aria-hidden /> Ir a la carga semanal
+            </Link>
+          </Button>
+        }
+      >
+        <p className="flex items-start gap-2 text-sm text-soft">
+          <TrendingDown aria-hidden className="mt-0.5 size-4 shrink-0" />
+          Las etapas ya tienen métrica, pero faltan los valores semanales. Cárguelos y aquí se ve dónde se cae la gente.
+        </p>
       </Section>
     );
   }
@@ -84,6 +83,7 @@ export function FunnelDropOff({ result, loadHref }: { result: FunnelDropResult; 
         </Callout>
       ) : null}
 
+      <Fold bare open={!(biggest && before)} title="Ver el paso de cada etapa">
       <div className="-mx-1 overflow-x-auto px-1">
         <table className="w-full min-w-[640px] text-sm tabular-nums">
           <caption className="sr-only">Valor por etapa, paso desde la etapa anterior y cambios</caption>
@@ -115,6 +115,7 @@ export function FunnelDropOff({ result, loadHref }: { result: FunnelDropResult; 
           <p>Los pasos donde alguna etapa se mide en % no se dividen: compare esas tasas directamente.</p>
         ) : null}
       </div>
+      </Fold>
     </Section>
   );
 }

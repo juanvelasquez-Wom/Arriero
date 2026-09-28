@@ -37,5 +37,5 @@ export async function GET(request: NextRequest) {
   if (verifyError) {
     return NextResponse.redirect(new URL("/login?error=enlace", request.url));
   }
-  return NextResponse.redirect(new URL("/programas", request.url));
+  return NextResponse.redirect(new URL("/", request.url));
 }

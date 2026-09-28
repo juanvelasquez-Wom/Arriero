@@ -5,6 +5,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { AppHeader } from "@/components/app/app-header";
+import { Fold } from "@/components/app/fold";
+import { ViewTabs } from "@/components/app/view-tabs";
 import { ExportCsvButton } from "@/components/app/export-csv-button";
 import { Term } from "@/components/app/info-tip";
 import { Callout, EmptyState, PageHeader, Section } from "@/components/app/page";
@@ -14,9 +16,10 @@ import { TiaCommittee } from "@/components/tia/tia-committee";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toCsv } from "@/domain/csv";
+import { TIA_ENABLED } from "@/domain/tia";
 import { todayIso } from "@/domain/dates";
 import { formatDate, formatMetricValue, formatPercent } from "@/domain/format";
-import { buildExecutiveBrief, executiveBriefToText, growthDecisionsByWeek, lastWeeks, weeklyActiveUsers, ARRIERO_NORTH_STAR_WEEKS } from "@/domain/executive";
+import { buildExecutiveBrief, type BriefKey, executiveBriefToText, growthDecisionsByWeek, lastWeeks, weeklyActiveUsers, ARRIERO_NORTH_STAR_WEEKS } from "@/domain/executive";
 import { buildReport, parsePeriod, reportPeriod } from "@/domain/report";
 import { bogotaDate, directionHeadline, rollupProgram, type NorthStarStatus, type ProgramRollup } from "@/domain/rollup";
 import { TARGET_STATUS_LABEL } from "@/domain/targets";
@@ -30,6 +33,9 @@ import { tiaConfigured } from "@/server/tia/client";
 import { recordUsage } from "@/server/usage";
 
 export const metadata: Metadata = { title: "Resumen ejecutivo" };
+
+type DirectionView = "preguntas" | "programas" | "metodo" | "pilotos" | "tia";
+const BRIEF_KEYS: readonly BriefKey[] = ["growing", "falling", "running", "results", "learned", "value", "decide", "next", "risks"];
 
 function Headline({ label, value, hint, highlight }: { label: ReactNode; value: ReactNode; hint?: ReactNode; highlight?: boolean }) {
   return (
@@ -124,7 +130,6 @@ function ProgramCard({ r }: { r: ProgramRollup }) {
       }
     >
       <div className="space-y-4">
-        <NorthStarTable rows={r.northStars} />
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
           <MiniStat label="En prueba ahora" value={r.running} />
           <MiniStat label="Cerrados este mes" value={r.closedThisMonth} />
@@ -135,6 +140,9 @@ function ProgramCard({ r }: { r: ProgramRollup }) {
             value={r.value ? formatCop(r.value.monthly) : "—"}
           />
         </div>
+        <Fold bare title={`Métricas norte (${r.northStars.length})`}>
+          <NorthStarTable rows={r.northStars} />
+        </Fold>
         {r.pendingDecisions.length ? (
           <p className="text-sm">
             <Gavel aria-hidden className="mr-1 inline size-4" />
@@ -153,7 +161,10 @@ export default async function DirectionPage({ searchParams }: PageProps<"/direcc
   const user = await requireUser();
   recordUsage("direccion", user.id);
   const today = todayIso();
-  const periodKey = parsePeriod((await searchParams).periodo);
+  const sp = await searchParams;
+  const periodKey = parsePeriod(sp.periodo);
+  const rawView = typeof sp.vista === "string" ? sp.vista : undefined;
+  const rawQuestion = typeof sp.pregunta === "string" ? sp.pregunta : undefined;
   const period = reportPeriod(periodKey, today);
   const programs = await listVisiblePrograms();
   const snapshots = await loadSnapshots(programs, today);
@@ -236,14 +247,36 @@ export default async function DirectionPage({ searchParams }: PageProps<"/direcc
     { header: "Decisiones pendientes", value: ({ r }) => r.pendingDecisions.length },
   ]);
 
+
+  // Una vista a la vez: lo esencial arriba y el resto en pestañas (?vista=) que se pueden compartir.
+  const views: { key: DirectionView; label: string; count?: number; attention?: boolean }[] = [
+    { key: "preguntas", label: "Las 9 preguntas" },
+    { key: "programas", label: "Por programa", count: pending.length || undefined, attention: pending.length > 0 },
+    { key: "metodo", label: "¿Funciona el método?" },
+    ...(pilotsBlock ? [{ key: "pilotos" as const, label: "Pilotos de medios" }] : []),
+    ...(TIA_ENABLED ? [{ key: "tia" as const, label: "Comité con la Tía" }] : []),
+  ];
+  const view: DirectionView = views.some((v) => v.key === rawView) ? (rawView as DirectionView) : "preguntas";
+  const question = BRIEF_KEYS.includes(rawQuestion as BriefKey) ? (rawQuestion as BriefKey) : null;
+  const dirHref = (p: { vista?: DirectionView; periodo?: string; pregunta?: string }) => {
+    const q = new URLSearchParams();
+    const vista = p.vista ?? view;
+    if (vista !== "preguntas") q.set("vista", vista);
+    const periodo = p.periodo ?? periodKey;
+    if (periodo !== "semana") q.set("periodo", periodo);
+    if (p.pregunta && vista === "preguntas") q.set("pregunta", p.pregunta);
+    return `/direccion${q.size ? `?${q}` : ""}`;
+  };
+
   return (
     <>
       <AppHeader user={user} />
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
         <PageHeader
+          className="mb-5"
           eyebrow="Resumen ejecutivo · para dirección"
           title="¿Estamos creciendo?"
-          description="Lo que un director o un CMO necesita saber de todos los programas, en una sola página y sin carreta: qué crece, qué cae, qué se está probando, qué ganó, qué aprendimos, cuánto vale y qué hay que decidir."
+          description="Todos los programas en una pantalla y sin carreta. El detalle, en las pestañas."
           actions={
             programs.length ? (
               <>
@@ -268,7 +301,7 @@ export default async function DirectionPage({ searchParams }: PageProps<"/direcc
         ) : null}
         {programs.length === 0 && pilotsBlock ? <div className="mt-6">{pilotsBlock}</div> : null}
         {programs.length === 0 ? null : (
-          <div className="space-y-6">
+          <div className="space-y-5">
             <Callout
               icon={TrendingUp}
               tone={h.answer === "yes" || h.answer === "unknown" ? "neutral" : "attention"}
@@ -309,48 +342,58 @@ export default async function DirectionPage({ searchParams }: PageProps<"/direcc
               />
             </div>
 
-            <ArrieroNorthStar decisions={decisions} sustained={sustained} wau={wau} />
+            <ViewTabs
+              label="Secciones del resumen ejecutivo"
+              active={view}
+              tabs={views.map((v) => ({ ...v, href: dirHref({ vista: v.key }) }))}
+              className="pt-2"
+            />
 
-            <ExecutiveBriefView brief={brief} periodKey={periodKey} />
+            <div key={view} className="slide-in">
+              {view === "preguntas" ? (
+                <ExecutiveBriefView brief={brief} periodKey={periodKey} question={question} hrefFor={(p) => dirHref({ vista: "preguntas", ...p })} />
+              ) : null}
 
-            {pilotsBlock}
+              {view === "metodo" ? <ArrieroNorthStar decisions={decisions} sustained={sustained} wau={wau} /> : null}
 
-            <TiaCommittee briefText={briefText} configured={tiaConfigured()} />
+              {view === "pilotos" ? pilotsBlock : null}
 
-            <h2 className="pt-4 text-2xl font-extrabold">Por programa</h2>
+              {view === "tia" ? <TiaCommittee briefText={briefText} configured={tiaConfigured()} /> : null}
 
-            <Section
-              title="Decisiones pendientes"
-              description="Ejercicios que ya terminaron la prueba y esperan veredicto y decisión. Mientras no se decidan, no se aprende nada."
-            >
-              {pending.length === 0 ? (
-                <p className="text-sm text-soft">¡Eso! No hay nada esperando decisión.</p>
-              ) : (
-                <ul className="divide-y">
-                  {pending.map((p) => (
-                    <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5 first:pt-0 last:pb-0">
-                      <div className="min-w-0">
-                        <Link href={`/programas/${p.programId}/ejercicios/${p.id}`} className="font-medium hover:underline">
-                          {p.title}
-                        </Link>
-                        <div className="text-xs text-soft">
-                          {p.programName} · {p.line_name} · en lectura desde el {formatDate(bogotaDate(p.since))}
-                        </div>
-                      </div>
-                      <Button asChild variant="ghost" size="sm">
-                        <Link href={`/programas/${p.programId}/ejercicios/${p.id}`}>
-                          Decidir <ArrowRight aria-hidden />
-                        </Link>
-                      </Button>
-                    </li>
+              {view === "programas" ? (
+                <div className="space-y-5">
+                  <Section title="Decisiones pendientes" description="Ya terminaron la prueba y esperan veredicto. Sin decidir no se aprende nada.">
+                    {pending.length === 0 ? (
+                      <p className="text-sm text-soft">¡Eso! No hay nada esperando decisión.</p>
+                    ) : (
+                      <ul className="divide-y">
+                        {pending.map((p) => (
+                          <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5 first:pt-0 last:pb-0">
+                            <div className="min-w-0">
+                              <Link href={`/programas/${p.programId}/ejercicios/${p.id}`} className="font-medium hover:underline">
+                                {p.title}
+                              </Link>
+                              <div className="text-xs text-soft">
+                                {p.programName} · {p.line_name} · en lectura desde el {formatDate(bogotaDate(p.since))}
+                              </div>
+                            </div>
+                            <Button asChild variant="ghost" size="sm">
+                              <Link href={`/programas/${p.programId}/ejercicios/${p.id}`}>
+                                Decidir <ArrowRight aria-hidden />
+                              </Link>
+                            </Button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </Section>
+
+                  {rollups.map((r) => (
+                    <ProgramCard key={r.id} r={r} />
                   ))}
-                </ul>
-              )}
-            </Section>
-
-            {rollups.map((r) => (
-              <ProgramCard key={r.id} r={r} />
-            ))}
+                </div>
+              ) : null}
+            </div>
           </div>
         )}
       </main>

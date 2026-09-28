@@ -1,5 +1,5 @@
 // Geometría del Gantt: escala de tiempo y posición de barras en porcentaje.
-import { addDays, daysBetween, mondaysBetween, parseIsoDate, toIsoDate } from "./dates";
+import { addDays, daysBetween, maxDate, minDate, mondaysBetween, parseIsoDate, toIsoDate } from "./dates";
 import { freezesOverlapping } from "./calendar";
 import type { CalendarEvent, IsoDate } from "./types";
 
@@ -83,4 +83,48 @@ export function crossesFreeze(
   const actual = freezesOverlapping({ start: exp.actual_start, end: exp.actual_end }, events);
   const all = [...planned, ...actual];
   return all.filter((e, i) => all.findIndex((x) => x.id === e.id) === i);
+}
+
+/** Píxeles por día de los tableros simplificados: el mes es la vista por defecto. */
+export function boardPixelsPerDay(zoom: GanttZoom): number {
+  return zoom === "week" ? 16 : 6;
+}
+
+export interface DisplaySpan {
+  start: IsoDate;
+  end: IsoDate;
+  /** `actual` = relleno; `planned` = contorno punteado (todavía no arranca). */
+  mode: "actual" | "planned";
+  /** En curso: sin fin real, la barra llega hasta hoy. */
+  ongoing: boolean;
+}
+
+/**
+ * Una sola barra por ítem: la real si ya arrancó (hasta hoy si sigue en curso),
+ * si no, la planeada. Null si no tiene fechas.
+ */
+export function displaySpan(
+  item: { planned_start: IsoDate | null; planned_end: IsoDate | null; actual_start: IsoDate | null; actual_end: IsoDate | null },
+  running: boolean,
+  today: IsoDate,
+): DisplaySpan | null {
+  if (item.actual_start) {
+    const start = item.actual_start;
+    if (item.actual_end) return { start, end: maxDate(start, item.actual_end)!, mode: "actual", ongoing: false };
+    if (running) return { start, end: maxDate(start, today)!, mode: "actual", ongoing: true };
+    // Arrancó pero no tiene fin real ni sigue corriendo: se usa el fin planeado si sirve.
+    return { start, end: maxDate(start, item.planned_end)!, mode: "actual", ongoing: false };
+  }
+  if (item.planned_start) {
+    return { start: item.planned_start, end: maxDate(item.planned_start, item.planned_end)!, mode: "planned", ongoing: false };
+  }
+  return null;
+}
+
+/** Rango de la línea de tiempo para varias barras y hoy, con margen y un mínimo de ~3 meses. */
+export function spansRange(spans: ({ start: IsoDate; end: IsoDate } | null)[], today: IsoDate): { start: IsoDate; end: IsoDate } {
+  const valid = spans.filter((s): s is { start: IsoDate; end: IsoDate } => !!s);
+  const start = addDays(minDate(today, ...valid.map((s) => s.start))!, -7);
+  const end = addDays(maxDate(today, ...valid.map((s) => s.end))!, 14);
+  return { start, end: daysBetween(start, end) < 90 ? addDays(start, 90) : end };
 }

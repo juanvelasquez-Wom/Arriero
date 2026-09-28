@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Gavel, Snowflake, TriangleAlert, Undo2, XCircle } from "lucide-react";
+import { ArrowRight, ChevronDown, Gavel, Snowflake, TriangleAlert, Undo2, XCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -106,51 +106,72 @@ export function TransitionBar({
   }
 
   const blocked = options.filter((o) => !o.ok && !o.canForce && o.reasons.length);
+  // Una sola acción principal (avanzar); volver atrás y descartar quedan en "Otras opciones".
+  const primary = options.filter((o) => isForward(status, o.to) && o.to !== "discarded");
+  const secondary = options.filter((o) => !primary.includes(o));
+
+  const renderOption = (o: TransitionOption) => {
+    const forward = isForward(status, o.to);
+    const Icon = o.to === "discarded" ? XCircle : o.to === "decided" ? Gavel : forward ? ArrowRight : Undo2;
+    const label = forward || o.to === "discarded" ? ACTION_LABEL[o.to] : `Volver a ${STATUS_LABEL[o.to]}`;
+    if (o.to === "decided" && decide) {
+      return (
+        <Button key={o.to} onClick={() => setDecideOpen(true)} disabled={pending || !decide.canDecide}>
+          <Icon aria-hidden /> {label}
+        </Button>
+      );
+    }
+    if (!o.ok && o.canForce) {
+      return (
+        <Button key={o.to} variant="outline" onClick={() => setForceFor(o)} disabled={pending}>
+          <Snowflake aria-hidden /> Forzar inicio en congelamiento
+        </Button>
+      );
+    }
+    return (
+      <Button
+        key={o.to}
+        variant={forward && o.to !== "discarded" ? "default" : "outline"}
+        size={forward && o.to !== "discarded" ? "default" : "sm"}
+        disabled={!o.ok || pending}
+        onClick={() => go(o.to)}
+        aria-describedby={!o.ok ? `why-${o.to}` : undefined}
+      >
+        {pending ? <Spinner /> : <Icon aria-hidden />} {label}
+      </Button>
+    );
+  };
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap gap-2">
-        {options.map((o) => {
-          const forward = isForward(status, o.to);
-          const Icon = o.to === "discarded" ? XCircle : o.to === "decided" ? Gavel : forward ? ArrowRight : Undo2;
-          const label = forward || o.to === "discarded" ? ACTION_LABEL[o.to] : `Volver a ${STATUS_LABEL[o.to]}`;
-          if (o.to === "decided" && decide) {
-            return (
-              <Button key={o.to} onClick={() => setDecideOpen(true)} disabled={pending || !decide.canDecide}>
-                <Icon aria-hidden /> {label}
-              </Button>
-            );
-          }
-          if (!o.ok && o.canForce) {
-            return (
-              <Button key={o.to} variant="outline" onClick={() => setForceFor(o)} disabled={pending}>
-                <Snowflake aria-hidden /> Forzar inicio en congelamiento
-              </Button>
-            );
-          }
-          return (
-            <Button
-              key={o.to}
-              variant={forward && o.to !== "discarded" ? "default" : "outline"}
-              disabled={!o.ok || pending}
-              onClick={() => go(o.to)}
-              aria-describedby={!o.ok ? `why-${o.to}` : undefined}
-            >
-              {pending ? <Spinner /> : <Icon aria-hidden />} {label}
-            </Button>
-          );
-        })}
-      </div>
+      {primary.length ? <div className="flex flex-wrap gap-2">{primary.map(renderOption)}</div> : null}
+      {secondary.length ? (
+        <details className="group text-sm">
+          <summary className="inline-flex min-h-9 cursor-pointer list-none items-center gap-1 text-soft marker:hidden hover:text-ink [&::-webkit-details-marker]:hidden">
+            <ChevronDown aria-hidden className="size-4 transition-transform group-open:rotate-180" /> Otras opciones
+          </summary>
+          <div className="mt-2 flex flex-wrap gap-2">{secondary.map(renderOption)}</div>
+        </details>
+      ) : null}
 
       {warnings
         .filter((w) => w.items.length && options.some((o) => o.to === w.to))
         .map((w) => (
           <Callout key={`${w.to}-${w.title}`} icon={TriangleAlert} title={w.title}>
-            <ul className="list-disc space-y-0.5 pl-4">
-              {w.items.map((x) => (
-                <li key={x}>{x}</li>
-              ))}
-            </ul>
+            {w.items.length === 1 ? (
+              w.items[0]
+            ) : (
+              <details className="group">
+                <summary className="cursor-pointer list-none underline underline-offset-4 marker:hidden [&::-webkit-details-marker]:hidden">
+                  Ver los {w.items.length} avisos
+                </summary>
+                <ul className="mt-1 list-disc space-y-0.5 pl-4">
+                  {w.items.map((x) => (
+                    <li key={x}>{x}</li>
+                  ))}
+                </ul>
+              </details>
+            )}
           </Callout>
         ))}
 

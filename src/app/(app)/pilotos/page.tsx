@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { CountUp } from "@/components/app/count-up";
 import { EmptyState, PageHeader, Stat } from "@/components/app/page";
-import { UrlFilters } from "@/components/app/url-filters";
+import { FiltersPanel } from "@/components/app/filters-panel";
 import { DateRangeFilter } from "@/components/pilots/portfolio/date-range-filter";
 import { DeletedPilots } from "@/components/pilots/portfolio/deleted-pilots";
 import { ExampleControls } from "@/components/pilots/portfolio/example-controls";
@@ -88,7 +88,7 @@ export default async function PilotsPortfolioPage({ searchParams }: PageProps<"/
       <PageHeader
         eyebrow="Pilotos de medios"
         title="¿Qué estamos probando en medios?"
-        description="Un piloto es una prueba controlada de un cambio en medios antes de escalarlo. Mide incrementalidad: lo que el cambio de verdad aporta, no solo las conversiones que se atribuye la plataforma."
+        description="Pruebas controladas de cambios en medios antes de escalarlos: lo que el cambio de verdad aporta, no lo que se atribuye la plataforma."
         actions={
           pilots.length ? (
             <>
@@ -123,7 +123,7 @@ export default async function PilotsPortfolioPage({ searchParams }: PageProps<"/
         />
       ) : (
         <>
-          <div className="stagger mb-6 grid gap-3 sm:grid-cols-3">
+          <div className="stagger mb-5 grid gap-3 sm:grid-cols-3">
             <Stat label="Pilotos activos" value={<CountUp value={kpis.active} />} hint="Aprobados, en prueba o en lectura" highlight={kpis.active > 0} />
             <Stat
               label="Inversión en pilotos activos"
@@ -137,7 +137,8 @@ export default async function PilotsPortfolioPage({ searchParams }: PageProps<"/
             />
           </div>
 
-          <UrlFilters
+          <FiltersPanel
+            extraParams={["desde", "hasta"]}
             filters={[
               { param: "estado", label: "Estado", options: PILOT_STATUSES.map((s) => ({ value: s, label: PILOT_STATUS_LABEL[s] })) },
               { param: "canal", label: "Canal", options: channelOptions(pilots).map((m) => ({ value: m, label: m })) },
@@ -145,17 +146,18 @@ export default async function PilotsPortfolioPage({ searchParams }: PageProps<"/
               { param: "tipo", label: "Tipo de prueba", options: PILOT_TEST_TYPES.map((t) => ({ value: t, label: PILOT_TEST_TYPE_LABEL[t] })) },
               { param: "responsable", label: "Responsable", options: owners.map(([id, name]) => ({ value: id, label: name })) },
             ]}
-          />
-          <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+            aside={
+              <SegmentLinks
+                label="Cómo ver los pilotos"
+                options={[
+                  { href: hrefWith("/pilotos", sp, "vista", null), label: "Lista", active: view === "lista", icon: List },
+                  { href: hrefWith("/pilotos", sp, "vista", "tarjetas"), label: "Tarjetas", active: view === "tarjetas", icon: LayoutGrid },
+                ]}
+              />
+            }
+          >
             <DateRangeFilter legend="Fechas del piloto" />
-            <SegmentLinks
-              label="Cómo ver los pilotos"
-              options={[
-                { href: hrefWith("/pilotos", sp, "vista", null), label: "Lista", active: view === "lista", icon: List },
-                { href: hrefWith("/pilotos", sp, "vista", "tarjetas"), label: "Tarjetas", active: view === "tarjetas", icon: LayoutGrid },
-              ]}
-            />
-          </div>
+          </FiltersPanel>
 
           {items.length === 0 ? (
             <p className="rounded-2xl border border-dashed bg-paper py-10 text-center text-sm text-soft">

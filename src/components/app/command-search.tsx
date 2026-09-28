@@ -167,13 +167,13 @@ export function CommandSearch({ programId, canCreateExperiment = false }: { prog
         variant="outline"
         size="sm"
         onClick={() => setOpen(true)}
-        className="gap-2 text-soft"
+        className="gap-2 rounded-full text-soft"
         aria-label="Buscar (Ctrl+K)"
         aria-keyshortcuts="Control+K Meta+K"
       >
         <Search aria-hidden />
-        <span className="hidden md:inline">Buscar</span>
-        <span className="hidden items-center gap-0.5 lg:inline-flex" aria-hidden>
+        <span className="hidden xl:inline">Buscar</span>
+        <span className="hidden items-center gap-0.5 xl:inline-flex" aria-hidden>
           <Kbd>Ctrl</Kbd>
           <Kbd>K</Kbd>
         </span>

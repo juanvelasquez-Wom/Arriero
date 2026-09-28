@@ -23,7 +23,7 @@ interface ErrorRow {
 
 export default async function ErrorsPage() {
   const user = await requireUser();
-  if (!user.isAdmin) redirect("/programas");
+  if (!user.isAdmin) redirect("/");
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("error_log")

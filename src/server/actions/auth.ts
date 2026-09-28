@@ -52,7 +52,7 @@ export async function updatePassword(input: unknown): Promise<ActionResult<{ nex
   if (parsed.data.name) {
     await supabase.from("profiles").update({ name: parsed.data.name }).eq("id", userData.user.id);
   }
-  return ok({ next: "/programas" });
+  return ok({ next: "/" });
 }
 
 export async function signOut() {

@@ -391,3 +391,18 @@
     display: none;
   }
 }
+
+/* Inicio: la mula va y viene por la trocha. */
+.home-trail {
+  animation: home-trail 16s ease-in-out infinite;
+}
+@keyframes home-trail {
+  0% { left: 0; transform: scaleX(1); }
+  48% { left: calc(100% - 2.5rem); transform: scaleX(1); }
+  50% { left: calc(100% - 2.5rem); transform: scaleX(-1); }
+  98% { left: 0; transform: scaleX(-1); }
+  100% { left: 0; transform: scaleX(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-trail { animation: none; }
+}

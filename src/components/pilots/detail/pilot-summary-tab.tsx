@@ -1,6 +1,7 @@
 import { Ban, BookOpen, Link2, ListChecks, Lock, Radio, Ruler, Scale, TriangleAlert, Users } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { Fold } from "@/components/app/fold";
 import { Callout, Section } from "@/components/app/page";
 import { DecisionBadge, ImpactBadge, VerdictBadge } from "@/components/app/status-badge";
 import { PilotTestTypeBadge } from "@/components/pilots/pilot-badges";
@@ -42,20 +43,14 @@ export interface PilotSummaryTabProps {
 }
 
 export function PilotSummaryTab({ detail, catalogs, actor, overlaps, linkOptions, members }: PilotSummaryTabProps) {
-  const { pilot: p, arms, media, guardrails, checklist, incidents, learning, people } = detail;
-  const metric = new Map(catalogs.metrics.map((m) => [m.id, m]));
-  const primary = p.primary_metric_id ? metric.get(p.primary_metric_id) : undefined;
-  const variable = catalogs.variables.find((v) => v.id === p.variable_id);
-  const power = p.power_result;
-  const rules = p.decision_rules ?? DEFAULT_DECISION_RULES;
+  const { pilot: p, learning, people } = detail;
+  const primary = p.primary_metric_id ? catalogs.metrics.find((m) => m.id === p.primary_metric_id) : undefined;
   const program = linkOptions.programs.find((x) => x.id === p.program_id);
   const experiment = linkOptions.experiments.find((x) => x.id === p.experiment_id);
   const treeMetric = linkOptions.metrics.find((x) => x.id === p.tree_metric_id);
-  const editChecklist = canEditChecklist(actor, p.status) && !p.deleted_at;
-  const pending = checklist.filter((c) => c.status !== "ok").length;
 
   return (
-    <div className="stagger space-y-6">
+    <div className="stagger space-y-5">
       {p.status === "decided" ? (
         <Section title="Decisión firmada">
           <div className="flex flex-wrap items-center gap-2">
@@ -83,12 +78,6 @@ export function PilotSummaryTab({ detail, catalogs, actor, overlaps, linkOptions
         </Callout>
       ) : null}
 
-      {p.design_locked_at ? (
-        <Callout tone="neutral" icon={Lock} title={`${PILOT_TERMS.designLock.label} desde el ${formatDate(p.design_locked_at.slice(0, 10))}`}>
-          {PILOT_TERMS.designLock.simple}
-        </Callout>
-      ) : null}
-
       {overlaps.length ? (
         <Callout icon={TriangleAlert} title="Ojo: este piloto se cruza con otros">
           <ul className="space-y-1">
@@ -104,6 +93,12 @@ export function PilotSummaryTab({ detail, catalogs, actor, overlaps, linkOptions
           <p className="mt-1 text-xs">Si corren al tiempo sobre lo mismo, se contaminan: ajuste fechas, audiencias o ciudades.</p>
         </Callout>
       ) : null}
+
+      <dl className="grid grid-cols-3 gap-2 text-sm">
+        <KeyFact label="Fechas">{formatDateRange(p.actual_start ?? p.planned_start, p.actual_start ? p.actual_end : p.planned_end)}</KeyFact>
+        <KeyFact label="Presupuesto">{p.planned_budget_cop != null ? formatCop(p.planned_budget_cop) : "—"}</KeyFact>
+        <KeyFact label="Métrica principal">{primary?.name ?? "—"}</KeyFact>
+      </dl>
 
       <Section title="Problema e hipótesis">
         <dl className="divide-y">
@@ -122,6 +117,67 @@ export function PilotSummaryTab({ detail, catalogs, actor, overlaps, linkOptions
           </Row>
         </dl>
       </Section>
+
+      <Fold
+        title={
+          <span className="inline-flex items-center gap-1.5">
+            <Link2 aria-hidden className="size-4" /> Responsable y vínculos
+          </span>
+        }
+        hint={p.owner_id ? (people[p.owner_id] ?? undefined) : "sin responsable"}
+      >
+        <p className="mb-3 text-xs text-soft">Opcionales: el programa, el ejercicio y la métrica del árbol de Arriero con los que se relaciona.</p>
+        {canWritePilots(actor) && !p.deleted_at ? (
+          <LinksEditor
+            pilotId={p.id}
+            initial={{ owner_id: p.owner_id, program_id: p.program_id, experiment_id: p.experiment_id, tree_metric_id: p.tree_metric_id }}
+            options={linkOptions}
+            members={members}
+          />
+        ) : (
+          <dl className="divide-y">
+            <Row
+              label={
+                <span className="inline-flex items-center gap-1">
+                  <Users aria-hidden className="size-3.5" /> Responsable
+                </span>
+              }
+            >
+              {p.owner_id ? (people[p.owner_id] ?? "—") : "—"}
+            </Row>
+            <Row label="Programa">{program?.name ?? "—"}</Row>
+            <Row label="Ejercicio">
+              {experiment ? (
+                <Link href={`/programas/${experiment.program_id}/ejercicios/${experiment.id}`} className="underline underline-offset-4">
+                  {experiment.title}
+                </Link>
+              ) : (
+                "—"
+              )}
+            </Row>
+            <Row label="Métrica del árbol">{treeMetric ? `${treeMetric.name}${treeMetric.line_name ? ` · ${treeMetric.line_name}` : ""}` : "—"}</Row>
+          </dl>
+        )}
+      </Fold>
+    </div>
+  );
+}
+
+/** Pestaña "Diseño": qué se prueba, métricas, potencia y reglas de decisión. */
+export function PilotDesignTab({ detail, catalogs }: { detail: PilotDetail; catalogs: PilotCatalogs }) {
+  const { pilot: p, arms, media, guardrails } = detail;
+  const metric = new Map(catalogs.metrics.map((m) => [m.id, m]));
+  const primary = p.primary_metric_id ? metric.get(p.primary_metric_id) : undefined;
+  const variable = catalogs.variables.find((v) => v.id === p.variable_id);
+  const power = p.power_result;
+  const rules = p.decision_rules ?? DEFAULT_DECISION_RULES;
+  return (
+    <div className="stagger space-y-5">
+      {p.design_locked_at ? (
+        <Callout tone="neutral" icon={Lock} title={`${PILOT_TERMS.designLock.label} desde el ${formatDate(p.design_locked_at.slice(0, 10))}`}>
+          {PILOT_TERMS.designLock.simple}
+        </Callout>
+      ) : null}
 
       <Section title="Qué se prueba y cómo">
         <dl className="divide-y">
@@ -247,6 +303,17 @@ export function PilotSummaryTab({ detail, catalogs, actor, overlaps, linkOptions
         </ul>
       </Section>
 
+    </div>
+  );
+}
+
+/** Pestaña "Chequeo e incidentes": lista de verificación antes de lanzar y lo que pasó al correr. */
+export function PilotOperationTab({ detail, actor }: { detail: PilotDetail; actor: PilotActor }) {
+  const { pilot: p, checklist, incidents, people } = detail;
+  const editChecklist = canEditChecklist(actor, p.status) && !p.deleted_at;
+  const pending = checklist.filter((c) => c.status !== "ok").length;
+  return (
+    <div className="stagger space-y-5">
       <Section
         title={
           <span className="inline-flex items-center gap-1.5">
@@ -302,46 +369,15 @@ export function PilotSummaryTab({ detail, catalogs, actor, overlaps, linkOptions
         {canLogIncident(actor, p.status) && !p.deleted_at ? <IncidentForm pilotId={p.id} minDate={p.actual_start ?? p.planned_start} /> : null}
       </Section>
 
-      <Section
-        title={
-          <span className="inline-flex items-center gap-1.5">
-            <Link2 aria-hidden className="size-4" /> Responsable y vínculos
-          </span>
-        }
-        description="Opcionales: el programa, el ejercicio y la métrica del árbol de Arriero con los que se relaciona."
-      >
-        {canWritePilots(actor) && !p.deleted_at ? (
-          <LinksEditor
-            pilotId={p.id}
-            initial={{ owner_id: p.owner_id, program_id: p.program_id, experiment_id: p.experiment_id, tree_metric_id: p.tree_metric_id }}
-            options={linkOptions}
-            members={members}
-          />
-        ) : (
-          <dl className="divide-y">
-            <Row
-              label={
-                <span className="inline-flex items-center gap-1">
-                  <Users aria-hidden className="size-3.5" /> Responsable
-                </span>
-              }
-            >
-              {p.owner_id ? (people[p.owner_id] ?? "—") : "—"}
-            </Row>
-            <Row label="Programa">{program?.name ?? "—"}</Row>
-            <Row label="Ejercicio">
-              {experiment ? (
-                <Link href={`/programas/${experiment.program_id}/ejercicios/${experiment.id}`} className="underline underline-offset-4">
-                  {experiment.title}
-                </Link>
-              ) : (
-                "—"
-              )}
-            </Row>
-            <Row label="Métrica del árbol">{treeMetric ? `${treeMetric.name}${treeMetric.line_name ? ` · ${treeMetric.line_name}` : ""}` : "—"}</Row>
-          </dl>
-        )}
-      </Section>
+    </div>
+  );
+}
+
+function KeyFact({ label, children }: { label: ReactNode; children: ReactNode }) {
+  return (
+    <div className="min-w-0 rounded-xl border bg-paper px-2.5 py-2 shadow-card">
+      <dt className="truncate text-[11px] text-soft">{label}</dt>
+      <dd className="mt-0.5 line-clamp-2 text-[13px] tabular-nums sm:text-sm">{children}</dd>
     </div>
   );
 }

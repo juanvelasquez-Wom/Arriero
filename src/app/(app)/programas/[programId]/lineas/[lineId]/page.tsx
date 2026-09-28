@@ -102,7 +102,7 @@ export default async function LinePage({ params, searchParams }: PageProps<"/pro
       values: stageValues,
     });
     content = (
-      <div className="space-y-6">
+      <div className="space-y-4">
         <FunnelDropOff result={dropOff} loadHref={`/programas/${programId}/carga`} />
         <FunnelTab
           programId={programId}
@@ -123,11 +123,7 @@ export default async function LinePage({ params, searchParams }: PageProps<"/pro
       <PageHeader
         eyebrow="Línea de negocio"
         title={line.name}
-        description={
-          canEdit
-            ? "Métrica norte, árbol de métricas y embudo de la línea. Los cambios se ven de inmediato en problemas, ejercicios y tableros."
-            : "Métrica norte, árbol de métricas y embudo de la línea. Con su rol puede consultarlos, no editarlos."
-        }
+        description={canEdit ? "Norte, árbol y embudo: una pestaña para cada uno." : "Norte, árbol y embudo. Con su rol puede consultarlos, no editarlos."}
       />
       <LineTabs baseHref={baseHref} active={tab} />
       {content}

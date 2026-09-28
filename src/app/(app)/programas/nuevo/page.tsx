@@ -1,25 +1,24 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { AppHeader } from "@/components/app/app-header";
-import { Mule } from "@/components/brand/logo";
 import { GrowthPrimer } from "@/components/setup/growth-primer";
 import { STEP_HELP } from "@/components/setup/help-content";
+import { QuickWizard } from "@/components/setup/quick-wizard/quick-wizard";
 import { StepProgram } from "@/components/setup/steps/step-program";
 import { WizardShell } from "@/components/setup/wizard-shell";
 import { todayIso } from "@/domain/dates";
 import { DEFAULT_QUICK_DURATION, quickProgramEnd } from "@/domain/quick-start";
 import { requireUser } from "@/server/auth";
-import { listMyPrograms } from "@/server/queries/programs";
-import { QuickStartForm } from "./quick-start-form";
 
-export const metadata: Metadata = { title: "Cree un programa" };
+export const metadata: Metadata = { title: "Arme su proyecto de growth" };
 
 const QUICK_HREF = "/programas/nuevo";
 const FULL_HREF = "/programas/nuevo?paso=programa";
 
-// /programas/nuevo abre directo el arranque rápido (?paso=rapido sigue
-// funcionando por enlaces viejos). ?paso=programa es el primer paso del
-// asistente completo, antes de que exista el programa.
+// /programas/nuevo abre directo el arranque rápido, como asistente de una
+// pregunta por pantalla (?paso=rapido sigue funcionando por enlaces viejos).
+// ?paso=programa es el primer paso del asistente completo, antes de que exista
+// el programa.
 export default async function NewProgramPage({ searchParams }: PageProps<"/programas/nuevo">) {
   const user = await requireUser();
   if (!user.isAdmin) redirect("/programas");
@@ -46,26 +45,16 @@ export default async function NewProgramPage({ searchParams }: PageProps<"/progr
       </WizardShell>
     );
   } else {
-    const programs = await listMyPrograms(user.id);
-    const hasPrograms = programs.some((p) => !p.is_demo);
     content = (
-      <div className="slide-in mx-auto max-w-5xl">
-        <div className="mb-5 flex items-start justify-between gap-4">
-          <div>
-            <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-soft">Nuevo programa · 3 minutos</div>
-            <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">Arme el programa de una</h1>
-            <p className="mt-1 max-w-2xl text-soft">
-              Elija sus líneas y el periodo; Arriero pone el resto con lo típico de telco, para que llegue rápido a lo que importa: el primer
-              problema. Menos carreta, más camino.
-            </p>
-          </div>
-          <Mule className="hidden w-16 shrink-0 sm:block" />
+      <div className="mx-auto max-w-3xl">
+        <div className="mb-5">
+          <div className="mb-1 text-xs font-semibold uppercase tracking-[0.12em] text-soft">Nuevo programa · 5 pasos cortos</div>
+          <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">Arme su proyecto de growth</h1>
+          <p className="mt-1 text-soft">Una pregunta a la vez. Arriero pone el resto con lo típico de telco. Menos carreta, más camino.</p>
         </div>
-        <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
-          <QuickStartForm today={today} fullHref={FULL_HREF} />
-          <div className="lg:sticky lg:top-16">
-            <GrowthPrimer defaultOpen={!hasPrograms} />
-          </div>
+        <QuickWizard today={today} fullHref={FULL_HREF} />
+        <div className="mt-6">
+          <GrowthPrimer defaultOpen={false} />
         </div>
       </div>
     );

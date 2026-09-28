@@ -16,9 +16,7 @@ export default async function PilotsLayout({ children }: { children: React.React
 
   return (
     <>
-      <AppHeader user={user}>
-        <span className="font-heading text-sm font-bold">Pilotos de medios</span>
-      </AppHeader>
+      <AppHeader user={user} />
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
         {!ready ? (
           <EmptyState

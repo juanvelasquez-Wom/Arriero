@@ -14,7 +14,7 @@ export const metadata: Metadata = { title: "Usuarios" };
 
 export default async function UsersPage() {
   const user = await requireUser();
-  if (!user.isAdmin) redirect("/programas");
+  if (!user.isAdmin) redirect("/");
   const [users, programs] = await Promise.all([listAllUsers(), listMyPrograms(user.id)]);
 
   return (

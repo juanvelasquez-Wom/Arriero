@@ -9,5 +9,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const user = await requireUser();
   if (!(await isDatabaseReady())) return <DatabaseNotReady />;
   recordUsage("app", user.id);
-  return <div className="flex min-h-screen flex-1 flex-col bg-wash">{children}</div>;
+  // pb-16: en el celular la barra de secciones va fija abajo.
+  return <div className="flex min-h-screen flex-1 flex-col bg-wash pb-16 md:pb-0">{children}</div>;
 }

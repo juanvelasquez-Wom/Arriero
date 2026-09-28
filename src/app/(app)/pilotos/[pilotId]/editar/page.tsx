@@ -9,6 +9,7 @@ import { StepDesign } from "@/components/pilots/wizard/step-design";
 import { StepMeasurement } from "@/components/pilots/wizard/step-measurement";
 import { StepMetrics } from "@/components/pilots/wizard/step-metrics";
 import { StepProblem } from "@/components/pilots/wizard/step-problem";
+import { pilotReviewRows } from "@/components/pilots/wizard/review-summary";
 import { StepRules } from "@/components/pilots/wizard/step-rules";
 import {
   activeCatalogs,
@@ -23,6 +24,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { canEditDesign, canWritePilots, missingForReview, parsePilotStep } from "@/domain/pilots/flow";
 import { PILOT_STATUS_LABEL, PILOT_TERMS } from "@/domain/pilots/labels";
+import { DEFAULT_DECISION_RULES } from "@/domain/pilots/types";
 import { readinessFrom } from "@/domain/pilots/wizard";
 import { getPilotContext, isPilotsReady } from "@/server/pilot-auth";
 import { PilotTiaDraft } from "@/components/pilots/pilot-tia-drafts";
@@ -130,6 +132,14 @@ export default async function EditPilotPage({ params, searchParams }: PageProps<
           media={detail.media.map((m) => ({ name: m.media_name, provider: providers.get(m.media_id) ?? null }))}
           missing={missingForReview(readinessFrom(detail, catalogs.variables))}
           serverMissing={detail.missing}
+          summary={pilotReviewRows(
+            detail,
+            {
+              variables: Object.fromEntries(catalogs.variables.map((v) => [v.id, v.name])),
+              metrics: Object.fromEntries(catalogs.metrics.map((m) => [m.id, m.name])),
+            },
+            DEFAULT_DECISION_RULES,
+          )}
         />
       );
       break;

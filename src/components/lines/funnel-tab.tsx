@@ -1,5 +1,6 @@
 import { ClipboardList, FlaskConical, Filter, TriangleAlert } from "lucide-react";
 import Link from "next/link";
+import { Fold } from "@/components/app/fold";
 import { EmptyState, Section } from "@/components/app/page";
 import { Button } from "@/components/ui/button";
 import { funnelStats, funnelWidths, type FunnelStageStats } from "@/domain/metric-tree";
@@ -26,10 +27,10 @@ export function FunnelTab({ programId, lineId, stages, problems, experiments, me
   const attention = stats.filter((s) => s.needsAttention).length;
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]">
+    <div className="space-y-4">
       <Section
         title="Embudo de la línea"
-        description="Problemas (sin contar descartados) y ejercicios vigentes por etapa. Un ejercicio cuenta en la etapa de su problema."
+        description="Problemas y ejercicios vigentes por etapa (sin descartados)."
         actions={
           <Button asChild variant="outline" size="sm">
             <Link href={`/programas/${programId}/problemas`}>
@@ -75,7 +76,11 @@ export function FunnelTab({ programId, lineId, stages, problems, experiments, me
         )}
       </Section>
 
-      <Section title="Etapas" description="Edite el nombre, qué significa en esta línea, la métrica que la mide y el orden.">
+      <Fold
+        title={canEdit ? "Editar las etapas" : "Etapas"}
+        hint={`${stages.length} · nombre, significado, métrica y orden`}
+        open={stages.length === 0 && canEdit}
+      >
         <StageEditor
           programId={programId}
           lineId={lineId}
@@ -84,7 +89,7 @@ export function FunnelTab({ programId, lineId, stages, problems, experiments, me
           canEdit={canEdit}
           canDelete={canDelete}
         />
-      </Section>
+      </Fold>
     </div>
   );
 }

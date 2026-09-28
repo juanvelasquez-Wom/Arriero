@@ -2,9 +2,12 @@ import { BookOpenCheck, CalendarClock, CircleCheck, GitMerge, Hourglass, Pencil,
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import type { ReactNode } from "react";
 import { AttachmentList } from "@/components/app/attachments";
 import { Term } from "@/components/app/info-tip";
 import { DeleteButton } from "@/components/app/delete-button";
+import { Fold } from "@/components/app/fold";
+import { ViewTabs, type ViewTab } from "@/components/app/view-tabs";
 import { Callout, PageHeader, Section } from "@/components/app/page";
 import { DecisionBadge, StatusBadge, VerdictBadge } from "@/components/app/status-badge";
 import { ExperimentComments } from "@/components/experiments/comments";
@@ -133,6 +136,25 @@ export default async function ExperimentPage({ params, searchParams }: PageProps
   const base = `/programas/${programId}`;
   const href = (t: string) => `${base}/ejercicios/${experimentId}?tab=${t}`;
 
+  const verdictLine =
+    e.verdict || e.decision ? (
+      <div className="flex flex-wrap items-center gap-2">
+        <VerdictBadge verdict={e.verdict} />
+        <DecisionBadge decision={e.decision} />
+        {diff != null ? <span className="text-sm font-medium tabular-nums">{formatSignedPercent(diff)} vs. control</span> : null}
+      </div>
+    ) : null;
+
+  const tabs: ViewTab[] = TABS.map((t) => ({
+    key: t.key,
+    label: t.label,
+    href: href(t.key),
+    count: t.key === "adjuntos" ? attachments.length : t.key === "conversacion" ? commentItems.length : undefined,
+    attention:
+      (t.key === "resultados" && (brokenGuardrails.length > 0 || postScale?.status === "not_held")) ||
+      (t.key === "diseno" && !!shortfall && !isLaunched(e.status)),
+  }));
+
   return (
     <div className="mx-auto max-w-6xl">
       <PageHeader
@@ -167,8 +189,9 @@ export default async function ExperimentPage({ params, searchParams }: PageProps
         }
       />
 
-      <Section className="mb-6">
-        <div className="flex flex-wrap items-center gap-3">
+      {/* Arriba solo lo esencial: estado, tres datos clave y el siguiente paso. */}
+      <Section className="mb-5">
+        <div className="flex flex-wrap items-center gap-2">
           <StatusBadge status={e.status} className="h-7 text-sm" />
           <span className="text-xs text-soft">
             {daysHere} {daysHere === 1 ? "día" : "días"} en {STATUS_LABEL[e.status]}
@@ -195,11 +218,21 @@ export default async function ExperimentPage({ params, searchParams }: PageProps
               ) : null}
             </span>
           ) : null}
-          <span className="ml-auto text-sm">
-            Puntaje final <strong className="font-heading text-xl font-extrabold tabular-nums">{formatScore(e.final_score)}</strong>
-          </span>
         </div>
-        <div className="mt-4">
+
+        <dl className="mt-4 grid grid-cols-3 gap-2 text-sm">
+          <KeyFact label="Puntaje final">
+            <span className="font-heading text-xl font-extrabold tabular-nums">{formatScore(e.final_score)}</span>
+          </KeyFact>
+          <KeyFact label="Responsable">{e.owner_name ?? <span className="text-soft">Sin asignar</span>}</KeyFact>
+          <KeyFact label={e.actual_start ? "Fechas reales" : "Fechas planeadas"}>
+            <span className="tabular-nums">
+              {e.actual_start ? formatDateRange(e.actual_start, e.actual_end) : formatDateRange(e.planned_start, e.planned_end)}
+            </span>
+          </KeyFact>
+        </dl>
+
+        <div className="mt-4 border-t pt-4">
           <TransitionBar
             programId={programId}
             experimentId={experimentId}
@@ -241,197 +274,148 @@ export default async function ExperimentPage({ params, searchParams }: PageProps
         </div>
       </Section>
 
-      <nav aria-label="Secciones del ejercicio" className="mb-4 flex gap-1 overflow-x-auto border-b">
-        {TABS.map((t) => (
-          <Link
-            key={t.key}
-            href={href(t.key)}
-            aria-current={tab === t.key ? "page" : undefined}
-            className={cn(
-              "relative -mb-px border-b-2 border-transparent px-3 py-2 text-sm whitespace-nowrap text-soft transition-colors hover:text-ink",
-              tab === t.key && "border-highlight font-semibold text-ink",
-            )}
-          >
-            {t.label}
-            {t.key === "adjuntos" && attachments.length ? <span className="ml-1 tabular-nums">({attachments.length})</span> : null}
-            {t.key === "conversacion" && commentItems.length ? <span className="ml-1 tabular-nums">({commentItems.length})</span> : null}
-          </Link>
-        ))}
-      </nav>
+      <ViewTabs label="Secciones del ejercicio" tabs={tabs} active={tab} />
 
-      {tab === "resumen" ? (
-        <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
-          {collisions.length ? (
-            <Callout className="lg:col-span-2" icon={GitMerge} title="Ojo: este ejercicio se cruza con…">
-              <ul className="space-y-1">
-                {collisions.map((c) => (
-                  <li key={c.otherId}>
-                    <Link href={`${base}/ejercicios/${c.otherId}`} className="font-medium underline underline-offset-2">
-                      {c.otherTitle}
-                    </Link>{" "}
-                    <span className="text-soft">
-                      ({STATUS_LABEL[c.otherStatus]}) · {describeCollision(c)} · {formatDateRange(c.from, c.to)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-              <p className="mt-1">
-                Si los dos mueven la misma métrica al mismo tiempo, no se sabe cuál la movió. Separe las fechas o use otra etapa o canal.
-              </p>
-            </Callout>
-          ) : null}
-          {postScale ? (
-            <Section className="lg:col-span-2" title="¿Se sostuvo después de escalar?" description={`${postScale.evidence}: la operación normal tiene muchas cosas pasando a la vez.`}>
-              <div className="flex flex-wrap items-center gap-2 text-sm">
-                <span
-                  className={cn(
-                    "inline-flex h-6 items-center gap-1.5 rounded-full border px-2.5 text-xs font-semibold",
-                    postScale.status === "held" ? "border-highlight bg-highlight text-[#1F1F1F]" : "border-line bg-wash text-ink",
-                  )}
-                >
-                  {postScale.status === "held" ? (
-                    <CircleCheck aria-hidden className="size-3.5" />
-                  ) : postScale.status === "not_held" ? (
-                    <TrendingDown aria-hidden className="size-3.5" />
-                  ) : (
-                    <Hourglass aria-hidden className="size-3.5" />
-                  )}
-                  {postScale.label}
-                </span>
-                <span>{postScale.message}</span>
-              </div>
-              <dl className="mt-3 grid grid-cols-3 gap-2 text-sm tabular-nums">
-                <div>
-                  <dt className="text-xs text-soft">4 semanas antes</dt>
-                  <dd>{formatMetricValue(postScale.before.mean, metricEconomics?.unit ?? null)}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-soft">Semanas 1 a 4 después</dt>
-                  <dd>
-                    {formatMetricValue(postScale.after4.mean, metricEconomics?.unit ?? null)}
-                    {postScale.after4.change != null ? <span className="text-soft"> ({formatSignedPercent(postScale.after4.change)})</span> : null}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-soft">Semanas 5 a 8 después</dt>
-                  <dd>
-                    {formatMetricValue(postScale.after8.mean, metricEconomics?.unit ?? null)}
-                    {postScale.after8.change != null ? <span className="text-soft"> ({formatSignedPercent(postScale.after8.change)})</span> : null}
-                  </dd>
-                </div>
-              </dl>
-            </Section>
-          ) : null}
-          <Section title="Hipótesis">
-            <dl className="space-y-3 text-sm">
-              {(
-                [
-                  ["SI", e.hypothesis_if],
-                  ["ENTONCES", e.hypothesis_then],
-                  ["PORQUE", e.hypothesis_because],
-                ] as const
-              ).map(([k, val]) => (
-                <div key={k} className="grid grid-cols-[90px_1fr] gap-2">
-                  <dt className="text-xs font-semibold tracking-wide text-soft">{k}</dt>
-                  <dd>{val || <span className="text-soft">Falta completar</span>}</dd>
-                </div>
-              ))}
-            </dl>
-          </Section>
-          <Section title="Priorización">
-            <dl className="grid grid-cols-2 gap-2 text-sm tabular-nums">
-              <dt className="text-soft">Impacto</dt>
-              <dd>{e.impact ?? "—"}</dd>
-              <dt className="text-soft">Confianza</dt>
-              <dd>{e.confidence ?? "—"}</dd>
-              <dt className="text-soft">Facilidad</dt>
-              <dd>{e.ease ?? "—"}</dd>
-              <dt className="text-soft">ICE</dt>
-              <dd className="font-medium">{formatScore(e.ice_score)}</dd>
-              <dt className="text-soft">Calendario</dt>
-              <dd>{e.fits_calendar ? "Sí, antes de los picos" : "No"}</dd>
-              <dt className="text-soft">Control</dt>
-              <dd>{CONTROL_LABEL[e.control]}</dd>
-              <dt className="text-soft">Puntaje final</dt>
-              <dd className="font-semibold">{formatScore(e.final_score)}</dd>
-            </dl>
-          </Section>
-          <Section title="Responsable y fechas">
-            <dl className="grid grid-cols-2 gap-2 text-sm">
-              <dt className="text-soft">Responsable</dt>
-              <dd>{e.owner_name ?? "Sin asignar"}</dd>
-              <dt className="text-soft">Tipo</dt>
-              <dd>{e.owner_type ? OWNER_TYPE_LABEL[e.owner_type] : "—"}</dd>
-              <dt className="text-soft">Planeado</dt>
-              <dd>{formatDateRange(e.planned_start, e.planned_end)}</dd>
-              <dt className="text-soft">Real</dt>
-              <dd>{e.actual_start ? formatDateRange(e.actual_start, e.actual_end) : "—"}</dd>
-            </dl>
-            {freeze && !isLaunched(e.status) ? (
-              <Callout className="mt-3" icon={Snowflake}>
-                {freeze}
+      <div key={tab} className="slide-in">
+        {tab === "resumen" ? (
+          <div className="space-y-4">
+            {/* En diseño los cruces ya los avisa la barra de arriba, antes de lanzar. */}
+            {collisions.length && e.status !== "in_design" ? (
+              <Callout icon={GitMerge} title={`Ojo: se cruza con ${collisions.length} ejercicio${collisions.length === 1 ? "" : "s"}`}>
+                <Fold bare title="Ver con cuáles">
+                  <ul className="space-y-1">
+                    {collisions.map((c) => (
+                      <li key={c.otherId}>
+                        <Link href={`${base}/ejercicios/${c.otherId}`} className="font-medium underline underline-offset-2">
+                          {c.otherTitle}
+                        </Link>{" "}
+                        <span className="text-soft">
+                          ({STATUS_LABEL[c.otherStatus]}) · {describeCollision(c)} · {formatDateRange(c.from, c.to)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-1">
+                    Si los dos mueven la misma métrica al mismo tiempo, no se sabe cuál la movió. Separe las fechas o use otra etapa o canal.
+                  </p>
+                </Fold>
               </Callout>
             ) : null}
-          </Section>
-          {e.verdict || e.decision ? (
-            <Section title="Resultado">
-              <div className="flex flex-wrap items-center gap-2">
-                <VerdictBadge verdict={e.verdict} />
-                <DecisionBadge decision={e.decision} />
-                {diff != null ? <span className="text-sm font-medium tabular-nums">{formatSignedPercent(diff)} vs. control</span> : null}
-              </div>
-              <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-sm">
-                <dt className="text-soft">
-                  <Term k="probabilityToWin" />
-                </dt>
-                <dd className="tabular-nums">
-                  {reading.kind === "directional"
-                    ? DIRECTIONAL_LABEL
-                    : headline?.stats.probability != null
-                      ? `${formatProbability(headline.stats.probability)} · ${headline.stats.band?.label ?? ""}`
-                      : "Sin datos suficientes"}
-                </dd>
-                <dt className="text-soft">
-                  <Term k="estimatedValue" />
-                </dt>
-                <dd className="tabular-nums">
-                  {headline?.value_estimate ? (
-                    formatValueRange(headline.value_conservative?.monthly ?? null, headline.value_estimate.monthly, "al mes")
-                  ) : headline?.value_missing === "unit_value" ? (
-                    <span className="text-soft">{UNIT_VALUE_HINT}</span>
-                  ) : (
-                    "—"
-                  )}
-                </dd>
-              </dl>
-              {brokenGuardrails.length ? (
-                <Callout className="mt-3" icon={ShieldAlert} title="Guardrail roto">
-                  {brokenGuardrails.join(" ")}
-                </Callout>
-              ) : null}
-              {e.decision_rationale ? <p className="mt-2 text-sm">{e.decision_rationale}</p> : null}
-            </Section>
-          ) : null}
-        </div>
-      ) : null}
+            {freeze && !isLaunched(e.status) ? <Callout icon={Snowflake}>{freeze}</Callout> : null}
 
-      {tab === "diseno" ? (
-        <div className="space-y-4">
-          <DesignLock
-            programId={programId}
-            experimentId={experimentId}
-            lockedAt={e.design_locked_at}
-            launched={isLaunched(e.status)}
-            canUnlock={can.unlockDesign(ctx.actor)}
-            canLock={canEdit}
-          />
-          <div className="grid gap-6 lg:grid-cols-2">
-            <Section title="Prueba">
-              <dl className="grid grid-cols-[160px_1fr] gap-2 text-sm">
+            {verdictLine ? (
+              <Section
+                title="Resultado"
+                actions={
+                  <Link href={href("resultados")} className="text-xs underline underline-offset-4">
+                    Ver el detalle
+                  </Link>
+                }
+              >
+                {verdictLine}
+                {e.decision_rationale ? <p className="mt-2 text-sm">{e.decision_rationale}</p> : null}
+              </Section>
+            ) : null}
+
+            <Section title="Hipótesis">
+              <dl className="space-y-3 text-sm">
+                {(
+                  [
+                    ["SI", e.hypothesis_if],
+                    ["ENTONCES", e.hypothesis_then],
+                    ["PORQUE", e.hypothesis_because],
+                  ] as const
+                ).map(([k, val]) => (
+                  <div key={k} className="grid grid-cols-[90px_1fr] gap-2">
+                    <dt className="text-xs font-semibold tracking-wide text-soft">{k}</dt>
+                    <dd>{val || <span className="text-soft">Falta completar</span>}</dd>
+                  </div>
+                ))}
+              </dl>
+            </Section>
+
+            <Fold title="Priorización" hint={`ICE ${formatScore(e.ice_score)} · final ${formatScore(e.final_score)}`}>
+              <dl className="grid grid-cols-2 gap-2 text-sm tabular-nums">
+                <dt className="text-soft">Impacto</dt>
+                <dd>{e.impact ?? "—"}</dd>
+                <dt className="text-soft">Confianza</dt>
+                <dd>{e.confidence ?? "—"}</dd>
+                <dt className="text-soft">Facilidad</dt>
+                <dd>{e.ease ?? "—"}</dd>
+                <dt className="text-soft">ICE</dt>
+                <dd className="font-medium">{formatScore(e.ice_score)}</dd>
+                <dt className="text-soft">Calendario</dt>
+                <dd>{e.fits_calendar ? "Sí, antes de los picos" : "No"}</dd>
+                <dt className="text-soft">Control</dt>
+                <dd>{CONTROL_LABEL[e.control]}</dd>
+                <dt className="text-soft">Puntaje final</dt>
+                <dd className="font-semibold">{formatScore(e.final_score)}</dd>
+              </dl>
+            </Fold>
+
+            <Fold title="Responsable y fechas" hint={e.owner_type ? OWNER_TYPE_LABEL[e.owner_type] : undefined}>
+              <dl className="grid grid-cols-2 gap-2 text-sm">
+                <dt className="text-soft">Responsable</dt>
+                <dd>{e.owner_name ?? "Sin asignar"}</dd>
                 <dt className="text-soft">Tipo</dt>
-                <dd>{e.test_type ? TEST_TYPE_LABEL[e.test_type] : "—"}</dd>
-                <dt className="text-soft">Métrica principal</dt>
-                <dd>{e.primary_metric ?? "—"}</dd>
+                <dd>{e.owner_type ? OWNER_TYPE_LABEL[e.owner_type] : "—"}</dd>
+                <dt className="text-soft">Planeado</dt>
+                <dd>{formatDateRange(e.planned_start, e.planned_end)}</dd>
+                <dt className="text-soft">Real</dt>
+                <dd>{e.actual_start ? formatDateRange(e.actual_start, e.actual_end) : "—"}</dd>
+              </dl>
+            </Fold>
+          </div>
+        ) : null}
+
+        {tab === "diseno" ? (
+          <div className="space-y-4">
+            <DesignLock
+              programId={programId}
+              experimentId={experimentId}
+              lockedAt={e.design_locked_at}
+              launched={isLaunched(e.status)}
+              canUnlock={can.unlockDesign(ctx.actor)}
+              canLock={canEdit}
+            />
+            <div className="grid gap-4 lg:grid-cols-2">
+              <Section title="Prueba">
+                <dl className="grid grid-cols-[140px_1fr] gap-2 text-sm">
+                  <dt className="text-soft">Tipo</dt>
+                  <dd>{e.test_type ? TEST_TYPE_LABEL[e.test_type] : "—"}</dd>
+                  <dt className="text-soft">Métrica principal</dt>
+                  <dd>{e.primary_metric ?? "—"}</dd>
+                  <dt className="text-soft">Duración mínima</dt>
+                  <dd>{e.min_duration_days ? `${e.min_duration_days} días` : "—"}</dd>
+                  <dt className="text-soft">Regla de decisión</dt>
+                  <dd>{e.decision_rule ?? "—"}</dd>
+                </dl>
+                {shortfall ? (
+                  <Callout className="mt-3" icon={TriangleAlert} title="Ojo con la potencia">
+                    {shortfall}
+                  </Callout>
+                ) : null}
+              </Section>
+              <Section title={`Variantes (${variants.length})`}>
+                <ul className="space-y-2 text-sm">
+                  {variants.map((v) => (
+                    <li key={v.id} className="rounded-xl border px-3 py-2">
+                      <div className="font-medium">
+                        {v.name}
+                        {v.is_control ? <span className="ml-2 rounded border px-1 text-[11px] text-soft">Control</span> : null}
+                      </div>
+                      {v.description ? <div className="text-xs text-soft">{v.description}</div> : null}
+                    </li>
+                  ))}
+                  {!variants.length ? <li className="text-soft">Todavía no hay variantes.</li> : null}
+                </ul>
+              </Section>
+            </div>
+            <Fold
+              title="Métricas de control, potencia y guardrails"
+              hint={rigor.ready && guardrails.length ? `${guardrails.length} guardrail${guardrails.length === 1 ? "" : "s"}` : undefined}
+            >
+              <dl className="grid grid-cols-[140px_1fr] gap-2 text-sm">
                 <dt className="text-soft">Métricas de control</dt>
                 <dd>
                   {e.control_metrics.length ? (
@@ -444,10 +428,6 @@ export default async function ExperimentPage({ params, searchParams }: PageProps
                     "—"
                   )}
                 </dd>
-                <dt className="text-soft">Duración mínima</dt>
-                <dd>{e.min_duration_days ? `${e.min_duration_days} días` : "—"}</dd>
-                <dt className="text-soft">Regla de decisión</dt>
-                <dd>{e.decision_rule ?? "—"}</dd>
                 {rigor.ready ? (
                   <>
                     <dt className="text-soft">Efecto esperado</dt>
@@ -478,134 +458,201 @@ export default async function ExperimentPage({ params, searchParams }: PageProps
                   </>
                 ) : null}
               </dl>
-              {shortfall ? (
-                <Callout className="mt-3" icon={TriangleAlert} title="Ojo con la potencia">
-                  {shortfall}
-                </Callout>
-              ) : null}
-            </Section>
-            <Section title={`Variantes (${variants.length})`}>
-              <ul className="space-y-2 text-sm">
-                {variants.map((v) => (
-                  <li key={v.id} className="rounded-xl border px-3 py-2">
-                    <div className="font-medium">
-                      {v.name}
-                      {v.is_control ? <span className="ml-2 rounded border px-1 text-[11px] text-soft">Control</span> : null}
-                    </div>
-                    {v.description ? <div className="text-xs text-soft">{v.description}</div> : null}
-                  </li>
-                ))}
-                {!variants.length ? <li className="text-soft">Todavía no hay variantes.</li> : null}
-              </ul>
+            </Fold>
+            {canEdit && !e.design_locked_at ? (
+              <Button variant="outline" asChild>
+                <Link href={`${base}/ejercicios/${experimentId}/editar?paso=4`}>
+                  <Pencil aria-hidden /> Editar el diseño
+                </Link>
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+
+        {tab === "resultados" ? (
+          <div className="space-y-4">
+            {verdictLine ? (
+              <Section title="Resultado">
+                {verdictLine}
+                <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-sm">
+                  <dt className="text-soft">
+                    <Term k="probabilityToWin" />
+                  </dt>
+                  <dd className="tabular-nums">
+                    {reading.kind === "directional"
+                      ? DIRECTIONAL_LABEL
+                      : headline?.stats.probability != null
+                        ? `${formatProbability(headline.stats.probability)} · ${headline.stats.band?.label ?? ""}`
+                        : "Sin datos suficientes"}
+                  </dd>
+                  <dt className="text-soft">
+                    <Term k="estimatedValue" />
+                  </dt>
+                  <dd className="tabular-nums">
+                    {headline?.value_estimate ? (
+                      formatValueRange(headline.value_conservative?.monthly ?? null, headline.value_estimate.monthly, "al mes")
+                    ) : headline?.value_missing === "unit_value" ? (
+                      <span className="text-soft">{UNIT_VALUE_HINT}</span>
+                    ) : (
+                      "—"
+                    )}
+                  </dd>
+                </dl>
+                {brokenGuardrails.length ? (
+                  <Callout className="mt-3" icon={ShieldAlert} title="Guardrail roto">
+                    {brokenGuardrails.join(" ")}
+                  </Callout>
+                ) : null}
+                {e.decision_rationale ? <p className="mt-2 text-sm">{e.decision_rationale}</p> : null}
+              </Section>
+            ) : null}
+
+            {postScale ? (
+              <Section title="¿Se sostuvo después de escalar?" description={`${postScale.evidence}: la operación normal tiene muchas cosas pasando a la vez.`}>
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                  <span
+                    className={cn(
+                      "inline-flex h-6 items-center gap-1.5 rounded-full border px-2.5 text-xs font-semibold",
+                      postScale.status === "held" ? "border-highlight bg-highlight text-[#1F1F1F]" : "border-line bg-wash text-ink",
+                    )}
+                  >
+                    {postScale.status === "held" ? (
+                      <CircleCheck aria-hidden className="size-3.5" />
+                    ) : postScale.status === "not_held" ? (
+                      <TrendingDown aria-hidden className="size-3.5" />
+                    ) : (
+                      <Hourglass aria-hidden className="size-3.5" />
+                    )}
+                    {postScale.label}
+                  </span>
+                  <span>{postScale.message}</span>
+                </div>
+                <dl className="mt-3 grid grid-cols-3 gap-2 text-sm tabular-nums">
+                  <div>
+                    <dt className="text-xs text-soft">4 semanas antes</dt>
+                    <dd>{formatMetricValue(postScale.before.mean, metricEconomics?.unit ?? null)}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-soft">Semanas 1 a 4 después</dt>
+                    <dd>
+                      {formatMetricValue(postScale.after4.mean, metricEconomics?.unit ?? null)}
+                      {postScale.after4.change != null ? <span className="text-soft"> ({formatSignedPercent(postScale.after4.change)})</span> : null}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-soft">Semanas 5 a 8 después</dt>
+                    <dd>
+                      {formatMetricValue(postScale.after8.mean, metricEconomics?.unit ?? null)}
+                      {postScale.after8.change != null ? <span className="text-soft"> ({formatSignedPercent(postScale.after8.change)})</span> : null}
+                    </dd>
+                  </div>
+                </dl>
+              </Section>
+            ) : null}
+
+            <Section title="Resultados por variante" description={e.decision_rule ? `Regla de decisión: ${e.decision_rule}` : undefined}>
+              <ResultsEditor
+                key={variants.map((v) => `${v.id}:${v.sample}:${v.conversions}:${v.metric_value}`).join("|")}
+                programId={programId}
+                experimentId={experimentId}
+                variants={variants}
+                canEdit={can.uploadResults(ctx.actor, e) && e.status !== "decided" && e.status !== "scaled"}
+                isWinner={e.verdict === "winner"}
+                testType={e.test_type}
+                metric={metricEconomics}
+                guardrails={guardrails}
+              />
             </Section>
           </div>
-          {canEdit && !e.design_locked_at ? (
-            <Button variant="outline" asChild>
-              <Link href={`${base}/ejercicios/${experimentId}/editar?paso=4`}>
-                <Pencil aria-hidden /> Editar el diseño
-              </Link>
-            </Button>
-          ) : null}
-        </div>
-      ) : null}
+        ) : null}
 
-      {tab === "resultados" ? (
-        <Section
-          title="Resultados por variante"
-          description={e.decision_rule ? `Regla de decisión: ${e.decision_rule}` : undefined}
-        >
-          <ResultsEditor
-            key={variants.map((v) => `${v.id}:${v.sample}:${v.conversions}:${v.metric_value}`).join("|")}
-            programId={programId}
-            experimentId={experimentId}
-            variants={variants}
-            canEdit={can.uploadResults(ctx.actor, e) && e.status !== "decided" && e.status !== "scaled"}
-            isWinner={e.verdict === "winner"}
-            testType={e.test_type}
-            metric={metricEconomics}
-            guardrails={guardrails}
-          />
-        </Section>
-      ) : null}
+        {tab === "adjuntos" ? (
+          <Section title="Adjuntos">
+            <AttachmentList
+              programId={programId}
+              entityType="experiment"
+              entityId={experimentId}
+              items={attachments}
+              canUpload={can.uploadResults(ctx.actor, e)}
+            />
+          </Section>
+        ) : null}
 
-      {tab === "adjuntos" ? (
-        <Section title="Adjuntos">
-          <AttachmentList
-            programId={programId}
-            entityType="experiment"
-            entityId={experimentId}
-            items={attachments}
-            canUpload={can.uploadResults(ctx.actor, e)}
-          />
-        </Section>
-      ) : null}
-
-      {tab === "aprendizaje" ? (
-        <Section title="Aprendizaje">
-          {learning ? (
-            <>
-              <LearningEditor
-                programId={programId}
-                learning={learning}
-                lines={lines}
-                ownLineId={e.line_id}
-                canEdit={can.editStructure(ctx.actor)}
-                problemChannel={e.problem_channel}
-                taxonomyReady={rigor.ready}
-              />
-              {can.createExperiment(ctx.actor) ? (
-                <div className="mt-4 border-t pt-4">
-                  <Button variant="outline" asChild>
-                    <Link href={`${base}/ejercicios/nuevo?aprendizaje=${learning.id}`}>
-                      <BookOpenCheck aria-hidden /> Crear ejercicio en otra línea desde este aprendizaje
-                    </Link>
-                  </Button>
-                </div>
-              ) : null}
-            </>
-          ) : (
-            <p className="text-sm text-soft">
-              El aprendizaje se registra al decidir el ejercicio. Cada ejercicio cerrado deja uno, y ese aprendizaje puede volverse hipótesis
-              en otras líneas. Si funciona, seguimos.
-            </p>
-          )}
-        </Section>
-      ) : null}
-
-      {tab === "conversacion" ? (
-        <Section title="Conversación" description="Dudas, contexto y lo que se vio en campo, al lado del ejercicio.">
-          <ExperimentComments
-            programId={programId}
-            experimentId={experimentId}
-            comments={commentItems}
-            ready={commentsResult.ready}
-            canPost={canEdit}
-          />
-        </Section>
-      ) : null}
-
-      {tab === "actividad" ? (
-        <Section title="Actividad">
-          {activity.length ? (
-            <ol className="space-y-3">
-              {activity.map((a) => (
-                <li key={a.id} className="border-l-2 pl-3 text-sm">
-                  <div>{a.summary}</div>
-                  {typeof a.payload.justification === "string" ? (
-                    <div className="text-xs text-soft">Justificación: {a.payload.justification}</div>
-                  ) : null}
-                  <div className="text-xs text-soft">
-                    {a.actor_name ?? "Sistema"} · {formatDateTime(a.created_at)}
+        {tab === "aprendizaje" ? (
+          <Section title="Aprendizaje">
+            {learning ? (
+              <>
+                <LearningEditor
+                  programId={programId}
+                  learning={learning}
+                  lines={lines}
+                  ownLineId={e.line_id}
+                  canEdit={can.editStructure(ctx.actor)}
+                  problemChannel={e.problem_channel}
+                  taxonomyReady={rigor.ready}
+                />
+                {can.createExperiment(ctx.actor) ? (
+                  <div className="mt-4 border-t pt-4">
+                    <Button variant="outline" asChild>
+                      <Link href={`${base}/ejercicios/nuevo?aprendizaje=${learning.id}`}>
+                        <BookOpenCheck aria-hidden /> Crear ejercicio en otra línea desde este aprendizaje
+                      </Link>
+                    </Button>
                   </div>
-                </li>
-              ))}
-            </ol>
-          ) : (
-            <p className="text-sm text-soft">Todavía no hay actividad registrada. Ahí vamos.</p>
-          )}
-          <p className="mt-4 text-xs text-soft">Creado el {formatDate(e.created_at.slice(0, 10))}.</p>
-        </Section>
-      ) : null}
+                ) : null}
+              </>
+            ) : (
+              <p className="text-sm text-soft">
+                El aprendizaje se registra al decidir el ejercicio y puede volverse hipótesis en otras líneas. Si funciona, seguimos.
+              </p>
+            )}
+          </Section>
+        ) : null}
+
+        {tab === "conversacion" ? (
+          <Section title="Conversación" description="Dudas, contexto y lo que se vio en campo.">
+            <ExperimentComments
+              programId={programId}
+              experimentId={experimentId}
+              comments={commentItems}
+              ready={commentsResult.ready}
+              canPost={canEdit}
+            />
+          </Section>
+        ) : null}
+
+        {tab === "actividad" ? (
+          <Section title="Actividad">
+            {activity.length ? (
+              <ol className="space-y-3">
+                {activity.map((a) => (
+                  <li key={a.id} className="border-l-2 pl-3 text-sm">
+                    <div>{a.summary}</div>
+                    {typeof a.payload.justification === "string" ? (
+                      <div className="text-xs text-soft">Justificación: {a.payload.justification}</div>
+                    ) : null}
+                    <div className="text-xs text-soft">
+                      {a.actor_name ?? "Sistema"} · {formatDateTime(a.created_at)}
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className="text-sm text-soft">Todavía no hay actividad registrada. Ahí vamos.</p>
+            )}
+            <p className="mt-4 text-xs text-soft">Creado el {formatDate(e.created_at.slice(0, 10))}.</p>
+          </Section>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function KeyFact({ label, children }: { label: ReactNode; children: ReactNode }) {
+  return (
+    <div className="min-w-0 rounded-xl border bg-wash/60 px-2.5 py-2">
+      <dt className="truncate text-[11px] text-soft">{label}</dt>
+      <dd className="mt-0.5 line-clamp-2 text-[13px] sm:text-sm">{children}</dd>
     </div>
   );
 }

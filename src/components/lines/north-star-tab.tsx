@@ -1,6 +1,7 @@
 import { CalendarPlus, Gauge, ChartLine, Pencil, Plus, Star, Target, TrendingDown, TrendingUp, Minus } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { Fold } from "@/components/app/fold";
 import { EmptyState, Section } from "@/components/app/page";
 import { Button } from "@/components/ui/button";
 import { formatDate, formatDateRange, formatMetricValue, formatSignedPercent } from "@/domain/format";
@@ -205,52 +206,6 @@ function MetricOverview({
               </span>
             </p>
           ) : null}
-
-          <div>
-            <h3 className="mb-1.5 text-xs font-medium text-soft">
-              <Term k="target">Objetivos por horizonte</Term>
-            </h3>
-            {horizons.length === 0 ? (
-              <p className="text-sm text-soft">El programa no tiene horizontes definidos.</p>
-            ) : (
-              <ul className="divide-y rounded-xl border">
-                {horizons.map((h) => {
-                  const isCurrent = h.id === currentHorizonId;
-                  return (
-                    <li key={h.id} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
-                      <span className="min-w-0">
-                        <span className="font-medium">{h.name}</span>
-                        {isCurrent ? (
-                          <span className="ml-2 inline-flex h-5 items-center rounded-full bg-highlight px-1.5 text-[11px] font-medium text-[#1f1f1f]">
-                            En curso
-                          </span>
-                        ) : null}
-                        <span className="block text-xs text-soft">{formatDateRange(h.start_date, h.end_date)}</span>
-                      </span>
-                      <span className={cn("tabular-nums", !targetBy.has(h.id) && "text-soft")}>
-                        {targetBy.has(h.id) ? formatMetricValue(targetBy.get(h.id), metric.unit) : "Sin objetivo"}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
-
-          <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
-            <Detail label="Dirección">
-              <DirectionLabel direction={metric.direction} />
-            </Detail>
-            <Detail label="Unidad">{metric.unit ?? "—"}</Detail>
-            <Detail label={<Term k="unitValue" />}>
-              {metric.unit_value != null ? formatMetricValue(metric.unit_value, "COP") : "—"}
-            </Detail>
-            <Detail label="Responsable">{metric.owner_name ?? "Sin responsable"}</Detail>
-            <Detail label="Canal">{metric.channel ?? "—"}</Detail>
-            <Detail label="Fuente" className="col-span-2">
-              {metric.source ?? "—"}
-            </Detail>
-          </dl>
         </div>
 
         <div className="min-w-0">
@@ -278,11 +233,62 @@ function MetricOverview({
               }
             />
           )}
-          <div className="mt-5">
+        </div>
+      </div>
+      <Fold bare title="Objetivos por horizonte, ficha de la métrica y cambios" className="mt-4 border-t pt-2">
+        <div className="grid gap-5 lg:grid-cols-2">
+          <div className="space-y-4">
+            <div>
+              <h3 className="mb-1.5 text-xs font-medium text-soft">
+                <Term k="target">Objetivos por horizonte</Term>
+              </h3>
+              {horizons.length === 0 ? (
+                <p className="text-sm text-soft">El programa no tiene horizontes definidos.</p>
+              ) : (
+                <ul className="divide-y rounded-xl border">
+                  {horizons.map((h) => {
+                    const isCurrent = h.id === currentHorizonId;
+                    return (
+                      <li key={h.id} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
+                        <span className="min-w-0">
+                          <span className="font-medium">{h.name}</span>
+                          {isCurrent ? (
+                            <span className="ml-2 inline-flex h-5 items-center rounded-full bg-highlight px-1.5 text-[11px] font-medium text-[#1f1f1f]">
+                              En curso
+                            </span>
+                          ) : null}
+                          <span className="block text-xs text-soft">{formatDateRange(h.start_date, h.end_date)}</span>
+                        </span>
+                        <span className={cn("tabular-nums", !targetBy.has(h.id) && "text-soft")}>
+                          {targetBy.has(h.id) ? formatMetricValue(targetBy.get(h.id), metric.unit) : "Sin objetivo"}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+
+            <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+              <Detail label="Dirección">
+                <DirectionLabel direction={metric.direction} />
+              </Detail>
+              <Detail label="Unidad">{metric.unit ?? "—"}</Detail>
+              <Detail label={<Term k="unitValue" />}>
+                {metric.unit_value != null ? formatMetricValue(metric.unit_value, "COP") : "—"}
+              </Detail>
+              <Detail label="Responsable">{metric.owner_name ?? "Sin responsable"}</Detail>
+              <Detail label="Canal">{metric.channel ?? "—"}</Detail>
+              <Detail label="Fuente" className="col-span-2">
+                {metric.source ?? "—"}
+              </Detail>
+            </dl>
+          </div>
+          <div className="min-w-0">
             <MetricHistoryList rows={history.filter((h) => h.metric_id === metric.id)} unit={metric.unit} />
           </div>
         </div>
-      </div>
+      </Fold>
     </Section>
   );
 }

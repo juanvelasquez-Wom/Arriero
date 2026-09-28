@@ -45,7 +45,7 @@ export async function updateSession(request: NextRequest) {
 
   if (signedIn && pathname === "/login") {
     const url = request.nextUrl.clone();
-    url.pathname = "/programas";
+    url.pathname = "/";
     url.search = "";
     return redirectWithCookies(url, response);
   }

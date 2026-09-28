@@ -2,21 +2,18 @@
 
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
-import { Button } from "@/components/ui/button";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
-export function ThemeToggle() {
+/** Versión para el menú de usuario: la barra de arriba queda más limpia. */
+export function ThemeMenuItem() {
   const { resolvedTheme, setTheme } = useTheme();
   const dark = resolvedTheme === "dark";
   return (
-    <Button
-      variant="ghost"
-      size="icon-sm"
-      onClick={() => setTheme(dark ? "light" : "dark")}
-      // Etiqueta neutra: el tema no se conoce en el servidor (evita diferencias de hidratación).
-      aria-label="Cambiar entre modo claro y oscuro"
-    >
+    <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setTheme(dark ? "light" : "dark"); }}>
       <Sun className="hidden size-4 dark:block" aria-hidden />
       <Moon className="size-4 dark:hidden" aria-hidden />
-    </Button>
+      <span className="dark:hidden">Modo oscuro</span>
+      <span className="hidden dark:inline">Modo claro</span>
+    </DropdownMenuItem>
   );
 }

@@ -1,4 +1,4 @@
-import { ArrowRight, Megaphone, Minus, TrendingDown, TrendingUp, Users } from "lucide-react";
+import { ArrowLeft, ArrowRight, Megaphone, Minus, TrendingDown, TrendingUp, Users } from "lucide-react";
 import Link from "next/link";
 import { BrandIcon, type BrandIconName } from "@/components/brand/icons";
 import { DecisionBadge } from "@/components/app/status-badge";
@@ -30,19 +30,44 @@ const DOT: Record<BriefTone, string> = {
   neutral: "bg-gray-3",
 };
 
-/** El resumen ejecutivo en preguntas de comité, para la semana o el mes. */
-export function ExecutiveBriefView({ brief, periodKey }: { brief: ExecutiveBrief; periodKey: ReportPeriodKey }) {
+export interface BriefHrefParams {
+  periodo?: ReportPeriodKey;
+  pregunta?: BriefKey;
+}
+
+/**
+ * El resumen ejecutivo en preguntas de comité, una pregunta por vista: arriba el
+ * índice de las nueve (con su conteo y aviso), abajo la pregunta elegida y
+ * "Anterior / Siguiente" para recorrerlas como en el comité.
+ */
+export function ExecutiveBriefView({
+  brief,
+  periodKey,
+  question,
+  hrefFor,
+}: {
+  brief: ExecutiveBrief;
+  periodKey: ReportPeriodKey;
+  question: BriefKey | null;
+  hrefFor: (p: BriefHrefParams) => string;
+}) {
   const needsAttention = (k: BriefKey) => (k === "falling" || k === "decide" || k === "risks") && brief.sections.find((s) => s.key === k)!.items.length > 0;
+  const idx = Math.max(
+    0,
+    brief.sections.findIndex((s) => s.key === question),
+  );
+  const current = brief.sections[idx];
+  const prev = brief.sections[idx - 1];
+  const next = brief.sections[idx + 1];
   return (
     <section aria-labelledby="resumen-titulo" className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 id="resumen-titulo" className="text-2xl font-extrabold">
+        <div className="min-w-0">
+          <h2 id="resumen-titulo" className="text-xl font-extrabold">
             El resumen en nueve preguntas
           </h2>
-          <p className="text-sm text-soft">
-            {brief.period.label} ({formatDate(brief.period.start)} – {formatDate(brief.period.end)}) ·{" "}
-            {brief.programs.map((p) => p.name).join(", ")}
+          <p className="text-xs text-soft">
+            {brief.period.label} ({formatDate(brief.period.start)} – {formatDate(brief.period.end)}) · {brief.programs.map((p) => p.name).join(", ")}
             {brief.includesDemo ? " · con datos de ejemplo" : ""}
           </p>
         </div>
@@ -55,7 +80,8 @@ export function ExecutiveBriefView({ brief, periodKey }: { brief: ExecutiveBrief
           ).map(([k, label]) => (
             <Link
               key={k}
-              href={`/direccion?periodo=${k}`}
+              href={hrefFor({ periodo: k, pregunta: current?.key })}
+              scroll={false}
               aria-current={periodKey === k ? "page" : undefined}
               className={cn(
                 "rounded-full px-3 py-1 text-sm font-medium",
@@ -68,54 +94,110 @@ export function ExecutiveBriefView({ brief, periodKey }: { brief: ExecutiveBrief
         </nav>
       </div>
 
-      <div className="stagger grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {brief.sections.map((s) => {
-          return (
-            <article
-              key={s.key}
-              className={cn("rounded-2xl border bg-paper p-4 shadow-card", needsAttention(s.key) && "border-highlight")}
-            >
-              <h3 className="flex items-center gap-2 text-base font-bold">
-                <BrandIcon name={ART[s.key]} className="w-9 shrink-0" />
-                {s.question}
-                {s.items.length ? (
-                  <span className="ml-auto rounded-full bg-wash px-2 py-0.5 text-xs font-semibold tabular-nums">{s.items.length}</span>
-                ) : null}
-              </h3>
-              {s.items.length === 0 ? (
-                <p className="mt-2 text-sm text-soft">{s.empty}</p>
-              ) : (
-                <ul className="mt-2 space-y-2.5">
-                  {s.items.slice(0, 5).map((it, idx) => (
-                    <li key={idx} className="flex gap-2 text-sm">
-                      <span aria-hidden className={cn("mt-1.5 size-2 shrink-0 rounded-full", DOT[it.tone])} />
-                      <div className="min-w-0">
-                        {it.href ? (
-                          <Link href={it.href} className="font-medium hover:underline">
-                            {it.text}
-                          </Link>
-                        ) : (
-                          <span className="font-medium">{it.text}</span>
-                        )}
-                        {it.detail ? <div className="text-xs text-soft">{it.detail}</div> : null}
-                        {it.action && it.href ? (
-                          <Link href={it.href} className="mt-0.5 inline-flex items-center gap-1 text-xs font-semibold underline underline-offset-4">
-                            {it.action} <ArrowRight aria-hidden className="size-3" />
-                          </Link>
-                        ) : null}
-                      </div>
-                    </li>
-                  ))}
-                  {s.items.length > 5 ? <li className="text-xs text-soft">Y {s.items.length - 5} más.</li> : null}
-                </ul>
-              )}
-            </article>
-          );
-        })}
-      </div>
+      <nav aria-label="Preguntas del comité">
+        <ol className="grid grid-cols-3 gap-1.5 md:grid-cols-9">
+          {brief.sections.map((s, i) => {
+            const active = i === idx;
+            return (
+              <li key={s.key}>
+                <Link
+                  href={hrefFor({ periodo: periodKey, pregunta: s.key })}
+                  scroll={false}
+                  aria-current={active ? "step" : undefined}
+                  title={s.question}
+                  className={cn(
+                    "flex h-full min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl border px-1 py-1.5 text-center",
+                    active ? "border-ink bg-ink text-paper" : "bg-paper hover:bg-wash",
+                    !active && needsAttention(s.key) && "border-highlight",
+                  )}
+                >
+                  <span className="flex items-center gap-1 text-[11px] font-semibold tabular-nums">
+                    {i + 1}
+                    {needsAttention(s.key) ? <span aria-label="Pide atención" className="size-1.5 rounded-full bg-highlight" /> : null}
+                  </span>
+                  <span className="line-clamp-1 text-[11px]">{SHORT[s.key]}</span>
+                  <span className={cn("text-xs font-bold tabular-nums", active ? "text-paper" : "text-ink")}>{s.items.length}</span>
+                </Link>
+              </li>
+            );
+          })}
+        </ol>
+      </nav>
+
+      {current ? (
+        <article
+          key={current.key}
+          className={cn("slide-in rounded-2xl border bg-paper p-5 shadow-card", needsAttention(current.key) && "border-highlight")}
+        >
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-soft">
+            Pregunta {idx + 1} de {brief.sections.length}
+          </p>
+          <h3 className="mt-1 flex items-center gap-2 text-lg font-bold">
+            <BrandIcon name={ART[current.key]} className="w-10 shrink-0" />
+            {current.question}
+          </h3>
+          {current.items.length === 0 ? (
+            <p className="mt-2 text-sm text-soft">{current.empty}</p>
+          ) : (
+            <ul className="mt-3 space-y-2.5">
+              {current.items.map((it, n) => (
+                <li key={n} className="flex gap-2 text-sm">
+                  <span aria-hidden className={cn("mt-1.5 size-2 shrink-0 rounded-full", DOT[it.tone])} />
+                  <div className="min-w-0">
+                    {it.href ? (
+                      <Link href={it.href} className="font-medium hover:underline">
+                        {it.text}
+                      </Link>
+                    ) : (
+                      <span className="font-medium">{it.text}</span>
+                    )}
+                    {it.detail ? <div className="text-xs text-soft">{it.detail}</div> : null}
+                    {it.action && it.href ? (
+                      <Link href={it.href} className="mt-0.5 inline-flex items-center gap-1 text-xs font-semibold underline underline-offset-4">
+                        {it.action} <ArrowRight aria-hidden className="size-3" />
+                      </Link>
+                    ) : null}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="mt-4 flex items-center justify-between gap-2 border-t pt-3 text-sm">
+            {prev ? (
+              <Link href={hrefFor({ periodo: periodKey, pregunta: prev.key })} scroll={false} className="inline-flex min-h-11 items-center gap-1 text-soft hover:text-ink">
+                <ArrowLeft aria-hidden className="size-4" /> Anterior
+              </Link>
+            ) : (
+              <span />
+            )}
+            {next ? (
+              <Link
+                href={hrefFor({ periodo: periodKey, pregunta: next.key })}
+                scroll={false}
+                className="inline-flex min-h-11 items-center gap-1 font-semibold hover:underline"
+              >
+                Siguiente: {SHORT[next.key]} <ArrowRight aria-hidden className="size-4" />
+              </Link>
+            ) : null}
+          </div>
+        </article>
+      ) : null}
     </section>
   );
 }
+
+/** Nombre corto de cada pregunta para el índice (la pregunta completa va en el título). */
+const SHORT: Record<BriefKey, string> = {
+  growing: "Crece",
+  falling: "Cae",
+  running: "Probando",
+  results: "Resultados",
+  learned: "Aprendido",
+  value: "Valor",
+  decide: "Decidir",
+  next: "Siguiente",
+  risks: "Riesgos",
+};
 
 // -----------------------------------------------------------------------------
 // North Star de Arriero y Pilotos de medios (dirección)

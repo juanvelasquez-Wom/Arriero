@@ -14,7 +14,7 @@ export default function NotFound() {
         description="Puede que el enlace esté viejo, que lo hayan borrado o que no tenga acceso."
         action={
           <Button asChild>
-            <Link href="/programas">Volver a mis programas</Link>
+            <Link href="/">Volver al inicio</Link>
           </Button>
         }
       />
