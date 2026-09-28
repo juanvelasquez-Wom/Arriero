@@ -8,6 +8,7 @@ import type {
   MetricType,
   ProblemStatus,
 } from "@/domain/types";
+import type { MetricScope } from "@/domain/metric-formula";
 
 export interface MetricRow {
   id: string;
@@ -28,44 +29,58 @@ export interface MetricRow {
   owner_name: string | null;
   sort_order: number;
   targets: { horizon_id: string; target: number }[];
+  /** Alcance: de negocio (venta incremental) o de plataforma (eficiencia en plataforma). */
+  scope: MetricScope | null;
+  /** Fórmula opcional: esta métrica = numerador ÷ denominador (métricas de la misma línea). */
+  numerator_id: string | null;
+  denominator_id: string | null;
 }
+
+const METRIC_COLUMNS =
+  "id, line_id, parent_id, type, branch, name, definition, channel, unit, direction, source, baseline, unit_value, owner_id, sort_order, owner:profiles!metrics_owner_id_fkey(name, email), metric_targets(horizon_id, target)";
+const METRIC_DEFINITION_COLUMNS = "scope, numerator_id, denominator_id";
 
 export async function listMetrics(filter: { programId?: string; lineId?: string }): Promise<MetricRow[]> {
   const supabase = await createClient();
-  let q = supabase
-    .from("metrics")
-    .select(
-      "id, line_id, parent_id, type, branch, name, definition, channel, unit, direction, source, baseline, unit_value, owner_id, sort_order, owner:profiles!metrics_owner_id_fkey(name, email), metric_targets(horizon_id, target)",
-    )
-    .order("sort_order")
-    .order("created_at");
-  if (filter.programId) q = q.eq("program_id", filter.programId);
-  if (filter.lineId) q = q.eq("line_id", filter.lineId);
-  const { data, error } = await q;
+  const query = (columns: string) => {
+    let q = supabase.from("metrics").select(columns).order("sort_order").order("created_at");
+    if (filter.programId) q = q.eq("program_id", filter.programId);
+    if (filter.lineId) q = q.eq("line_id", filter.lineId);
+    return q;
+  };
+  let { data, error } = await query(`${METRIC_COLUMNS}, ${METRIC_DEFINITION_COLUMNS}`);
+  // Alcance y fórmula llegan con la migración 014; sin ella se sigue sin esos campos.
+  if (error && (error.code === "42703" || /scope|numerator_id|denominator_id/.test(error.message))) {
+    ({ data, error } = await query(METRIC_COLUMNS));
+  }
   if (error) throw new Error(error.message);
-  return (data ?? []).map((m) => {
+  return ((data ?? []) as unknown as Record<string, unknown>[]).map((m) => {
     const owner = m.owner as unknown as { name: string; email: string } | null;
+    const text = (v: unknown) => (v as string | null) ?? null;
     return {
-      id: m.id,
-      line_id: m.line_id,
-      parent_id: m.parent_id,
+      id: m.id as string,
+      line_id: m.line_id as string,
+      parent_id: text(m.parent_id),
       type: m.type as MetricType,
       branch: m.branch as MetricBranch | null,
-      name: m.name,
-      definition: m.definition,
-      channel: m.channel,
-      unit: m.unit,
+      name: m.name as string,
+      definition: text(m.definition),
+      channel: text(m.channel),
+      unit: text(m.unit),
       direction: m.direction as MetricDirection,
-      source: m.source,
+      source: text(m.source),
       baseline: m.baseline == null ? null : Number(m.baseline),
       unit_value: m.unit_value == null ? null : Number(m.unit_value),
-      owner_id: m.owner_id,
+      owner_id: text(m.owner_id),
       owner_name: owner ? owner.name || owner.email : null,
-      sort_order: m.sort_order,
+      sort_order: Number(m.sort_order),
       targets: ((m.metric_targets ?? []) as { horizon_id: string; target: number }[]).map((t) => ({
         horizon_id: t.horizon_id,
         target: Number(t.target),
       })),
+      scope: m.scope === "platform" || m.scope === "business" ? m.scope : null,
+      numerator_id: text(m.numerator_id),
+      denominator_id: text(m.denominator_id),
     };
   });
 }

@@ -116,8 +116,12 @@ describe("buildReport", () => {
     expect(r.closed[0].diff).toBeCloseTo(0.2);
     expect(r.closed[0].learning).toBe("El precio visible convierte.");
     expect(r.winners).toBe(1);
-    // 0,2 × 500 × 1000 = 100.000 por semana → × 52/12
-    expect(r.value?.monthly).toBeCloseTo((100_000 * 52) / 12);
+    // Techo: 0,2 × 500 × 1000 = 100.000 por semana → × 52/12
+    expect(r.value?.monthlyHigh).toBeCloseTo((100_000 * 52) / 12);
+    // Piso: con 1.000 por brazo el intervalo de la mejora cruza el cero → $0 honesto.
+    expect(r.value?.monthly).toBeGreaterThanOrEqual(0);
+    expect(r.value!.monthly).toBeLessThan(r.value!.monthlyHigh!);
+    expect(r.closed[0].monthlyValueHigh).toBeCloseTo((100_000 * 52) / 12);
   });
 
   it("qué sigue: top 5 por puntaje", () => {

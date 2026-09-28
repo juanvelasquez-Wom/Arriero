@@ -189,7 +189,17 @@ function relativeChange(variant: number | null, control: number | null): number 
   return variant / control - 1;
 }
 
-export function analyzePilot(input: PilotAnalysisInput): PilotAnalysis {
+/** Costo de la simulación. Sin opciones se usan los valores por defecto (la ficha del piloto). */
+export interface AnalyzeOptions {
+  /** Muestras de Monte Carlo (tasas y holdout). */
+  draws?: number;
+  /** Iteraciones del bootstrap (sumas y costos por unidad). */
+  iterations?: number;
+}
+
+export function analyzePilot(input: PilotAnalysisInput, options: AnalyzeOptions = {}): PilotAnalysis {
+  const mc = options.draws == null ? {} : { draws: options.draws };
+  const boot = options.iterations == null ? {} : { iterations: options.iterations };
   const warnings: string[] = [];
   const reader = new MetricReader(input.metrics, input.measurements);
   const primaryMetric = reader.get(input.primaryMetricId);
@@ -290,7 +300,7 @@ export function analyzePilot(input: PilotAnalysisInput): PilotAnalysis {
           if (!ok) warnings.push(`El grupo ${a.name} no tiene datos válidos todavía.`);
           return ok;
         });
-      const result = compareRates(rateArms, control.id, direction);
+      const result = compareRates(rateArms, control.id, direction, mc);
       if (result) {
         comparisons = result.comparisons.map((c) => ({
           armId: c.arm_id,
@@ -317,7 +327,7 @@ export function analyzePilot(input: PilotAnalysisInput): PilotAnalysis {
       };
       const controlPeriods = periodsOf(control);
       for (const v of variants) {
-        const r = bootstrapRatio(controlPeriods, periodsOf(v), direction);
+        const r = bootstrapRatio(controlPeriods, periodsOf(v), direction, boot);
         if (!r) {
           warnings.push(`El grupo ${v.name} necesita al menos 2 periodos con datos para compararlo.`);
           continue;
@@ -356,7 +366,7 @@ export function analyzePilot(input: PilotAnalysisInput): PilotAnalysis {
       holdout: { successes: hold.num, trials: hold.den },
       spendCop: spend,
       direction,
-    });
+    }, mc);
     if (holdout) {
       const comparison: PilotComparison = {
         armId: variants[0].id,

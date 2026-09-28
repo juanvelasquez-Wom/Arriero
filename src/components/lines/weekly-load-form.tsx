@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { formatMetricValue, formatSignedPercent } from "@/domain/format";
+import { formulaChecks } from "@/domain/metric-formula";
 import { outlierChange } from "@/domain/paste-import";
 import {
   diffWeeklyLoad,
@@ -32,6 +33,9 @@ export interface LoadMetric {
   branch: MetricBranch | null;
   unit: string | null;
   direction: MetricDirection;
+  /** Fórmula opcional (numerador ÷ denominador) para avisar si el valor no cuadra. */
+  numerator_id?: string | null;
+  denominator_id?: string | null;
 }
 
 export interface LoadGroup {
@@ -80,6 +84,27 @@ export function WeeklyLoadForm({
     () => diffWeeklyLoad(allIds, savedMap, new Map(Object.entries(draft))),
     [allIds, savedMap, draft],
   );
+  // Coherencia de las métricas con fórmula: lo escrito (o lo guardado) contra numerador ÷ denominador.
+  const coherence = useMemo(() => {
+    const all = groups.flatMap((g) => g.metrics.map((m) => ({ ...m, lineId: g.lineId })));
+    const current = new Map<string, number>();
+    for (const m of all) {
+      const typed = parseDecimal(draft[m.id]?.value ?? "");
+      const v = typed != null && !Number.isNaN(typed) ? typed : undefined;
+      if (v != null) current.set(m.id, v);
+    }
+    return formulaChecks(
+      all.map((m) => ({
+        id: m.id,
+        line_id: m.lineId,
+        unit: m.unit,
+        numerator_id: m.numerator_id ?? null,
+        denominator_id: m.denominator_id ?? null,
+      })),
+      current,
+    );
+  }, [groups, draft]);
+  const nameById = useMemo(() => new Map(groups.flatMap((g) => g.metrics.map((m) => [m.id, m.name]))), [groups]);
   const changedIds = new Set(rows.map((r) => r.metric_id));
   const pendingIds = pendingMetricIds(allIds, savedMap);
   const dirty = rows.length > 0 || errors.size > 0;
@@ -283,6 +308,15 @@ export function WeeklyLoadForm({
                       <p className="flex items-center gap-1 text-xs text-ink md:col-span-5">
                         <TriangleAlert aria-hidden className="size-3.5 shrink-0" />
                         ¿Seguro? Es {formatSignedPercent(jump)} frente a la semana pasada. Si es correcto, deje una nota que lo explique.
+                      </p>
+                    ) : null}
+                    {!rowError && coherence.get(m.id) && !coherence.get(m.id)!.coherent ? (
+                      <p className="flex items-center gap-1 text-xs font-medium text-ink md:col-span-5">
+                        <TriangleAlert aria-hidden className="size-3.5 shrink-0" />
+                        No cuadra con la fórmula: {nameById.get(m.numerator_id ?? "") ?? "numerador"} ÷{" "}
+                        {nameById.get(m.denominator_id ?? "") ?? "denominador"} da{" "}
+                        {formatMetricValue(Math.round(coherence.get(m.id)!.expected * 100) / 100, m.unit)} y aquí dice{" "}
+                        {formatMetricValue(coherence.get(m.id)!.loaded, m.unit)} (más de 2 % de diferencia). Revise los tres valores.
                       </p>
                     ) : null}
                   </li>

@@ -12,6 +12,7 @@ import {
   type MoveInput,
   type TargetsInput,
 } from "@/lib/validation/structure";
+import { formulaError } from "@/domain/metric-formula";
 import { createsCycle, moveWithinSiblings, nextSortOrder, sortSiblings } from "@/domain/metric-tree";
 import { can } from "@/domain/permissions";
 import { getActionActor } from "@/server/auth";
@@ -49,6 +50,35 @@ async function loadLineMetrics(supabase: Supabase, lineId: string) {
   } as const;
 }
 
+const DEFINITION_COLUMNS = ["scope", "numerator_id", "denominator_id"] as const;
+
+/** ¿Falla porque la base aún no tiene alcance y fórmula (migración 014 pendiente)? */
+function missingDefinitionColumns(error: { code?: string; message?: string }): boolean {
+  return (error.code === "42703" || error.code === "PGRST204") && /scope|numerator_id|denominator_id/.test(error.message ?? "");
+}
+
+function withoutDefinition(row: Record<string, unknown>): Record<string, unknown> {
+  const out = { ...row };
+  for (const c of DEFINITION_COLUMNS) delete out[c];
+  return out;
+}
+
+/** Numerador y denominador: juntos, distintos y de la misma línea. */
+function checkFormulaInput(
+  metricId: string | null,
+  v: z.output<typeof metricSchema>,
+  lineMetrics: { id: string }[],
+): ActionResult<never> | null {
+  if (v.numerator_id === undefined && v.denominator_id === undefined) return null;
+  const err = formulaError(
+    metricId,
+    v.numerator_id ?? null,
+    v.denominator_id ?? null,
+    lineMetrics.map((m) => m.id),
+  );
+  return err ? fail("Revise la fórmula de la métrica.", { [err.field]: [err.message] }) : null;
+}
+
 /**
  * Columnas a escribir. `unit_value` solo se escribe si el formulario lo envió:
  * otros flujos (p. ej. el asistente) no lo conocen y no deben borrarlo.
@@ -56,6 +86,11 @@ async function loadLineMetrics(supabase: Supabase, lineId: string) {
 function metricRow(v: z.output<typeof metricSchema>, input: MetricInput) {
   return {
     ...(input.unit_value !== undefined ? { unit_value: v.unit_value } : {}),
+    // Alcance y fórmula (migración 014): igual que unit_value, solo si el formulario los envió.
+    ...(v.scope !== undefined ? { scope: v.scope } : {}),
+    ...(v.numerator_id !== undefined || v.denominator_id !== undefined
+      ? { numerator_id: v.numerator_id ?? null, denominator_id: v.denominator_id ?? null }
+      : {}),
     type: v.type,
     branch: v.branch,
     parent_id: v.parent_id,
@@ -94,16 +129,21 @@ export async function createMetric(programId: string, input: MetricInput): Promi
   if (v.parent_id && !lineMetrics.data.some((m) => m.id === v.parent_id)) {
     return fail("La métrica padre debe ser de la misma línea.", { parent_id: ["Elija una métrica de esta línea."] });
   }
+  const formulaDenied = checkFormulaInput(null, v, lineMetrics.data);
+  if (formulaDenied) return formulaDenied;
 
   const siblings = await loadSiblings(supabase, v.line_id, v.parent_id);
   if (siblings.error) return failFrom(siblings.error);
 
-  const { data, error } = await supabase
-    .from("metrics")
-    .insert({ ...metricRow(v, input), line_id: v.line_id, sort_order: nextSortOrder(siblings.data) })
-    .select("id")
-    .single();
-  if (error) return failFrom(error);
+  const insertRow = (row: Record<string, unknown>) =>
+    supabase
+      .from("metrics")
+      .insert({ ...row, line_id: v.line_id, sort_order: nextSortOrder(siblings.data) })
+      .select("id")
+      .single();
+  let { data, error } = await insertRow(metricRow(v, input));
+  if (error && missingDefinitionColumns(error)) ({ data, error } = await insertRow(withoutDefinition(metricRow(v, input))));
+  if (error || !data) return failFrom(error);
   revalidateProgram(programId);
   return ok({ id: data.id as string }, "Métrica creada. Hágale pues.");
 }
@@ -146,6 +186,8 @@ export async function updateMetric(
       parent_id: ["Elija otra métrica padre."],
     });
   }
+  const formulaDenied = checkFormulaInput(metricId, v, lineMetrics.data);
+  if (formulaDenied) return formulaDenied;
 
   const row: Record<string, unknown> = metricRow(v, input);
   const parentChanged = (current.parent_id ?? null) !== v.parent_id;
@@ -154,7 +196,10 @@ export async function updateMetric(
     if (siblings.error) return failFrom(siblings.error);
     row.sort_order = nextSortOrder(siblings.data.filter((s) => s.id !== metricId));
   }
-  const { error } = await supabase.from("metrics").update(row).eq("id", metricId);
+  let { error } = await supabase.from("metrics").update(row).eq("id", metricId);
+  if (error && missingDefinitionColumns(error)) {
+    ({ error } = await supabase.from("metrics").update(withoutDefinition(row)).eq("id", metricId));
+  }
   if (error) return failFrom(error);
   revalidateProgram(programId);
   return ok({ id: metricId }, "Cambios guardados.");

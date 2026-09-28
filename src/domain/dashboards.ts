@@ -20,6 +20,9 @@ export interface WinnerValueSummary {
   /** Suma del valor semanal estimado de los ganadores que se pudieron calcular. */
   weekly: number;
   monthly: number;
+  /** Piso conservador (extremo menos favorable del intervalo; si no hay, el valor puntual). */
+  weeklyLow?: number;
+  monthlyLow?: number;
   /** Ganadores incluidos en la suma. */
   counted: number;
   /** Ganadores sin valor por unidad en su métrica. */
@@ -52,12 +55,14 @@ export function summarizeResults(experiments: ClosedExperimentInput[]): ResultsS
     if (e.decision) decisions[e.decision] += 1;
   }
   let weekly = 0;
+  let weeklyLow = 0;
   let counted = 0;
   let missingUnitValue = 0;
   for (const e of winners) {
     const h = readExperiment({ variants: e.variants, testType: e.test_type, metric: e.metric }).headline;
     if (h?.value_estimate) {
       weekly += h.value_estimate.weekly;
+      weeklyLow += h.value_conservative?.weekly ?? h.value_estimate.weekly;
       counted += 1;
     } else if (h?.value_missing === "unit_value") missingUnitValue += 1;
   }
@@ -66,7 +71,9 @@ export function summarizeResults(experiments: ClosedExperimentInput[]): ResultsS
     winners: winners.length,
     winRate: closed.length ? winners.length / closed.length : null,
     avgWinnerDiff: winnerDiffs.length ? winnerDiffs.reduce((a, b) => a + b, 0) / winnerDiffs.length : null,
-    winnerValue: counted ? { weekly, monthly: (weekly * 52) / 12, counted, missingUnitValue } : null,
+    winnerValue: counted
+      ? { weekly, monthly: (weekly * 52) / 12, weeklyLow, monthlyLow: (weeklyLow * 52) / 12, counted, missingUnitValue }
+      : null,
     verdicts,
     decisions,
   };

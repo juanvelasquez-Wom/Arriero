@@ -4,7 +4,7 @@
     {
       "name": "dev",
       "runtimeExecutable": "C:\\Users\\juan.velasquez.WOMCOL\\AppData\\Local\\Programs\\nodejs\\node.exe",
-      "runtimeArgs": ["node_modules/next/dist/bin/next", "dev"],
+      "runtimeArgs": ["node_modules/next/dist/bin/next", "dev", "-H", "127.0.0.1"],
       "port": 3000
     }
   ]

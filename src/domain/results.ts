@@ -3,7 +3,7 @@
 // persona frente a la regla de decisión.
 import { analyzeExperiment, formatProbability, type EvidenceKind, type VariantStats } from "./stats";
 import type { MetricDirection, TestType, Variant } from "./types";
-import { estimateValue, type EstimatedValue, type MetricEconomics, type MissingValueInput } from "./value";
+import { estimateConservativeValue, estimateValue, type EstimatedValue, type MetricEconomics, type MissingValueInput } from "./value";
 
 /** conversiones / muestra; null si no se puede calcular (muestra 0 o vacía). */
 export function conversionRate(sample: number | null, conversions: number | null): number | null {
@@ -67,6 +67,11 @@ export interface VariantReading extends VariantResult {
   /** Valor estimado si se escala esta variante (null para el control o si falta un dato). */
   value_estimate: EstimatedValue | null;
   value_missing: MissingValueInput | null;
+  /**
+   * Piso del valor: el mismo cálculo con el extremo menos favorable del intervalo
+   * de la mejora (solo A/B con datos). `value_estimate` es el techo optimista.
+   */
+  value_conservative: EstimatedValue | null;
 }
 
 export interface ExperimentReading {
@@ -90,7 +95,9 @@ export function readExperiment(input: {
   const stats = analyzeExperiment({ variants: input.variants, testType: input.testType, direction });
   const rows: VariantReading[] = results.map((r, i) => {
     const est = r.is_control ? { value: null, missing: null } : estimateValue({ lift: r.diffVsControl, metric: input.metric ?? null });
-    return { ...r, stats: stats.variants[i], value_estimate: est.value, value_missing: est.missing };
+    const conservative =
+      r.is_control || !est.value ? null : estimateConservativeValue({ interval: stats.variants[i]?.interval, metric: input.metric ?? null });
+    return { ...r, stats: stats.variants[i], value_estimate: est.value, value_missing: est.missing, value_conservative: conservative };
   });
   const challengers = rows.filter((r) => !r.is_control);
   let headline: VariantReading | null = null;

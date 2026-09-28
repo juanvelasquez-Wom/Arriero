@@ -1,9 +1,11 @@
 // Tipos y valores iniciales del asistente de ejercicios. Vive fuera del
 // componente cliente para que las páginas del servidor puedan usarlos.
+import type { ExperimentPowerInputs } from "@/domain/experiment-power";
 import type {
   CalendarEvent,
   ControlLevel,
   ExperimentStatus,
+  ImpactLevel,
   MetricDirection,
   MetricType,
   OwnerType,
@@ -18,6 +20,14 @@ export interface WizardVariant {
   name: string;
   is_control: boolean;
   description: string;
+}
+
+export interface WizardGuardrail {
+  id?: string;
+  metric_id: string;
+  /** Cuánto se permite empeorar, en % relativo. */
+  limit_pct: number | null;
+  note: string;
 }
 
 export interface WizardValues {
@@ -45,23 +55,65 @@ export interface WizardValues {
   planned_start: string;
   planned_end: string;
   variants: WizardVariant[];
+  /** Efecto esperado de la hipótesis, en % relativo a favor de la métrica. */
+  expected_effect_pct: number | null;
+  power_inputs: ExperimentPowerInputs;
+  guardrails: WizardGuardrail[];
 }
 
 export interface WizardData {
   programId: string;
   lines: { id: string; name: string }[];
-  problems: { id: string; line_id: string; title: string; stage_name: string; status: string; control: ControlLevel }[];
-  metrics: { id: string; line_id: string; name: string; type: MetricType; parent_id: string | null; direction: MetricDirection }[];
+  problems: {
+    id: string;
+    line_id: string;
+    title: string;
+    stage_name: string;
+    status: string;
+    control: ControlLevel;
+    evidence?: string | null;
+    impact?: ImpactLevel | null;
+    channel?: string | null;
+    attachments?: number;
+  }[];
+  metrics: {
+    id: string;
+    line_id: string;
+    name: string;
+    type: MetricType;
+    parent_id: string | null;
+    direction: MetricDirection;
+    unit?: string | null;
+    baseline?: number | null;
+    unit_value?: number | null;
+    latest_value?: number | null;
+  }[];
   members: { user_id: string; name: string; role: ProgramRole }[];
   calendar: CalendarEvent[];
   scoring: ScoringConfig;
   canScore: boolean;
   isAgency: boolean;
+  /** true cuando la base ya tiene guardrails y potencia (migración X1). */
+  rigorReady?: boolean;
+  /** Valor mensual esperado de los ejercicios del programa (para ubicar el impacto sugerido). */
+  peerValues?: { id: string; monthly: number }[];
   /** Ejercicios y aprendizajes del programa, para el aviso "Esto se parece a…". */
   similar: {
     experiments: SimilarExperimentCandidate[];
     learnings: SimilarLearningCandidate[];
+    /** Aprendizajes de Pilotos (biblioteca unificada), con su enlace. */
+    pilotLearnings?: SimilarPilotLearningCandidate[];
   };
+}
+
+export interface SimilarPilotLearningCandidate {
+  source: "pilot";
+  id: string;
+  text: string;
+  item_title: string;
+  lever: string | null;
+  channel: string | null;
+  href: string;
 }
 
 export interface SimilarExperimentCandidate {
@@ -113,5 +165,8 @@ export function emptyWizardValues(): WizardValues {
       { name: "Control", is_control: true, description: "" },
       { name: "Variante A", is_control: false, description: "" },
     ],
+    expected_effect_pct: null,
+    power_inputs: { baseline: null, weekly_traffic: null, daily_cv_pct: null },
+    guardrails: [],
   };
 }

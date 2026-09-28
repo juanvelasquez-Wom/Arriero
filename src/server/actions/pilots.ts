@@ -89,67 +89,93 @@ export async function savePilotProblem(pilotId: string, input: PilotProblemInput
   return ok(undefined, "Problema e hipótesis guardados.");
 }
 
-/** Reemplaza un conjunto de filas hijas: actualiza las que traen id, crea las nuevas y borra las que ya no están. */
-async function syncChildren<T extends { id?: string | null }>(
-  table: "pilot_arms" | "pilot_media",
+/** ¿La RPC todavía no existe en la base? (migración 014 sin aplicar). */
+function missingRpc(error: { code?: string } | null): boolean {
+  return !!error && (error.code === "PGRST202" || error.code === "42883");
+}
+
+/**
+ * Respaldo mientras la migración 014 no esté aplicada: escrituras sueltas (sin
+ * transacción ni bloqueo optimista). Se quita cuando `save_pilot_design` exista.
+ */
+async function saveDesignLegacy(
   pilotId: string,
-  rows: T[],
-  toRow: (r: T, i: number) => Record<string, unknown>,
+  fields: Record<string, unknown>,
+  arms: { id?: string | null; name: string; is_control: boolean; split_pct: number | null; cities: string[]; description: string | null }[],
+  media: { id?: string | null; media_id: string; account: string | null; campaign: string | null; audience: string | null; destination: string | null; cities: string[] }[],
 ) {
   const supabase = await createClient();
-  const { data: existing, error: readError } = await supabase.from(table).select("id").eq("pilot_id", pilotId);
-  if (readError) return readError;
-  const keep = new Set(rows.map((r) => r.id).filter((x): x is string => !!x));
-  const toDelete = (existing ?? []).map((r) => r.id as string).filter((id) => !keep.has(id));
-  if (toDelete.length) {
-    const { error } = await supabase.from(table).delete().in("id", toDelete);
-    if (error) return error;
-  }
-  // El control nuevo se marca después de quitar el viejo (índice único de un control por piloto).
-  if (table === "pilot_arms") {
-    const { error } = await supabase.from(table).update({ is_control: false }).eq("pilot_id", pilotId).eq("is_control", true);
-    if (error) return error;
-  }
-  for (const [i, r] of rows.entries()) {
-    const values = toRow(r, i);
-    const { error } = r.id
-      ? await supabase.from(table).update(values).eq("id", r.id).eq("pilot_id", pilotId)
-      : await supabase.from(table).insert({ ...values, pilot_id: pilotId });
-    if (error) return error;
+  const { error } = await supabase.from("pilots").update(fields).eq("id", pilotId);
+  if (error) return error;
+  for (const table of ["pilot_arms", "pilot_media"] as const) {
+    const rows = table === "pilot_arms" ? arms : media;
+    const { data: existing, error: readError } = await supabase.from(table).select("id").eq("pilot_id", pilotId);
+    if (readError) return readError;
+    const keep = new Set(rows.map((r) => r.id).filter((x): x is string => !!x));
+    const stale = (existing ?? []).map((r) => r.id as string).filter((id) => !keep.has(id));
+    if (stale.length) {
+      const { error: delError } = await supabase.from(table).delete().in("id", stale);
+      if (delError) return delError;
+    }
+    if (table === "pilot_arms") {
+      const { error: ctlError } = await supabase.from(table).update({ is_control: false }).eq("pilot_id", pilotId).eq("is_control", true);
+      if (ctlError) return ctlError;
+    }
+    for (const [i, { id, ...values }] of rows.entries()) {
+      const { error: rowError } = id
+        ? await supabase.from(table).update({ ...values, sort_order: i }).eq("id", id).eq("pilot_id", pilotId)
+        : await supabase.from(table).insert({ ...values, sort_order: i, pilot_id: pilotId });
+      if (rowError) return rowError;
+    }
   }
   return null;
 }
 
-export async function savePilotDesign(pilotId: string, input: PilotDesignInput): Promise<ActionResult> {
+/**
+ * Guarda el paso 2 en una sola transacción (RPC `save_pilot_design`): campos,
+ * grupos y medios quedan todos o ninguno. Si otra persona guardó después de que
+ * se abrió el formulario, la base lo rechaza y devuelve un aviso para recargar.
+ */
+export async function savePilotDesign(pilotId: string, input: PilotDesignInput): Promise<ActionResult<{ updatedAt: string | null }>> {
   if (!uuid.safeParse(pilotId).success) return fail("Piloto inválido.");
   if (!(await writer())) return fail(NO_WRITE);
   const parsed = pilotDesignSchema.safeParse(input);
   if (!parsed.success) return fromZod(parsed.error);
-  const { arms, media, ...fields } = parsed.data;
-  const supabase = await createClient();
-  const { error } = await supabase.from("pilots").update(fields).eq("id", pilotId);
-  if (error) return failFrom(error);
-  const armsError = await syncChildren("pilot_arms", pilotId, arms, (a, i) => ({
+  const { arms, media, expected_updated_at, ...fields } = parsed.data;
+  const armRows = arms.map((a) => ({
+    id: a.id ?? null,
     name: a.name,
     is_control: a.is_control,
     split_pct: a.split_pct,
     cities: a.cities,
     description: a.description,
-    sort_order: i,
   }));
-  if (armsError) return failFrom(armsError);
-  const mediaError = await syncChildren("pilot_media", pilotId, media, (m, i) => ({
+  const mediaRows = media.map((m) => ({
+    id: m.id ?? null,
     media_id: m.media_id,
     account: m.account,
     campaign: m.campaign,
     audience: m.audience,
     destination: m.destination,
     cities: m.cities,
-    sort_order: i,
   }));
-  if (mediaError) return failFrom(mediaError);
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("save_pilot_design", {
+    p_pilot: pilotId,
+    p_expected_updated_at: expected_updated_at || null,
+    p_fields: fields,
+    p_arms: armRows,
+    p_media: mediaRows,
+  });
+  if (missingRpc(error)) {
+    const legacyError = await saveDesignLegacy(pilotId, fields, armRows, mediaRows);
+    if (legacyError) return failFrom(legacyError);
+    refresh(pilotId);
+    return ok({ updatedAt: null }, "Diseño guardado.");
+  }
+  if (error) return failFrom(error);
   refresh(pilotId);
-  return ok(undefined, "Diseño guardado.");
+  return ok({ updatedAt: (data as string | null) ?? null }, "Diseño guardado.");
 }
 
 export async function savePilotMetrics(pilotId: string, input: PilotMetricsInput): Promise<ActionResult> {

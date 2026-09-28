@@ -35,6 +35,8 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
  * Permite mostrar un aviso útil en vez de un error cuando la base está vacía.
  */
 export const isDatabaseReady = cache(async (): Promise<boolean> => {
+  // En producción las migraciones ya están aplicadas: no se paga una consulta extra por petición.
+  if (process.env.NODE_ENV === "production") return true;
   const supabase = await createClient();
   const { error } = await supabase.from("programs").select("id").limit(1);
   return error?.code !== "PGRST205";
@@ -69,18 +71,16 @@ export interface ProgramContext {
 export const getProgramContext = cache(async (programId: string): Promise<ProgramContext> => {
   const user = await requireUser();
   const supabase = await createClient();
-  const { data: program } = await supabase
-    .from("programs")
-    .select("id, name, description, is_demo, start_date, end_date, setup_step, setup_completed_at, scoring_config")
-    .eq("id", programId)
-    .maybeSingle();
+  // Programa y membresía en paralelo (antes iban en serie).
+  const [{ data: program }, { data: membership }] = await Promise.all([
+    supabase
+      .from("programs")
+      .select("id, name, description, is_demo, start_date, end_date, setup_step, setup_completed_at, scoring_config")
+      .eq("id", programId)
+      .maybeSingle(),
+    supabase.from("program_members").select("role").eq("program_id", programId).eq("user_id", user.id).maybeSingle(),
+  ]);
   if (!program) notFound();
-  const { data: membership } = await supabase
-    .from("program_members")
-    .select("role")
-    .eq("program_id", programId)
-    .eq("user_id", user.id)
-    .maybeSingle();
   const role = (membership?.role ?? null) as ProgramRole | null;
   return {
     user,

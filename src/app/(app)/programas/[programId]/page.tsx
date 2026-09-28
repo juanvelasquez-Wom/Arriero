@@ -249,7 +249,7 @@ export default async function ProgramOverviewPage({ params }: PageProps<"/progra
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 [&>*]:min-w-0">
         <Section
           title="En prueba y en lectura"
           actions={

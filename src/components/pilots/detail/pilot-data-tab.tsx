@@ -8,7 +8,11 @@ import { allowedRange, baseMetricsFor, type ImportContext } from "@/domain/pilot
 import { MEASUREMENT_SOURCE_LABEL } from "@/domain/pilots/labels";
 import { metricsForReading, needsPrePeriod, pilotGranularity } from "@/domain/pilots/reading";
 import type { PilotArm, PilotMetricDef } from "@/domain/pilots/types";
-import type { PilotCatalogs, PilotDetail } from "@/server/queries/pilots";
+import { pickConnection } from "@/domain/pilots/extraction-mapping";
+import { MetaFetchButton, SnapshotSourceButton } from "@/components/pilots/integrations/meta-fetch";
+import { mcpEnabled, providerReady } from "@/server/integrations/mcp";
+import { SYNC_STATUSES } from "@/server/integrations/pilot-sync";
+import { listIntegrationConnections, type PilotCatalogs, type PilotDetail } from "@/server/queries/pilots";
 import { DeleteMeasurementButton, PilotCsvImport, PilotManualEntry } from "./pilot-data-client";
 
 /** Solo los campos del motor (sin descripciones del catálogo) para pasar al cliente. */
@@ -32,7 +36,24 @@ function valueText(metric: PilotMetricDef | undefined, value: number): string {
 
 const SOURCE_ICON = { manual: Hand, csv: Database, mcp: Plug } as const;
 
-export function PilotDataTab({ detail, catalogs, canLoad }: { detail: PilotDetail; catalogs: PilotCatalogs; canLoad: boolean }) {
+/** ¿Se puede traer de Meta? Solo con medio de Meta, cuenta conectada e integraciones prendidas. */
+async function metaState(detail: PilotDetail, catalogs: PilotCatalogs): Promise<"none" | "off" | "no_connection" | "not_now" | "ready"> {
+  const integration = new Map(catalogs.media.map((m) => [m.id, m.integration]));
+  const meta = detail.media.filter((m) => integration.get(m.media_id) === "meta");
+  if (!meta.length) return "none";
+  if (!mcpEnabled() || !providerReady("meta")) return "off";
+  const connections = (await listIntegrationConnections()).filter((c) => c.provider === "meta");
+  if (!pickConnection(meta.map((m) => m.account), connections)) return "no_connection";
+  return (SYNC_STATUSES as readonly string[]).includes(detail.pilot.status) ? "ready" : "not_now";
+}
+
+const META_NOTE: Record<"off" | "no_connection" | "not_now", string> = {
+  off: "Las integraciones están apagadas: los datos de Meta van a mano.",
+  no_connection: "No hay una cuenta de Meta conectada que coincida con la del piloto (Catálogos › Integraciones).",
+  not_now: "Los datos de Meta se traen con el piloto aprobado, en prueba o en lectura.",
+};
+
+export async function PilotDataTab({ detail, catalogs, canLoad }: { detail: PilotDetail; catalogs: PilotCatalogs; canLoad: boolean }) {
   const { pilot } = detail;
   const today = todayIso();
   const granularity = pilotGranularity(pilot);
@@ -69,6 +90,7 @@ export function PilotDataTab({ detail, catalogs, canLoad }: { detail: PilotDetai
 
   const designReady = !!pilot.test_type && !!pilot.primary_metric_id && detail.arms.length > 0 && base.length > 0;
   const closed = pilot.status === "decided" || pilot.status === "cancelled";
+  const meta = canLoad && designReady ? await metaState(detail, catalogs) : "none";
 
   return (
     <div className="space-y-5">
@@ -114,6 +136,17 @@ export function PilotDataTab({ detail, catalogs, canLoad }: { detail: PilotDetai
             Si el medio no tiene integración, todo va a mano: nada se bloquea.
           </span>
         </p>
+        {meta === "ready" ? (
+          <div className="mt-4 flex flex-wrap items-center gap-3 border-t pt-4">
+            <MetaFetchButton pilotId={pilot.id} />
+            <span className="text-xs text-soft">Trae el rango del piloto hasta ayer. Antes de guardar, usted confirma a qué grupo va cada campaña.</span>
+          </div>
+        ) : meta !== "none" ? (
+          <p className="mt-2 flex items-start gap-1.5 text-xs text-soft">
+            <Plug aria-hidden className="mt-0.5 size-3.5 shrink-0" />
+            <span>{META_NOTE[meta]}</span>
+          </p>
+        ) : null}
       </Section>
 
       {!canLoad ? (
@@ -223,6 +256,7 @@ export function PilotDataTab({ detail, catalogs, canLoad }: { detail: PilotDetai
                                   <SourceIcon aria-hidden className="size-3.5" />
                                   {MEASUREMENT_SOURCE_LABEL[m.source]}
                                 </span>
+                                {m.snapshot_id ? <SnapshotSourceButton pilotId={pilot.id} snapshotId={m.snapshot_id} /> : null}
                                 {adjusted ? (
                                   <span
                                     className="inline-flex h-6 items-center gap-1 rounded-full border border-dashed border-gray-4 px-2 text-xs font-semibold"

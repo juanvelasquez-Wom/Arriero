@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { PageHeader } from "@/components/app/page";
+import { FunnelDropOff } from "@/components/lines/funnel-drop-off";
 import { FunnelTab } from "@/components/lines/funnel-tab";
+import { funnelDropOff } from "@/domain/funnel";
 import { LineTabs, parseLineTab } from "@/components/lines/line-tabs";
 import { metricOptionLabel } from "@/components/lines/metric-badges";
 import { NorthStarTab } from "@/components/lines/north-star-tab";
@@ -92,17 +94,27 @@ export default async function LinePage({ params, searchParams }: PageProps<"/pro
       listProblems(programId),
       listExperiments(programId),
     ]);
+    const stageMetricIds = [...new Set(stages.map((s) => s.metric_id).filter((id): id is string => !!id))];
+    const stageValues = stageMetricIds.length ? await listMetricValues({ metricIds: stageMetricIds }) : [];
+    const dropOff = funnelDropOff({
+      stages,
+      metrics: metrics.map((m) => ({ id: m.id, name: m.name, unit: m.unit })),
+      values: stageValues,
+    });
     content = (
-      <FunnelTab
-        programId={programId}
-        lineId={lineId}
-        stages={stages}
-        problems={problems.filter((p) => p.line_id === lineId)}
-        experiments={experiments.filter((e) => e.line_id === lineId)}
-        metricOptions={metrics.map((m) => ({ id: m.id, label: metricOptionLabel(m) }))}
-        canEdit={canEdit}
-        canDelete={canDelete}
-      />
+      <div className="space-y-6">
+        <FunnelDropOff result={dropOff} loadHref={`/programas/${programId}/carga`} />
+        <FunnelTab
+          programId={programId}
+          lineId={lineId}
+          stages={stages}
+          problems={problems.filter((p) => p.line_id === lineId)}
+          experiments={experiments.filter((e) => e.line_id === lineId)}
+          metricOptions={metrics.map((m) => ({ id: m.id, label: metricOptionLabel(m) }))}
+          canEdit={canEdit}
+          canDelete={canDelete}
+        />
+      </div>
     );
   }
 

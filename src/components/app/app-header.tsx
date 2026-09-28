@@ -16,6 +16,7 @@ import { CommandSearch } from "./command-search";
 import { ExplanationsMenuItem } from "./explanations-toggle";
 import { NotificationsBell } from "./notifications-bell";
 import { ThemeToggle } from "./theme-toggle";
+import { WeeklyDigestMenuItem } from "./weekly-digest-menu-item";
 
 function initials(name: string) {
   return (
@@ -102,6 +103,7 @@ export function AppHeader({
               </Link>
             </DropdownMenuItem>
             <ExplanationsMenuItem />
+            <WeeklyDigestMenuItem userId={user.id} />
             <DropdownMenuSeparator />
             {user.isAdmin ? (
               <>

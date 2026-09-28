@@ -6,9 +6,22 @@ import { createClient } from "@/lib/supabase/server";
 // la cuenta de DEV_AUTO_LOGIN_EMAIL. En producción responde 404 siempre.
 export const dynamic = "force-dynamic";
 
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]", "::1"]);
+
+/**
+ * Solo desde este mismo equipo: el host pedido y el origen de la conexión deben
+ * ser locales. Así, aunque `next dev` escuche en 0.0.0.0, nadie en la red entra.
+ */
+function isLocalRequest(request: NextRequest): boolean {
+  const host = request.nextUrl.hostname;
+  const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  const remoteIsLocal = !forwarded || forwarded === "127.0.0.1" || forwarded === "::1" || forwarded === "::ffff:127.0.0.1";
+  return LOCAL_HOSTS.has(host) && remoteIsLocal;
+}
+
 export async function GET(request: NextRequest) {
   const email = process.env.DEV_AUTO_LOGIN_EMAIL;
-  if (process.env.NODE_ENV === "production" || !email) {
+  if (process.env.NODE_ENV === "production" || !email || !isLocalRequest(request)) {
     return new NextResponse("No encontrado", { status: 404 });
   }
   const admin = createAdminClient();

@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Button } from "@/components/ui/button";
 import { AppHeader } from "@/components/app/app-header";
 import { PageHeader } from "@/components/app/page";
 import { CreateUserDialog } from "@/components/users/create-user-dialog";
@@ -23,7 +25,14 @@ export default async function UsersPage() {
           eyebrow="Administración"
           title="Usuarios"
           description="Aquí no entra cualquiera: las cuentas se crean desde esta pantalla. Cada persona pone su propia contraseña con el enlace de invitación. El rol en cada programa se asigna al crear la cuenta o desde la configuración del programa."
-          actions={<CreateUserDialog programs={programs.map((p) => ({ id: p.id, name: p.name }))} />}
+          actions={
+            <>
+              <Button asChild variant="outline">
+                <Link href="/admin/errores">Errores del servidor</Link>
+              </Button>
+              <CreateUserDialog programs={programs.map((p) => ({ id: p.id, name: p.name }))} />
+            </>
+          }
         />
         <UsersTable users={users} currentUserId={user.id} />
       </main>

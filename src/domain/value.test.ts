@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { estimateValue, formatCop, weeklyVolume, WEEKS_PER_MONTH } from "./value";
+import {
+  conservativeLift,
+  estimateConservativeValue,
+  estimateValue,
+  formatCop,
+  formatValueRange,
+  weeklyVolume,
+  WEEKS_PER_MONTH,
+} from "./value";
 
 const metric = {
   unit: "altas",
@@ -37,6 +45,32 @@ describe("estimateValue", () => {
     expect(estimateValue({ lift: 0.1, metric: null }).missing).toBe("volume");
     expect(estimateValue({ lift: 0.1, metric: { ...metric, unit_value: null } }).missing).toBe("unit_value");
     expect(estimateValue({ lift: 0.1, metric: { ...metric, unit_value: null } }).value).toBeNull();
+  });
+});
+
+describe("valor conservador", () => {
+  it("usa el extremo menos favorable del intervalo según la dirección", () => {
+    expect(conservativeLift({ low: 0.05, high: 0.2 }, "up")).toBe(0.05);
+    expect(conservativeLift({ low: -0.2, high: -0.05 }, "down")).toBe(-0.05);
+    expect(conservativeLift(null, "up")).toBeNull();
+  });
+  it("calcula el piso con el límite del intervalo", () => {
+    const v = estimateConservativeValue({ interval: { low: 0.05, high: 0.2 }, metric })!;
+    expect(v.weekly).toBeCloseTo(0.05 * 1200 * 250_000, 2);
+  });
+  it("si el intervalo cruza el cero, el piso es $0 y no negativo", () => {
+    const v = estimateConservativeValue({ interval: { low: -0.03, high: 0.2 }, metric })!;
+    expect(v.weekly).toBe(0);
+    expect(v.monthly).toBe(0);
+  });
+  it("sin intervalo o sin valor por unidad no hay piso", () => {
+    expect(estimateConservativeValue({ interval: null, metric })).toBeNull();
+    expect(estimateConservativeValue({ interval: { low: 0.1, high: 0.2 }, metric: { ...metric, unit_value: null } })).toBeNull();
+  });
+  it("formatea el rango con el techo optimista", () => {
+    expect(formatValueRange(2_000_000, 8_000_000, "al mes")).toBe("entre $ 2 M y $ 8 M al mes (techo optimista)");
+    expect(formatValueRange(null, 8_000_000)).toBe("≈ $ 8 M (techo optimista)");
+    expect(formatValueRange(null, null)).toBe("—");
   });
 });
 

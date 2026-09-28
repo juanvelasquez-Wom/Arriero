@@ -32,6 +32,15 @@ export async function inviteMember(programId: string, input: InviteInput): Promi
   if (!parsed.success) return fromZod(parsed.error);
   const { email, name, role } = parsed.data;
 
+  // Solo el admin global crea cuentas nuevas; un owner suma a quien ya tiene cuenta.
+  if (!ctx.user.isAdmin) {
+    const admin = createAdminClient();
+    const { data: existing } = await admin.from("profiles").select("id").eq("email", email.trim().toLowerCase()).maybeSingle();
+    if (!existing?.id) {
+      return fail("Esa persona todavía no tiene cuenta en Arriero. Pídale a un admin que la cree en Usuarios y luego súmela aquí.");
+    }
+  }
+
   let provisioned;
   try {
     provisioned = await provisionUser(createAdminClient(), { email, name });

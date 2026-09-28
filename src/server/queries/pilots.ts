@@ -1,6 +1,7 @@
 import "server-only";
 import type { DecisionRules, PilotMetricDef, PilotRole, PilotStatus, PilotSummary, PilotTestType, PowerInputs, PowerResult } from "@/domain/pilots/types";
 import type { Decision, ImpactLevel, Verdict } from "@/domain/types";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 
 // -----------------------------------------------------------------------------
@@ -222,8 +223,9 @@ const num = (v: unknown): number | null => (v == null ? null : Number(v));
 // Catálogos
 // -----------------------------------------------------------------------------
 
-export async function loadPilotCatalogs(): Promise<PilotCatalogs> {
-  const supabase = await createClient();
+/** `db`: otro cliente (p. ej. el admin en el cron, sin sesión); por defecto, el del usuario. */
+export async function loadPilotCatalogs(db?: SupabaseClient): Promise<PilotCatalogs> {
+  const supabase = db ?? (await createClient());
   const [media, variables, metrics] = await Promise.all([
     supabase.from("media_channels").select("id, name, kind, provider, data_mode, integration, archived_at, merged_into_id").order("name"),
     supabase
@@ -248,10 +250,10 @@ export async function loadPilotCatalogs(): Promise<PilotCatalogs> {
 // Personas
 // -----------------------------------------------------------------------------
 
-export async function loadPeople(ids: (string | null | undefined)[]): Promise<Record<string, string>> {
+export async function loadPeople(ids: (string | null | undefined)[], db?: SupabaseClient): Promise<Record<string, string>> {
   const unique = [...new Set(ids.filter((x): x is string => !!x))];
   if (!unique.length) return {};
-  const supabase = await createClient();
+  const supabase = db ?? (await createClient());
   const { data } = await supabase.from("profiles").select("id, name, email").in("id", unique);
   return Object.fromEntries((data ?? []).map((p) => [p.id, p.name || p.email]));
 }
@@ -367,8 +369,8 @@ export async function listPilots(options: { includeDeleted?: boolean } = {}): Pr
   });
 }
 
-export async function loadPilotDetail(pilotId: string): Promise<PilotDetail | null> {
-  const supabase = await createClient();
+export async function loadPilotDetail(pilotId: string, db?: SupabaseClient): Promise<PilotDetail | null> {
+  const supabase = db ?? (await createClient());
   const { data: pilot } = await supabase.from("pilots").select(PILOT_COLUMNS).eq("id", pilotId).maybeSingle();
   if (!pilot) return null;
   const [arms, media, guardrails, checklist, measurements, incidents, reviews, learning, missing] = await Promise.all([
@@ -417,7 +419,7 @@ export async function loadPilotDetail(pilotId: string): Promise<PilotDetail | nu
     ...incidentRows.map((i) => i.created_by),
     ...checklistRows.map((c) => c.checked_by),
     ...measurementRows.flatMap((m) => [m.updated_by, m.adjusted_by]),
-  ]);
+  ], db);
   return {
     pilot: {
       ...(pilot as unknown as PilotRow),
@@ -436,6 +438,209 @@ export async function loadPilotDetail(pilotId: string): Promise<PilotDetail | nu
     missing: ((missing as { data: string[] | null }).data ?? []) as string[],
     people,
   };
+}
+
+/**
+ * Varios pilotos de una vez (portafolio): una consulta por tabla con `.in("pilot_id", ids)`
+ * en lugar de una ronda completa por piloto. Trae lo que necesita la lectura (piloto,
+ * grupos, medios, guardrails, datos, lista de chequeo e incidentes); deja vacíos
+ * `reviews`, `missing` y `people`, que solo usa la ficha (use `loadPilotDetail` ahí).
+ */
+export async function loadPilotDetailsBatch(ids: string[]): Promise<Map<string, PilotDetail>> {
+  const out = new Map<string, PilotDetail>();
+  const unique = [...new Set(ids)];
+  if (!unique.length) return out;
+  const supabase = await createClient();
+  const [pilots, arms, media, guardrails, checklist, measurements, incidents, learnings] = await Promise.all([
+    supabase.from("pilots").select(PILOT_COLUMNS).in("id", unique),
+    supabase.from("pilot_arms").select("pilot_id, id, name, is_control, split_pct, cities, description, sort_order").in("pilot_id", unique).order("sort_order").order("created_at"),
+    supabase
+      .from("pilot_media")
+      .select("pilot_id, id, media_id, account, campaign, audience, destination, cities, media:media_channels(name, data_mode)")
+      .in("pilot_id", unique)
+      .order("sort_order")
+      .order("created_at"),
+    supabase.from("pilot_guardrails").select("pilot_id, id, metric_id, limit_pct, note").in("pilot_id", unique).order("created_at"),
+    supabase
+      .from("pilot_checklist_items")
+      .select("pilot_id, id, platform, event_name, description, status, evidence, checked_by, checked_at")
+      .in("pilot_id", unique)
+      .order("sort_order")
+      .order("created_at"),
+    supabase
+      .from("pilot_measurements")
+      .select("pilot_id, id, arm_id, metric_id, unit_label, period_start, granularity, value, source, snapshot_id, original_value, adjusted_at, adjusted_by, created_by, updated_by, updated_at")
+      .in("pilot_id", unique)
+      .order("period_start"),
+    supabase.from("pilot_incidents").select("pilot_id, id, occurred_on, description, expected_impact, created_by, created_at").in("pilot_id", unique).order("occurred_on", { ascending: false }),
+    supabase.from("pilot_learnings").select("pilot_id, text, created_at").in("pilot_id", unique),
+  ]);
+  const one = <T,>(v: T | T[] | null): T | null => (Array.isArray(v) ? (v[0] ?? null) : v);
+  const group = <T extends { pilot_id: string }>(rows: T[] | null) => {
+    const m = new Map<string, Omit<T, "pilot_id">[]>();
+    for (const { pilot_id, ...rest } of rows ?? []) {
+      const list = m.get(pilot_id) ?? [];
+      list.push(rest);
+      m.set(pilot_id, list);
+    }
+    return m;
+  };
+  type MediaRaw = Omit<PilotMediaRow, "media_name" | "data_mode"> & {
+    pilot_id: string;
+    media: { name: string; data_mode: "manual" | "mcp" } | { name: string; data_mode: "manual" | "mcp" }[] | null;
+  };
+  const armsBy = group((arms.data ?? []) as (PilotArmRow & { pilot_id: string })[]);
+  const mediaBy = group((media.data ?? []) as MediaRaw[]);
+  const guardBy = group((guardrails.data ?? []) as (PilotGuardrailRow & { pilot_id: string })[]);
+  const checkBy = group((checklist.data ?? []) as (ChecklistRow & { pilot_id: string })[]);
+  const measBy = group((measurements.data ?? []) as (MeasurementRow & { pilot_id: string })[]);
+  const incBy = group((incidents.data ?? []) as (IncidentRow & { pilot_id: string })[]);
+  const learnBy = new Map(((learnings.data ?? []) as { pilot_id: string; text: string; created_at: string }[]).map((l) => [l.pilot_id, { text: l.text, created_at: l.created_at }]));
+
+  for (const pilot of (pilots.data ?? []) as unknown as PilotRow[]) {
+    out.set(pilot.id, {
+      pilot: {
+        ...pilot,
+        hypothesis_expected_pct: num(pilot.hypothesis_expected_pct),
+        planned_budget_cop: num(pilot.planned_budget_cop),
+        design_config: (pilot.design_config ?? {}) as PilotRow["design_config"],
+      },
+      arms: ((armsBy.get(pilot.id) ?? []) as PilotArmRow[]).map((a) => ({ ...a, split_pct: num(a.split_pct), cities: a.cities ?? [] })),
+      media: ((mediaBy.get(pilot.id) ?? []) as Omit<MediaRaw, "pilot_id">[]).map(({ media: m, ...rest }) => ({
+        ...rest,
+        cities: rest.cities ?? [],
+        media_name: one(m)?.name ?? "Medio",
+        data_mode: one(m)?.data_mode ?? "manual",
+      })),
+      guardrails: ((guardBy.get(pilot.id) ?? []) as PilotGuardrailRow[]).map((g) => ({ ...g, limit_pct: Number(g.limit_pct) })),
+      checklist: (checkBy.get(pilot.id) ?? []) as ChecklistRow[],
+      measurements: ((measBy.get(pilot.id) ?? []) as MeasurementRow[]).map((m) => ({ ...m, value: Number(m.value), original_value: num(m.original_value) })),
+      incidents: (incBy.get(pilot.id) ?? []) as IncidentRow[],
+      reviews: [],
+      learning: learnBy.get(pilot.id) ?? null,
+      missing: [],
+      people: {},
+    });
+  }
+  return out;
+}
+
+// -----------------------------------------------------------------------------
+// Integraciones (estado de las conexiones, snapshots, campañas y ventas del negocio)
+// -----------------------------------------------------------------------------
+
+export interface IntegrationConnectionRow {
+  id: string;
+  provider: "meta" | "google_ads" | "ga4" | "tiktok" | "gtm";
+  account_label: string;
+  account_ref: string | null;
+  status: "disconnected" | "connected" | "expired" | "error";
+  expires_at: string | null;
+  last_sync_at: string | null;
+  last_error: string | null;
+  created_at: string;
+}
+
+/** Conexiones con su estado (nunca el token ni la referencia al secreto). */
+export async function listIntegrationConnections(): Promise<IntegrationConnectionRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("pilot_integration_connections")
+    .select("id, provider, account_label, account_ref, status, expires_at, last_sync_at, last_error, created_at")
+    .order("created_at");
+  if (error) return [];
+  return (data ?? []) as IntegrationConnectionRow[];
+}
+
+export interface SnapshotRow {
+  id: string;
+  source: string;
+  account_ref: string | null;
+  date_from: string | null;
+  date_to: string | null;
+  status: "ok" | "invalid" | "error";
+  attempts: number;
+  model: string | null;
+  input_tokens: number;
+  output_tokens: number;
+  error: string | null;
+  validated: unknown;
+  created_at: string;
+}
+
+/** Snapshots de un piloto (para "¿De dónde sale este número?"). */
+export async function listPilotSnapshots(pilotId: string, limit = 50): Promise<SnapshotRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("pilot_snapshots")
+    .select("id, source, account_ref, date_from, date_to, status, attempts, model, input_tokens, output_tokens, error, validated, created_at")
+    .eq("pilot_id", pilotId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) return [];
+  return (data ?? []) as SnapshotRow[];
+}
+
+export interface AdFactRow {
+  day: string;
+  account_ref: string;
+  campaign_name: string;
+  spend: number;
+  impressions: number;
+  clicks: number;
+  conversations: number;
+  landing_views: number;
+}
+
+/** Hechos diarios de campañas entre dos fechas (vacío si la tabla aún no existe). */
+export async function listAdFacts(from: string, to: string): Promise<AdFactRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("ad_facts")
+    .select("day, account_ref, campaign_name, spend, impressions, clicks, conversations, landing_views")
+    .gte("day", from)
+    .lte("day", to)
+    .order("day")
+    .limit(20000);
+  if (error) return [];
+  return (data ?? []).map((r) => ({
+    day: r.day as string,
+    account_ref: (r.account_ref as string) ?? "",
+    campaign_name: r.campaign_name as string,
+    spend: Number(r.spend),
+    impressions: Number(r.impressions),
+    clicks: Number(r.clicks),
+    conversations: Number(r.conversations),
+    landing_views: Number(r.landing_views),
+  }));
+}
+
+export interface BusinessConversionRow {
+  day: string;
+  channel: string;
+  campaign_name: string;
+  sales: number;
+  revenue_cop: number | null;
+}
+
+/** Ventas del negocio entre dos fechas (vacío si la tabla aún no existe). */
+export async function listBusinessConversions(from: string, to: string): Promise<BusinessConversionRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("business_conversions")
+    .select("day, channel, campaign_name, sales, revenue_cop")
+    .gte("day", from)
+    .lte("day", to)
+    .order("day")
+    .limit(20000);
+  if (error) return [];
+  return (data ?? []).map((r) => ({
+    day: r.day as string,
+    channel: r.channel as string,
+    campaign_name: (r.campaign_name as string) ?? "",
+    sales: Number(r.sales),
+    revenue_cop: num(r.revenue_cop),
+  }));
 }
 
 export async function loadPilotAudit(pilotId: string, limit = 300): Promise<AuditRow[]> {

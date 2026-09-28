@@ -1,5 +1,5 @@
 import { ArrowRight, Compass, FileText, Gavel, TrendingUp, Users } from "lucide-react";
-import { ExecutiveBriefView } from "@/components/app/executive-brief";
+import { ArrieroNorthStar, DirectionPilotsSection, ExecutiveBriefView } from "@/components/app/executive-brief";
 import { CopySummaryButton } from "@/components/app/report-actions";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -16,15 +16,18 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toCsv } from "@/domain/csv";
 import { todayIso } from "@/domain/dates";
 import { formatDate, formatMetricValue, formatPercent } from "@/domain/format";
-import { buildExecutiveBrief, executiveBriefToText } from "@/domain/executive";
+import { buildExecutiveBrief, executiveBriefToText, growthDecisionsByWeek, lastWeeks, weeklyActiveUsers, ARRIERO_NORTH_STAR_WEEKS } from "@/domain/executive";
 import { buildReport, parsePeriod, reportPeriod } from "@/domain/report";
 import { bogotaDate, directionHeadline, rollupProgram, type NorthStarStatus, type ProgramRollup } from "@/domain/rollup";
 import { TARGET_STATUS_LABEL } from "@/domain/targets";
 import { formatCop } from "@/domain/value";
 import { cn } from "@/lib/utils";
 import { requireUser } from "@/server/auth";
+import { getPilotContext } from "@/server/pilot-auth";
+import { listPilotsForDirection, loadDirectionPilots, loadSustainedLift, loadUsageDays } from "@/server/queries/direction";
 import { listVisiblePrograms, loadSnapshots } from "@/server/queries/management";
 import { tiaConfigured } from "@/server/tia/client";
+import { recordUsage } from "@/server/usage";
 
 export const metadata: Metadata = { title: "Resumen ejecutivo" };
 
@@ -148,6 +151,7 @@ function ProgramCard({ r }: { r: ProgramRollup }) {
 
 export default async function DirectionPage({ searchParams }: PageProps<"/direccion">) {
   const user = await requireUser();
+  recordUsage("direccion", user.id);
   const today = todayIso();
   const periodKey = parsePeriod((await searchParams).periodo);
   const period = reportPeriod(periodKey, today);
@@ -187,6 +191,26 @@ export default async function DirectionPage({ searchParams }: PageProps<"/direcc
   // La respuesta de arriba usa los mismos programas que el resumen (el ejemplo solo si los reales aún no tienen datos).
   const h = directionHeadline(rollups.filter((r) => brief.programs.some((p) => p.id === r.id)));
   const briefText = executiveBriefToText(brief, { title: h.answerTitle, text: h.answerText });
+  // North Star de Arriero: con los mismos programas del resumen; pilotos solo para quien tiene rol en Pilotos.
+  const briefIds = new Set(brief.programs.map((p) => p.id));
+  const usedExperiments = snapshots.filter((s) => briefIds.has(s.program.id)).flatMap((s) => s.experiments);
+  const hasPilotRole = !!(await getPilotContext()).actor.role;
+  const allPilots = hasPilotRole ? await listPilotsForDirection() : [];
+  const realPilots = allPilots.filter((p) => !p.is_example);
+  const economics = new Map(snapshots.flatMap((s) => [...s.economics]));
+  const [sustained, usage, pilotSection] = await Promise.all([
+    loadSustainedLift(usedExperiments, economics, today).catch(() => null),
+    user.isAdmin ? loadUsageDays(lastWeeks(today, ARRIERO_NORTH_STAR_WEEKS)[0]).catch(() => null) : Promise.resolve(null),
+    hasPilotRole ? loadDirectionPilots(allPilots, today).catch(() => null) : Promise.resolve(null),
+  ]);
+  const decisions = growthDecisionsByWeek({
+    experiments: usedExperiments,
+    pilots: brief.includesDemo || !realPilots.length ? allPilots : realPilots,
+    today,
+  });
+  const wau = usage ? weeklyActiveUsers(usage, today) : null;
+  const pilotsBlock = pilotSection ? <DirectionPilotsSection {...pilotSection} /> : null;
+
   const pending = rollups.flatMap((r) => r.pendingDecisions.map((p) => ({ ...p, programId: r.id, programName: r.name })));
   pending.sort((a, b) => a.since.localeCompare(b.since));
 
@@ -241,7 +265,9 @@ export default async function DirectionPage({ searchParams }: PageProps<"/direcc
               </Button>
             }
           />
-        ) : (
+        ) : null}
+        {programs.length === 0 && pilotsBlock ? <div className="mt-6">{pilotsBlock}</div> : null}
+        {programs.length === 0 ? null : (
           <div className="space-y-6">
             <Callout
               icon={TrendingUp}
@@ -283,7 +309,11 @@ export default async function DirectionPage({ searchParams }: PageProps<"/direcc
               />
             </div>
 
+            <ArrieroNorthStar decisions={decisions} sustained={sustained} wau={wau} />
+
             <ExecutiveBriefView brief={brief} periodKey={periodKey} />
+
+            {pilotsBlock}
 
             <TiaCommittee briefText={briefText} configured={tiaConfigured()} />
 

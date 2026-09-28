@@ -91,6 +91,8 @@ export default async function WeeklyLoadPage({ params, searchParams }: PageProps
         branch: m.branch,
         unit: m.unit,
         direction: m.direction,
+        numerator_id: m.numerator_id,
+        denominator_id: m.denominator_id,
       })),
     }))
     .filter((g) => g.metrics.length);

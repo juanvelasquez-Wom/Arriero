@@ -1,6 +1,6 @@
 // Biblioteca de aprendizajes de pilotos: búsqueda sin tildes y filtros de la URL.
 import { normalizeName } from "../paste-import";
-import { VERDICTS, type IsoDate, type Verdict } from "../types";
+import { DECISIONS, VERDICTS, type Decision, type IsoDate, type Verdict } from "../types";
 import { PILOT_TEST_TYPES, VARIABLE_CATEGORIES, type PilotTestType, type VariableCategory } from "./types";
 
 export interface LibraryItem {
@@ -74,4 +74,60 @@ export function filterLearnings<T extends LibraryItem>(items: T[], f: LibraryFil
       (!f.hasta || date <= f.hasta)
     );
   });
+}
+
+// -----------------------------------------------------------------------------
+// Biblioteca unificada: aprendizajes de los ejercicios de los programas junto a
+// los de pilotos (vista `all_learnings`).
+// -----------------------------------------------------------------------------
+
+/** Aprendizaje de un ejercicio de programa, con la forma de la biblioteca de pilotos. */
+export interface ExperimentLibraryItem extends LibraryItem {
+  source: "experiment";
+  id: string;
+  item_id: string;
+  program_id: string;
+  program_name: string | null;
+  line_name: string | null;
+  decision: Decision | null;
+}
+
+/** Fila de ejercicio de `all_learnings` → ítem de la biblioteca (palanca como categoría, canales como medios). */
+export function experimentAsLibraryItem(row: {
+  id: string;
+  text: string;
+  created_at: string;
+  item_id: string;
+  item_title: string;
+  program_id: string | null;
+  program_name: string | null;
+  line_name: string | null;
+  verdict: string | null;
+  decision: string | null;
+  lever: string | null;
+  channel: string | null;
+  decided_at: string | null;
+}): ExperimentLibraryItem {
+  return {
+    source: "experiment",
+    id: row.id,
+    item_id: row.item_id,
+    program_id: row.program_id ?? "",
+    program_name: row.program_name,
+    line_name: row.line_name,
+    pilot_title: row.item_title,
+    text: row.text,
+    created_at: row.created_at,
+    verdict: oneOf(VERDICTS, row.verdict),
+    decision: oneOf(DECISIONS, row.decision),
+    // Los tipos de prueba de los ejercicios no son los de pilotos: no se mezclan.
+    test_type: null,
+    variable_name: null,
+    variable_category: row.lever,
+    media_names: (row.channel ?? "")
+      .split(",")
+      .map((c) => c.trim())
+      .filter(Boolean),
+    decided_at: row.decided_at,
+  };
 }

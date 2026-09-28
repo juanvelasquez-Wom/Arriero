@@ -34,11 +34,14 @@ Pasos para prender Meta:
 1. Aplicar `Descargas/arriero-pilotos-integraciones.sql` en el SQL Editor de Supabase.
 2. Crear una app en Meta for Developers con permiso **`ads_read`** (solo lectura) y generar el token de la cuenta publicitaria. No lo pegue en el chat.
 3. Poner `PILOTS_MCP_ENABLED=true` (con la `ANTHROPIC_API_KEY`) en `.env.local` y en Vercel.
-4. Falta construir, en la fase siguiente:
-   - la pantalla "Conectar Meta" en Catálogos (el aprobador pega el token y el servidor lo guarda en Vault);
-   - el botón "Traer datos de Meta" en la pestaña Datos;
-   - el mapeo de las filas extraídas a los grupos del piloto;
-   - el cron en `vercel.json` (`/api/cron/pilotos-sync`, diario).
+4. Conectar la cuenta en **Pilotos › Catálogos › Integraciones** (solo aprobadores): nombre, id `act_…` y el token en el campo de contraseña. El servidor lo guarda en Vault (`set_integration_token`, con la secret key) y nunca lo muestra. "Probar conexión" trae la inversión de ayer.
+
+Lo que queda andando al prenderlas:
+
+- **Traer datos de Meta** (pestaña Datos de un piloto aprobado, en prueba o en lectura con un medio de Meta y cuenta conectada): extrae el rango del piloto hasta ayer (máximo 92 días), la persona confirma a qué grupo va cada campaña/conjunto/anuncio y se guardan como `source: mcp` con su `snapshot_id`. El mapeo queda en `pilot_snapshots.query.entity_map` y el sync lo reusa. Lo cargado a mano o ajustado a mano nunca se pisa. Cada dato traído tiene "¿De dónde sale?" con la extracción (fecha, cuenta, rango, estado, intentos, tokens y JSON validado).
+- **Sync diario** `/api/cron/pilotos-sync` (Vercel Cron, 11:00 UTC): por cada cuenta conectada guarda los hechos de ayer por campaña en `ad_facts`; por cada piloto en prueba con Meta en esa cuenta, sus datos de ayer (en pilotos semanales, la semana hasta ayer). Máximo 15 pilotos y 4 minutos por corrida.
+- **Campañas** (`/pilotos/campanas`): inversión, impresiones, clics, CTR, CPC, conversaciones y costo por conversación por campaña, frente al periodo anterior, con las marcas "gasta sin conversaciones" y "costo por conversación subió más de 20 %". Debajo, **Plataforma vs. negocio**: CSV de ventas (Fecha, Canal, Campaña, Ventas, Ingresos y Clave opcionales; la clave es un hash, nunca el teléfono) y conciliación con CAC real y aviso de doble conteo.
+
 5. GA4, Google Ads y GTM: sus servidores MCP oficiales no tienen versión remota, así que hay que alojarlos en Cloud Run con un bearer propio y poner la URL en `GA4_MCP_URL`, `GOOGLE_ADS_MCP_URL` y `GTM_MCP_URL`. TikTok queda desacoplado hasta que exista un endpoint remoto verificado.
 
 Salvaguardas que no se quitan:

@@ -13,8 +13,16 @@ import { cn } from "@/lib/utils";
 import { moveMetric } from "@/server/actions/metrics";
 import { problemFromMetricPath } from "@/domain/home";
 import type { TargetEvaluation } from "@/domain/targets";
+import type { FormulaCheck } from "@/domain/metric-formula";
 import type { MetricHistoryRow, MetricRow } from "@/server/queries/structure";
-import { BRANCH_STYLE, BranchBadge, DirectionLabel, MetricTypeBadge, metricOptionLabel } from "./metric-badges";
+import {
+  BRANCH_STYLE,
+  BranchBadge,
+  DirectionLabel,
+  MetricDefinitionFlags,
+  MetricTypeBadge,
+  metricOptionLabel,
+} from "./metric-badges";
 import { MetricFormDialog, type Option } from "./metric-form-dialog";
 import { MetricTrendDialog } from "./metric-trend-dialog";
 import { TargetStatusSummary } from "./target-status";
@@ -24,6 +32,8 @@ export interface MetricInsight {
   evaluation: TargetEvaluation;
   series: { week_start: string; value: number }[];
   history: MetricHistoryRow[];
+  /** Coherencia de la fórmula en la semana más reciente con datos (null si no aplica). */
+  formulaCheck?: (FormulaCheck & { week: string }) | null;
 }
 
 type Node = MetricTreeNode<MetricRow>;
@@ -176,6 +186,12 @@ function NodeCard({
               </span>
             ) : null}
           </div>
+          <MetricDefinitionFlags
+            className="mt-1.5"
+            metric={node}
+            nameOf={(id) => metrics.find((m) => m.id === id)?.name}
+            check={insight?.formulaCheck}
+          />
           {insight ? (
             <div className="mt-1.5 flex flex-wrap items-center gap-2">
               <TargetStatusSummary
@@ -241,6 +257,7 @@ function NodeCard({
               defaultParentId={node.id}
               defaultBranch={node.type === "input" ? node.branch : null}
               parentOptions={childParentOptions}
+              formulaOptions={childParentOptions}
               members={members}
               title={`Nueva métrica que cuelga de “${node.name}”`}
               trigger={
@@ -265,6 +282,7 @@ function NodeCard({
               type={node.type}
               metric={node}
               parentOptions={parentOptions}
+              formulaOptions={childParentOptions}
               members={members}
               trigger={
                 <Button variant="ghost" size="icon-sm" aria-label={`Editar ${node.name}`} title="Editar">

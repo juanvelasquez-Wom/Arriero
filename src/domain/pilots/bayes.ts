@@ -20,6 +20,8 @@ export interface RateArmInput {
 export interface MonteCarloOptions {
   draws?: number;
   seed?: number;
+  /** Nivel del intervalo creíble de la mejora (0–1). Por defecto 0,9 (percentiles 5 y 95). */
+  intervalLevel?: number;
 }
 
 export interface RateComparison {
@@ -85,6 +87,8 @@ export function compareRates(
     bests[best]++;
   }
 
+  const level = options.intervalLevel != null && options.intervalLevel > 0 && options.intervalLevel < 1 ? options.intervalLevel : 0.9;
+  const tail = (1 - level) / 2;
   const comparisons: RateComparison[] = [];
   arms.forEach((arm, i) => {
     if (i === controlIndex) return;
@@ -94,8 +98,8 @@ export function compareRates(
       arm_id: arm.id,
       rate: arm.successes / arm.trials,
       lift: mean,
-      lift_low: quantileSorted(sorted, 0.05),
-      lift_high: quantileSorted(sorted, 0.95),
+      lift_low: quantileSorted(sorted, tail),
+      lift_high: quantileSorted(sorted, 1 - tail),
       probability_better: wins[i] / draws,
     });
   });

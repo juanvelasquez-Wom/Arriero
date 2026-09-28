@@ -58,6 +58,43 @@ export function estimateValue(input: {
   return { value: { extraUnitsPerWeek, weekly, monthly: weekly * WEEKS_PER_MONTH }, missing: null };
 }
 
+/**
+ * Mejora "conservadora": el extremo del intervalo menos favorable. Si más es
+ * mejor, el límite inferior; si menos es mejor, el superior (la reducción más chica).
+ */
+export function conservativeLift(interval: { low: number; high: number } | null | undefined, direction: MetricDirection): number | null {
+  if (!interval || !Number.isFinite(interval.low) || !Number.isFinite(interval.high)) return null;
+  return direction === "down" ? interval.high : interval.low;
+}
+
+/**
+ * Valor conservador: el mismo cálculo con el extremo menos favorable del
+ * intervalo de la mejora. Nunca es negativo (si el intervalo cruza el cero, el
+ * piso honesto es $0). Null sin intervalo o si falta algún dato del valor.
+ */
+export function estimateConservativeValue(input: {
+  interval: { low: number; high: number } | null | undefined;
+  metric: Pick<MetricEconomics, "unit" | "baseline" | "latest_value" | "unit_value" | "direction"> | null;
+}): EstimatedValue | null {
+  const lift = conservativeLift(input.interval, input.metric?.direction ?? "up");
+  if (lift == null) return null;
+  const { value } = estimateValue({ lift, metric: input.metric });
+  if (!value) return null;
+  if (value.weekly >= 0) return value;
+  return { extraUnitsPerWeek: 0, weekly: 0, monthly: 0 };
+}
+
+/**
+ * "entre $ 2 M y $ 8 M (techo optimista)" o, sin piso, "≈ $ 8 M (techo optimista)".
+ * `high` es el valor puntual (techo); `low`, el conservador.
+ */
+export function formatValueRange(low: number | null | undefined, high: number | null | undefined, suffix = ""): string {
+  if (high == null || !Number.isFinite(high)) return "—";
+  const end = suffix ? ` ${suffix}` : "";
+  if (low == null || !Number.isFinite(low) || Math.round(low) === Math.round(high)) return `≈ ${formatCop(high)}${end} (techo optimista)`;
+  return `entre ${formatCop(Math.min(low, high))} y ${formatCop(high)}${end} (techo optimista)`;
+}
+
 const copFmt = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 });
 const compactFmt = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 1 });
 

@@ -10,10 +10,11 @@ import { METRIC_BRANCHES } from "@/domain/types";
 import { cn } from "@/lib/utils";
 import type { Horizon } from "@/server/queries/programs";
 import { evaluateTarget } from "@/domain/targets";
+import { latestFormulaCheck } from "@/domain/metric-formula";
 import { problemFromMetricPath } from "@/domain/home";
 import { Term } from "@/components/app/info-tip";
 import type { MetricHistoryRow, MetricRow, MetricValueRow } from "@/server/queries/structure";
-import { BranchBadge, DirectionLabel, MetricTypeBadge, metricOptionLabel } from "./metric-badges";
+import { BranchBadge, DirectionLabel, MetricDefinitionFlags, MetricTypeBadge, metricOptionLabel } from "./metric-badges";
 import { MetricFormDialog, type Option } from "./metric-form-dialog";
 import { MetricTreeEditor, type MetricInsight } from "./metric-tree-editor";
 import { TargetStatusSummary } from "./target-status";
@@ -59,7 +60,15 @@ function buildInsights({ metrics, values, history, horizons, today, programStart
         today,
         programStart,
       });
-      return [m.id, { evaluation, series, history: history.filter((h) => h.metric_id === m.id) }];
+      return [
+        m.id,
+        {
+          evaluation,
+          series,
+          history: history.filter((h) => h.metric_id === m.id),
+          formulaCheck: latestFormulaCheck(m, values),
+        },
+      ];
     }),
   );
 }
@@ -107,6 +116,7 @@ export function TreeTab(props: Props) {
               type="input"
               defaultParentId={northStar?.id ?? null}
               parentOptions={allOptions}
+              formulaOptions={allOptions}
               members={members}
               trigger={
                 <Button size="sm">
@@ -216,6 +226,12 @@ function MetricsTable(props: Props & { insights: Record<string, MetricInsight> }
                   ) : null}
                   {m.name}
                 </span>
+                <MetricDefinitionFlags
+                  className="mt-1"
+                  metric={m}
+                  nameOf={(id) => nameOf.get(id)}
+                  check={insights[m.id]?.formulaCheck}
+                />
               </TableCell>
               <TableCell>
                 <MetricTypeBadge type={m.type} />

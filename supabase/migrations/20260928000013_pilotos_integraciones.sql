@@ -26,7 +26,8 @@ create table public.pilot_integration_connections (
 
 create table public.pilot_snapshots (
   id uuid primary key default gen_random_uuid(),
-  pilot_id uuid not null references public.pilots (id) on delete cascade,
+  -- Null en el sync diario de la cuenta (ad_facts) y en "Probar conexión".
+  pilot_id uuid references public.pilots (id) on delete cascade,
   connection_id uuid references public.pilot_integration_connections (id) on delete set null,
   source text not null,
   account_ref text,

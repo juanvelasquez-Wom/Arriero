@@ -1,4 +1,4 @@
-import { BookOpenCheck, CalendarClock, CircleCheck, Hourglass, Pencil, Snowflake } from "lucide-react";
+import { BookOpenCheck, CalendarClock, CircleCheck, GitMerge, Hourglass, Pencil, ShieldAlert, Snowflake, TrendingDown, TriangleAlert } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -16,17 +16,31 @@ import { Button } from "@/components/ui/button";
 import { durationWarning, freezeWarning, plannedRange, readiness } from "@/domain/calendar";
 import { canDeleteComment } from "@/domain/comments";
 import { todayIso } from "@/domain/dates";
-import { formatDate, formatDateRange, formatDateTime, formatScore, formatSignedPercent } from "@/domain/format";
+import { asCollisionCandidate, collisionsFor, describeCollision } from "@/domain/collisions";
+import { brokenGuardrailMessages, describeGuardrail, evaluateGuardrails, type ExperimentGuardrail } from "@/domain/experiment-guardrails";
+import { powerShortfall } from "@/domain/experiment-power";
+import { formatDate, formatDateRange, formatDateTime, formatMetricValue, formatScore, formatSignedPercent } from "@/domain/format";
+import { checkPostScale } from "@/domain/post-scale";
 import { CONTROL_LABEL, OWNER_TYPE_LABEL, STATUS_LABEL, TEST_TYPE_LABEL } from "@/domain/labels";
 import { availableTransitions, daysInStatus, isLaunched } from "@/domain/lifecycle";
 import { can } from "@/domain/permissions";
 import { draftLearning, hasCompleteResults, readExperiment } from "@/domain/results";
 import { analyzeExperiment, DIRECTIONAL_LABEL, formatProbability, isReliableWinner, winnerNeedsWarning } from "@/domain/stats";
-import { formatCop, UNIT_VALUE_HINT } from "@/domain/value";
+import { formatValueRange, UNIT_VALUE_HINT } from "@/domain/value";
 import { cn } from "@/lib/utils";
 import { getProgramContext } from "@/server/auth";
 import { listComments } from "@/server/queries/comments";
-import { getExperiment, getLearning, listActivity, listAttachments, listMetricEconomics, listVariants } from "@/server/queries/experiments";
+import {
+  getExperiment,
+  getExperimentRigor,
+  getLearning,
+  listActivity,
+  listAttachments,
+  listExperiments,
+  listMetricEconomics,
+  listMetricWeeklyValues,
+  listVariants,
+} from "@/server/queries/experiments";
 import { listCalendar, listLines } from "@/server/queries/programs";
 
 export const metadata: Metadata = { title: "Ejercicio" };
@@ -49,7 +63,7 @@ export default async function ExperimentPage({ params, searchParams }: PageProps
   const e = await getExperiment(experimentId);
   if (!e || e.program_id !== programId) notFound();
 
-  const [variants, learning, attachments, activity, calendar, lines, commentsResult, economics] = await Promise.all([
+  const [variants, learning, attachments, activity, calendar, lines, commentsResult, economics, rigor, programExperiments, weekly] = await Promise.all([
     listVariants({ experimentId }),
     getLearning(experimentId),
     listAttachments("experiment", experimentId),
@@ -58,9 +72,34 @@ export default async function ExperimentPage({ params, searchParams }: PageProps
     listLines(programId),
     listComments(experimentId),
     listMetricEconomics([e.metric_id]),
+    getExperimentRigor(experimentId),
+    listExperiments(programId),
+    e.status === "scaled" ? listMetricWeeklyValues(e.metric_id) : Promise.resolve([]),
   ]);
   const metricEconomics = economics.get(e.metric_id) ?? null;
   const today = todayIso();
+
+  // X2 · Cruces con otros ejercicios de la misma línea (misma etapa o canal, fechas cruzadas).
+  const collisions = collisionsFor(asCollisionCandidate(e), programExperiments.map(asCollisionCandidate), today);
+  const collisionItems = collisions.map(
+    (c) => `«${c.otherTitle}» (${STATUS_LABEL[c.otherStatus]}): ${describeCollision(c).toLowerCase()} del ${formatDateRange(c.from, c.to)}.`,
+  );
+  // X1 · Potencia y guardrails.
+  const shortfall = powerShortfall(rigor.power_result, rigor.expected_effect_pct);
+  const guardrails: ExperimentGuardrail[] = rigor.guardrails.map((g) => ({
+    id: g.id,
+    metric_id: g.metric_id,
+    metric_name: g.metric_name,
+    direction: g.direction,
+    limit_pct: g.limit_pct,
+    note: g.note,
+  }));
+  const guardrailReadings = evaluateGuardrails(guardrails, variants);
+  const brokenGuardrails = brokenGuardrailMessages(guardrailReadings);
+  const rigorWarnings = [...(shortfall ? [shortfall] : []), ...brokenGuardrails];
+  // Verificación posterior al escalado (evidencia direccional).
+  const postScale =
+    e.status === "scaled" ? checkPostScale({ decidedAt: e.decided_at, direction: metricEconomics?.direction ?? "up", values: weekly, today }) : null;
 
   const tctx = { experiment: e, variants, hasLearning: !!learning, calendar };
   const options: TransitionOption[] = availableTransitions(tctx, ctx.actor).map(({ to, check }) => ({
@@ -167,6 +206,11 @@ export default async function ExperimentPage({ params, searchParams }: PageProps
             status={e.status}
             options={options}
             durationWarning={duration}
+            warnings={[
+              { to: "in_test", title: "Ojo: este ejercicio se cruza con otros", items: collisionItems },
+              { to: "in_test", title: "Ojo con la potencia", items: shortfall ? [shortfall] : [] },
+              { to: "scaled", title: "Ojo antes de escalar", items: brokenGuardrails },
+            ]}
             decide={
               e.status === "in_reading"
                 ? {
@@ -187,6 +231,9 @@ export default async function ExperimentPage({ params, searchParams }: PageProps
                       reliableWinner: isReliableWinner(stats),
                     },
                     learningDraft: draftLearning({ reading, metricName: e.metric_name }),
+                    problemChannel: e.problem_channel,
+                    taxonomyReady: rigor.ready,
+                    rigorWarnings,
                   }
                 : null
             }
@@ -214,6 +261,67 @@ export default async function ExperimentPage({ params, searchParams }: PageProps
 
       {tab === "resumen" ? (
         <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
+          {collisions.length ? (
+            <Callout className="lg:col-span-2" icon={GitMerge} title="Ojo: este ejercicio se cruza con…">
+              <ul className="space-y-1">
+                {collisions.map((c) => (
+                  <li key={c.otherId}>
+                    <Link href={`${base}/ejercicios/${c.otherId}`} className="font-medium underline underline-offset-2">
+                      {c.otherTitle}
+                    </Link>{" "}
+                    <span className="text-soft">
+                      ({STATUS_LABEL[c.otherStatus]}) · {describeCollision(c)} · {formatDateRange(c.from, c.to)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-1">
+                Si los dos mueven la misma métrica al mismo tiempo, no se sabe cuál la movió. Separe las fechas o use otra etapa o canal.
+              </p>
+            </Callout>
+          ) : null}
+          {postScale ? (
+            <Section className="lg:col-span-2" title="¿Se sostuvo después de escalar?" description={`${postScale.evidence}: la operación normal tiene muchas cosas pasando a la vez.`}>
+              <div className="flex flex-wrap items-center gap-2 text-sm">
+                <span
+                  className={cn(
+                    "inline-flex h-6 items-center gap-1.5 rounded-full border px-2.5 text-xs font-semibold",
+                    postScale.status === "held" ? "border-highlight bg-highlight text-[#1F1F1F]" : "border-line bg-wash text-ink",
+                  )}
+                >
+                  {postScale.status === "held" ? (
+                    <CircleCheck aria-hidden className="size-3.5" />
+                  ) : postScale.status === "not_held" ? (
+                    <TrendingDown aria-hidden className="size-3.5" />
+                  ) : (
+                    <Hourglass aria-hidden className="size-3.5" />
+                  )}
+                  {postScale.label}
+                </span>
+                <span>{postScale.message}</span>
+              </div>
+              <dl className="mt-3 grid grid-cols-3 gap-2 text-sm tabular-nums">
+                <div>
+                  <dt className="text-xs text-soft">4 semanas antes</dt>
+                  <dd>{formatMetricValue(postScale.before.mean, metricEconomics?.unit ?? null)}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-soft">Semanas 1 a 4 después</dt>
+                  <dd>
+                    {formatMetricValue(postScale.after4.mean, metricEconomics?.unit ?? null)}
+                    {postScale.after4.change != null ? <span className="text-soft"> ({formatSignedPercent(postScale.after4.change)})</span> : null}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-soft">Semanas 5 a 8 después</dt>
+                  <dd>
+                    {formatMetricValue(postScale.after8.mean, metricEconomics?.unit ?? null)}
+                    {postScale.after8.change != null ? <span className="text-soft"> ({formatSignedPercent(postScale.after8.change)})</span> : null}
+                  </dd>
+                </div>
+              </dl>
+            </Section>
+          ) : null}
           <Section title="Hipótesis">
             <dl className="space-y-3 text-sm">
               {(
@@ -288,7 +396,7 @@ export default async function ExperimentPage({ params, searchParams }: PageProps
                 </dt>
                 <dd className="tabular-nums">
                   {headline?.value_estimate ? (
-                    `${formatCop(headline.value_estimate.weekly)} por semana · ${formatCop(headline.value_estimate.monthly)} al mes`
+                    formatValueRange(headline.value_conservative?.monthly ?? null, headline.value_estimate.monthly, "al mes")
                   ) : headline?.value_missing === "unit_value" ? (
                     <span className="text-soft">{UNIT_VALUE_HINT}</span>
                   ) : (
@@ -296,6 +404,11 @@ export default async function ExperimentPage({ params, searchParams }: PageProps
                   )}
                 </dd>
               </dl>
+              {brokenGuardrails.length ? (
+                <Callout className="mt-3" icon={ShieldAlert} title="Guardrail roto">
+                  {brokenGuardrails.join(" ")}
+                </Callout>
+              ) : null}
               {e.decision_rationale ? <p className="mt-2 text-sm">{e.decision_rationale}</p> : null}
             </Section>
           ) : null}
@@ -335,7 +448,41 @@ export default async function ExperimentPage({ params, searchParams }: PageProps
                 <dd>{e.min_duration_days ? `${e.min_duration_days} días` : "—"}</dd>
                 <dt className="text-soft">Regla de decisión</dt>
                 <dd>{e.decision_rule ?? "—"}</dd>
+                {rigor.ready ? (
+                  <>
+                    <dt className="text-soft">Efecto esperado</dt>
+                    <dd className="tabular-nums">{rigor.expected_effect_pct != null ? `${formatScore(rigor.expected_effect_pct)} %` : "—"}</dd>
+                    <dt className="text-soft">
+                      <Term k="sampleSize">Potencia</Term>
+                    </dt>
+                    <dd className="tabular-nums">
+                      {rigor.power_result?.mde_pct != null
+                        ? `Ve cambios desde ${formatScore(rigor.power_result.mde_pct)} %${rigor.power_result.days_needed != null ? ` · necesita ≈ ${rigor.power_result.days_needed} días` : ""}`
+                        : "—"}
+                    </dd>
+                    <dt className="text-soft">Guardrails</dt>
+                    <dd>
+                      {guardrails.length ? (
+                        <ul className="list-disc pl-4">
+                          {guardrails.map((g) => (
+                            <li key={g.id}>
+                              {g.metric_name}: {describeGuardrail(g).toLowerCase()}
+                              {g.note ? <span className="text-soft"> · {g.note}</span> : null}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        "—"
+                      )}
+                    </dd>
+                  </>
+                ) : null}
               </dl>
+              {shortfall ? (
+                <Callout className="mt-3" icon={TriangleAlert} title="Ojo con la potencia">
+                  {shortfall}
+                </Callout>
+              ) : null}
             </Section>
             <Section title={`Variantes (${variants.length})`}>
               <ul className="space-y-2 text-sm">
@@ -376,6 +523,7 @@ export default async function ExperimentPage({ params, searchParams }: PageProps
             isWinner={e.verdict === "winner"}
             testType={e.test_type}
             metric={metricEconomics}
+            guardrails={guardrails}
           />
         </Section>
       ) : null}
@@ -402,6 +550,8 @@ export default async function ExperimentPage({ params, searchParams }: PageProps
                 lines={lines}
                 ownLineId={e.line_id}
                 canEdit={can.editStructure(ctx.actor)}
+                problemChannel={e.problem_channel}
+                taxonomyReady={rigor.ready}
               />
               {can.createExperiment(ctx.actor) ? (
                 <div className="mt-4 border-t pt-4">

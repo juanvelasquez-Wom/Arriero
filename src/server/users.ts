@@ -45,13 +45,15 @@ export async function provisionUser(
     console.warn("[usuarios] No se pudo enviar el correo de invitación:", invited.error?.message);
   }
 
-  let link = await admin.auth.admin.generateLink({ type: "invite", email, options: { data: { name }, redirectTo } });
-  if (link.error) {
-    // Ya existía en Auth sin perfil activo (p. ej. invitación previa sin aceptar).
-    link = await admin.auth.admin.generateLink({ type: "magiclink", email, options: { redirectTo } });
-  }
+  // Nunca se genera un enlace mágico para una cuenta que ya existe: quien lo reciba
+  // entraría como esa persona. Si la invitación no se puede crear, se avisa y ya.
+  const link = await admin.auth.admin.generateLink({ type: "invite", email, options: { data: { name }, redirectTo } });
   if (link.error || !link.data.user) {
-    throw new Error(link.error?.message ?? "No se pudo crear la invitación.");
+    throw new Error(
+      link.error?.message?.toLowerCase().includes("already")
+        ? "Ese correo ya tiene una cuenta pendiente. Pídale a la persona que use «Se me olvidó la contraseña» en el login."
+        : (link.error?.message ?? "No se pudo crear la invitación."),
+    );
   }
   return {
     userId: link.data.user.id,

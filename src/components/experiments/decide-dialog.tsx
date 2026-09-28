@@ -18,6 +18,8 @@ import { DECISIONS, VERDICTS, type Decision, type Verdict } from "@/domain/types
 import { cn } from "@/lib/utils";
 import { CELEBRATIONS, celebrate } from "@/components/brand/celebrate";
 import { decideExperiment } from "@/server/actions/experiments";
+import type { DecideInput } from "@/lib/validation/experiments";
+import { LearningTaxonomyFields } from "./learning-taxonomy";
 import { readResult } from "@/server/actions/tia-recommendations";
 import { matchLineIds } from "@/domain/tia-recommendations";
 import { TiaSuggest } from "@/components/tia/tia-suggest";
@@ -48,6 +50,12 @@ export interface DecideDialogProps {
   };
   /** Borrador del aprendizaje a partir de los datos (se usa solo si el campo está vacío). */
   learningDraft: string | null;
+  /** false si la base todavía no tiene palanca y canal (migración K1). */
+  taxonomyReady?: boolean;
+  /** Canal del problema: valor por defecto del canal del aprendizaje. */
+  problemChannel?: string | null;
+  /** Avisos de rigor (potencia insuficiente, guardrails rotos). No bloquean. */
+  rigorWarnings?: string[];
 }
 
 /** Veredicto + decisión + aprendizaje obligatorio, en un solo paso (regla 3). */
@@ -59,6 +67,8 @@ export function DecideDialog(props: DecideDialogProps) {
   const [learning, setLearning] = useState("");
   const [suggested, setSuggested] = useState("");
   const [appliesTo, setAppliesTo] = useState<string[]>([]);
+  const [lever, setLever] = useState<string>("");
+  const [channel, setChannel] = useState(props.problemChannel ?? "");
   const [error, setError] = useState<string>();
   const [pending, startTransition] = useTransition();
 
@@ -76,11 +86,14 @@ export function DecideDialog(props: DecideDialogProps) {
         learning,
         appliesTo,
         suggestedHypothesis: suggested || undefined,
+        lever: props.taxonomyReady !== false ? ((lever || null) as DecideInput["lever"]) : null,
+        channel: props.taxonomyReady !== false ? channel.trim() || null : null,
       });
       if (!r.ok) {
         setError(r.error);
         return;
       }
+      if (r.message && /no se guardaron/.test(r.message)) toast(r.message);
       if (verdict === "winner" && props.evidence.reliableWinner) celebrate(...CELEBRATIONS.winner);
       else if (verdict === "winner")
         toast.success("Listo pues: ganador registrado", {
@@ -113,6 +126,16 @@ export function DecideDialog(props: DecideDialogProps) {
           <Callout title="Faltan resultados">Cargue la muestra y las conversiones (o el valor de la métrica) de todas las variantes antes de decidir.</Callout>
         ) : null}
         {props.durationWarning ? <Callout title="Duración">{props.durationWarning}</Callout> : null}
+        {props.rigorWarnings?.length ? (
+          <Callout icon={ShieldAlert} title="Ojo antes de decidir">
+            <ul className="list-disc space-y-0.5 pl-4">
+              {props.rigorWarnings.map((w) => (
+                <li key={w}>{w}</li>
+              ))}
+            </ul>
+            <p className="mt-1">No es un bloqueo: la decisión es suya, pero téngalo en cuenta.</p>
+          </Callout>
+        ) : null}
 
         <div className="rounded-lg border bg-paper px-3 py-2 text-sm">
           {props.evidence.kind === "probabilistic" ? (
@@ -278,6 +301,9 @@ export function DecideDialog(props: DecideDialogProps) {
               ))}
           </div>
         </div>
+        {props.taxonomyReady !== false ? (
+          <LearningTaxonomyFields lever={lever} onLever={setLever} channel={channel} onChannel={setChannel} idPrefix="decide" />
+        ) : null}
         <div className="space-y-1.5">
           <Label htmlFor="suggested">Hipótesis derivada sugerida (opcional)</Label>
           <Input id="suggested" placeholder="Probemos por ahí: SI… ENTONCES… PORQUE…" value={suggested} onChange={(e) => setSuggested(e.target.value)} />

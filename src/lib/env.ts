@@ -2,7 +2,7 @@
 // para que Next las incruste en el bundle del cliente.
 function required(name: string, value: string | undefined): string {
   if (!value) {
-    throw new Error(`Falta la variable de entorno ${name}. Revisa .env.local (ver .env.example).`);
+    throw new Error(`Falta la variable de entorno ${name}. Revise .env.local (ver .env.example).`);
   }
   return value;
 }

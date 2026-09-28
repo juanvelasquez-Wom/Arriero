@@ -4,11 +4,8 @@ import { redirect } from "next/navigation";
 import { fail, fromZod, ok, type ActionResult } from "@/lib/action-result";
 import { publicEnv } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
+import { safeNext } from "@/domain/redirect";
 import { loginSchema, recoverSchema, resetPasswordSchema } from "@/lib/validation/auth";
-
-function safeNext(next: string | undefined) {
-  return next && next.startsWith("/") && !next.startsWith("//") ? next : "/programas";
-}
 
 export async function signIn(input: unknown): Promise<ActionResult<{ next: string }>> {
   const parsed = loginSchema.safeParse(input);

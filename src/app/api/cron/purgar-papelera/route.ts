@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { isCronAuthorized } from "@/lib/cron-auth";
 import { createAdminClient, drainStorageDeletionQueue } from "@/lib/supabase/admin";
 
 // Job programado (Vercel Cron, ver vercel.json): elimina de forma definitiva
@@ -6,12 +7,15 @@ import { createAdminClient, drainStorageDeletionQueue } from "@/lib/supabase/adm
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`) {
+  if (!isCronAuthorized(request)) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
   const admin = createAdminClient();
   const { data, error } = await admin.rpc("purge_expired_trash", { p_days: 30 });
+  // Los pilotos borrados también se eliminan de verdad a los 30 días (igual que la papelera).
+  const cutoff = new Date(Date.now() - 30 * 86_400_000).toISOString();
+  const { error: pilotsError } = await admin.from("pilots").delete().lt("deleted_at", cutoff);
+  if (pilotsError && pilotsError.code !== "PGRST205") console.error("[cron] purga de pilotos", pilotsError.message);
   if (error) {
     console.error("[cron] purge_expired_trash", error);
     return NextResponse.json({ error: "No se pudo purgar la papelera" }, { status: 500 });

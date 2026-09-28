@@ -108,6 +108,17 @@ describe("readExperiment", () => {
     expect(r.headline!.value_estimate!.weekly).toBeCloseTo((0.23 / 0.18 - 1) * 1000 * 100_000, 0);
   });
 
+  it("el piso conservador usa el límite inferior del intervalo y queda por debajo del techo", () => {
+    const r = readExperiment({ variants, testType: "ab", metric });
+    const h = r.headline!;
+    expect(h.value_conservative).not.toBeNull();
+    expect(h.value_conservative!.weekly).toBeCloseTo(h.stats.interval!.low * 1000 * 100_000, 0);
+    expect(h.value_conservative!.weekly).toBeLessThan(h.value_estimate!.weekly);
+    expect(r.rows[0].value_conservative).toBeNull();
+    // Sin intervalo (geo), no hay piso.
+    expect(readExperiment({ variants, testType: "geo", metric }).headline!.value_conservative).toBeNull();
+  });
+
   it("sin valor por unidad avisa qué falta", () => {
     const r = readExperiment({ variants, testType: "ab", metric: { ...metric, unit_value: null } });
     expect(r.headline!.value_missing).toBe("unit_value");

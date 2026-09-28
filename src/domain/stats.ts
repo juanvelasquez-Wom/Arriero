@@ -3,8 +3,10 @@
 // para leer: el veredicto sigue siendo de una persona frente a la regla.
 //
 // Modelo: cada variante tiene una posterior Beta(1 + conversiones, 1 + muestra − conversiones)
-// (a priori uniforme). La diferencia de tasas se aproxima con una normal usando
-// la media y la varianza de cada posterior, así el cálculo es determinista.
+// (a priori uniforme). La probabilidad y el intervalo salen del mismo motor de
+// Pilotos (Monte Carlo con semilla fija, pilots/bayes.ts): es determinista y
+// los dos módulos dicen lo mismo con los mismos datos.
+import { compareRates, type RateComparison } from "./pilots/bayes";
 import type { MetricDirection, TestType, Variant } from "./types";
 
 /** Datos mínimos de una variante para la estadística. */
@@ -41,13 +43,39 @@ export function normalCdf(z: number): number {
  * Con `direction = "down"` (menos es mejor) se invierte. Null sin datos suficientes.
  */
 export function probabilityToBeatControl(control: Arm, variant: Arm, direction: MetricDirection = "up"): number | null {
-  const pc = betaPosterior(control);
-  const pv = betaPosterior(variant);
-  if (!pc || !pv) return null;
-  const sd = Math.sqrt(pc.variance + pv.variance);
-  if (!(sd > 0)) return null;
-  const pUp = normalCdf((pv.mean - pc.mean) / sd);
-  return direction === "down" ? 1 - pUp : pUp;
+  const r = simulate(control, variant, DEFAULT_LEVEL);
+  if (!r) return null;
+  return direction === "down" ? 1 - r.probability_better : r.probability_better;
+}
+
+/** Nivel por defecto del intervalo de la mejora (95 %). */
+const DEFAULT_LEVEL = 0.95;
+const CACHE_LIMIT = 500;
+const cache = new Map<string, RateComparison | null>();
+
+/**
+ * Un solo motor para ejercicios y pilotos: la comparación por Monte Carlo con
+ * semilla fija de `compareRates` (pilots/bayes.ts). Los mismos datos dan la
+ * misma probabilidad en los dos módulos. Se guarda en memoria porque las
+ * vistas piden la probabilidad y el intervalo de la misma pareja.
+ */
+function simulate(control: Arm, variant: Arm, level: number): RateComparison | null {
+  if (!betaPosterior(control) || !betaPosterior(variant)) return null;
+  const key = `${control.sample}|${control.conversions}|${variant.sample}|${variant.conversions}|${level}`;
+  if (cache.has(key)) return cache.get(key)!;
+  const r = compareRates(
+    [
+      { id: "control", trials: control.sample!, successes: control.conversions! },
+      { id: "variant", trials: variant.sample!, successes: variant.conversions! },
+    ],
+    "control",
+    "up",
+    { intervalLevel: level },
+  );
+  const out = r?.comparisons[0] ?? null;
+  if (cache.size >= CACHE_LIMIT) cache.delete(cache.keys().next().value!);
+  cache.set(key, out);
+  return out;
 }
 
 export interface LiftInterval {
@@ -58,18 +86,16 @@ export interface LiftInterval {
 }
 
 /**
- * Intervalo al 95 % de la mejora relativa (variante / control − 1), por el
- * método delta sobre el logaritmo del cociente de las posteriores:
- * Var(log p) ≈ Var(p) / media(p)². Queda asimétrico y nunca baja de −100 %.
+ * Intervalo creíble de la mejora relativa (variante / control − 1): percentiles
+ * de las simulaciones de `compareRates`. `z` fija el nivel (1,96 → 95 %). Queda
+ * asimétrico y nunca baja de −100 %.
  */
 export function liftInterval(control: Arm, variant: Arm, z = 1.959964): LiftInterval | null {
-  const pc = betaPosterior(control);
-  const pv = betaPosterior(variant);
-  if (!pc || !pv) return null;
-  const logRatio = Math.log(pv.mean / pc.mean);
-  const se = Math.sqrt(pv.variance / (pv.mean * pv.mean) + pc.variance / (pc.mean * pc.mean));
-  if (!Number.isFinite(logRatio) || !Number.isFinite(se)) return null;
-  return { low: Math.exp(logRatio - z * se) - 1, high: Math.exp(logRatio + z * se) - 1 };
+  if (!Number.isFinite(z) || z <= 0) return null;
+  const level = Math.round((2 * normalCdf(z) - 1) * 1e4) / 1e4;
+  const r = simulate(control, variant, level);
+  if (!r || !Number.isFinite(r.lift_low) || !Number.isFinite(r.lift_high)) return null;
+  return { low: r.lift_low, high: r.lift_high };
 }
 
 export type ConfidenceLevel = "reliable" | "almost" | "unknown";

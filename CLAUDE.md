@@ -307,4 +307,50 @@ Línea ejecutiva y sobria: **grises + amarillo como único acento**. Tokens en `
 - **Cruces entre pilotos** (`overlap.ts`): mismas fechas y misma cuenta, campaña, audiencia, ciudad o destino.
 - **Ejemplos:** 3 pilotos (`domain/pilots/examples.ts`, `server/demo/pilots.ts`) que carga un aprobador y se borran con un clic.
 - **La Tía en Pilotos** (`server/actions/pilot-tia.ts`, `pilot_ai_drafts`, `PilotTiaDraft`): borradores de diagnóstico, diseño y conclusión; apagada con `NEXT_PUBLIC_TIA_ENABLED`.
-- **Integraciones por MCP** (migración `013`, `domain/pilots/integrations.ts`, `server/integrations/mcp.ts`, `/api/cron/pilotos-sync`): preparadas y apagadas con `PILOTS_MCP_ENABLED`. Tokens solo en Supabase Vault (`set_integration_token` / `get_integration_token`, solo service_role). Cómo prenderlas: [`docs/pilotos/integraciones.md`](docs/pilotos/integraciones.md).
+- **Integraciones por MCP** (migración `013`, `domain/pilots/integrations.ts`, `server/integrations/mcp.ts`, `/api/cron/pilotos-sync`): preparadas y apagadas con `PILOTS_MCP_ENABLED`. Tokens solo en Supabase Vault (`set_integration_token` / `get_integration_token`, solo service_role). Cómo prenderlas: [`docs/pilotos/integraciones.md`](docs/pilotos/integraciones.md). Conexiones en Catálogos › Integraciones; "Traer datos de Meta" en la pestaña Datos (`server/actions/pilot-integrations.ts`, escrituras en `server/integrations/pilot-sync.ts`, mapeo puro en `domain/pilots/extraction-mapping.ts`); sync diario a `ad_facts` y a los pilotos en prueba.
+- **Campañas** (`/pilotos/campanas`): tabla por campaña desde `ad_facts` con tendencia y marcas (`domain/pilots/campaigns.ts`) y conciliación plataforma vs. negocio con el CSV de `business_conversions` (`domain/pilots/reconciliation.ts`; la clave es un hash, nunca un teléfono).
+- **Guardado del diseño** (paso 2) en una transacción: RPC `save_pilot_design` con `expected_updated_at` (bloqueo optimista). El portafolio carga los detalles en lote (`loadPilotDetailsBatch`) y lee con menos muestras (`analyzePilot(input, { draws, iterations })`).
+
+## 12. Cambios de la auditoría integral (28 sep 2026)
+
+Migración `014_matriz_hallazgos` e informe en el artefacto "Auditoría integral Arriero". Lo que cambió en el sistema:
+
+- **Seguridad:**
+  - `/dev/entrar` solo responde a peticiones locales, y `npm run dev` escucha en `127.0.0.1`.
+  - Las invitaciones nunca devuelven un enlace mágico de una cuenta existente. Un owner solo suma a quien ya tiene cuenta; las cuentas nuevas las crea el admin.
+  - `safeNext` es único (`src/domain/redirect.ts`).
+  - Cabeceras CSP, frame-ancestors, HSTS y nosniff en `next.config.ts`.
+  - Crons con `isCronAuthorized` (`src/lib/cron-auth.ts`, comparación en tiempo constante).
+  - En Pilotos, el creador edita solo lo suyo (`private.pilot_can_edit`).
+- **La Tía:**
+  - Cupo reservado de forma atómica con la RPC `tia_reserve`; si no se puede verificar, no llama a Claude.
+  - Respuestas con estructura: observado, interpretación, hipótesis, recomendación, confianza y dato que falta.
+  - `unverifiedNumbers` avisa si cita cifras que no están en los datos.
+- **Errores:** `src/instrumentation.ts` (`onRequestError`) → `public.error_log` (sin cabeceras ni cuerpo, y con llaves tapadas). El admin los ve en `/admin/errores`.
+- **Ejercicios con el rigor de Pilotos:**
+  - Guardrails (`experiment_guardrails` y `experiment_variants.guardrail_values`).
+  - Efecto esperado y potencia (`expected_effect_pct`, `power_inputs`, `power_result`, calculados en el servidor con `pilots/power.ts`).
+  - Cruces entre ejercicios (`domain/collisions.ts`).
+  - ICE asistido (`domain/ice-assist.ts`).
+  - Valor estimado como rango (techo optimista).
+  - Verificación posterior al escalado (`domain/post-scale.ts`).
+  - Probabilidad de ganar con el mismo motor Monte Carlo de Pilotos (`stats.ts` delega en `pilots/bayes.ts`).
+- **Insight y hábito:**
+  - Caída del embudo (`domain/funnel.ts`).
+  - Métricas con alcance y fórmula, con aviso de "no cuadra" (`metrics.scope`, `numerator_id`, `denominator_id`, `domain/metric-formula.ts`).
+  - Tiempo de ciclo por estado (`domain/cycle-time.ts`).
+  - Resumen semanal por correo los lunes: `server/email/*` con nodemailer, variables `SMTP_*`, preferencia `profiles.weekly_digest` y un envío por semana (`weekly_digest_sends`).
+- **Adopción y North Star:**
+  - `usage_days` (días de uso por persona; `server/usage.ts`).
+  - "Decisiones de growth con evidencia por semana" en `/direccion`.
+  - Pilotos visibles en "Mis programas", en el menú del programa y en `/direccion`.
+- **Aprendizajes:** vista `all_learnings` (ejercicios y pilotos) con palanca y canal (`learnings.lever`, `learnings.channel`) y búsqueda con sinónimos telco (`domain/learning-search.ts`).
+- **Calidad:**
+  - CI en `.github/workflows/ci.yml` (lint, tipos, tests y build).
+  - Nuevos tests: `tests/db/matriz.test.ts`, `dates` y `format`.
+  - `global-error.tsx` y `not-found.tsx` raíz.
+  - `shadcn` pasa a `devDependencies`.
+- **Uso adicional de la secret key**, además de los casos de §4:
+  - registro de errores;
+  - escrituras de las integraciones (`ad_facts`, datos `mcp`) y lectura de tokens en Vault;
+  - envío del resumen semanal, filtrando por membresía de cada persona.

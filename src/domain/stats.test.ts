@@ -11,6 +11,7 @@ import {
   probabilityToBeatControl,
   winnerNeedsWarning,
 } from "./stats";
+import { compareRates } from "./pilots/bayes";
 
 describe("normalCdf", () => {
   it("coincide con los valores de tabla", () => {
@@ -44,8 +45,23 @@ describe("probabilityToBeatControl", () => {
     expect(p).toBeGreaterThan(0.84);
     expect(p).toBeLessThan(0.88);
   });
-  it("brazos iguales dan 50 %", () => {
-    expect(probabilityToBeatControl({ sample: 500, conversions: 50 }, { sample: 500, conversions: 50 })).toBeCloseTo(0.5, 6);
+  it("brazos iguales dan 50 % (con el error de la simulación, ±1,5 puntos)", () => {
+    const p = probabilityToBeatControl({ sample: 500, conversions: 50 }, { sample: 500, conversions: 50 })!;
+    expect(Math.abs(p - 0.5)).toBeLessThan(0.015);
+  });
+  it("es determinista y da lo mismo que el motor de Pilotos", () => {
+    const control = { sample: 1000, conversions: 100 };
+    const variant = { sample: 1000, conversions: 115 };
+    const p = probabilityToBeatControl(control, variant)!;
+    expect(probabilityToBeatControl(control, variant)).toBe(p);
+    const pilots = compareRates(
+      [
+        { id: "c", trials: 1000, successes: 100 },
+        { id: "v", trials: 1000, successes: 115 },
+      ],
+      "c",
+    )!;
+    expect(pilots.comparisons[0].probability_better).toBe(p);
   });
   it("se invierte cuando menos es mejor", () => {
     const up = probabilityToBeatControl({ sample: 1000, conversions: 100 }, { sample: 1000, conversions: 115 })!;
@@ -65,6 +81,14 @@ describe("liftInterval", () => {
     expect(i.low).toBeLessThan(0.278);
     expect(i.high).toBeGreaterThan(0.278);
     expect(i.high - 0.2775).toBeGreaterThan(0.2775 - i.low);
+  });
+  it("el intervalo al 90 % es más angosto que el de 95 %", () => {
+    const c = { sample: 5000, conversions: 900 };
+    const v = { sample: 5000, conversions: 1150 };
+    const i95 = liftInterval(c, v)!;
+    const i90 = liftInterval(c, v, 1.644854)!;
+    expect(i90.low).toBeGreaterThan(i95.low);
+    expect(i90.high).toBeLessThan(i95.high);
   });
   it("con poca muestra cruza el cero", () => {
     const i = liftInterval({ sample: 1000, conversions: 100 }, { sample: 1000, conversions: 115 })!;

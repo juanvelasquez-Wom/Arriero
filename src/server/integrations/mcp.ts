@@ -77,7 +77,8 @@ async function callClaude(body: object): Promise<CallResult> {
 }
 
 export interface ExtractionRequest {
-  pilotId: string;
+  /** Piloto dueño del snapshot. Null en el sync de la cuenta (ad_facts) y en "Probar conexión". */
+  pilotId: string | null;
   connectionId: string;
   provider: IntegrationProvider;
   account: string;

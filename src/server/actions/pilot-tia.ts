@@ -7,7 +7,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { canWritePilots } from "@/domain/pilots/flow";
 import { PILOT_STATUS_LABEL, PILOT_TEST_TYPE_LABEL } from "@/domain/pilots/labels";
-import { clip, TIA_ENABLED, tiaSystem, type TiaFeature } from "@/domain/tia";
+import { clip, TIA_ENABLED, tiaSystem, withNumberCheck, type TiaFeature } from "@/domain/tia";
 import { fail, failFrom, ok, type ActionResult } from "@/lib/action-result";
 import { createClient } from "@/lib/supabase/server";
 import { getPilotActionActor } from "@/server/pilot-auth";
@@ -91,7 +91,7 @@ export async function requestPilotDraft(pilotId: string, kind: PilotDraftKind): 
       maxTokens: 900,
     });
     await recordTiaUsage(null, FEATURE[kind], reply.usage);
-    const content = reply.text.trim();
+    const content = reply.text.trim() ? withNumberCheck(reply.text.trim(), data) : "";
     if (!content) return fail("La Tía se quedó callada. Intente de nuevo.");
     const supabase = await createClient();
     const { data: row, error } = await supabase

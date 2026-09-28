@@ -1,4 +1,4 @@
-import { ArrowRight, CalendarRange, Compass, FolderKanban, Plus, Users } from "lucide-react";
+import { ArrowRight, CalendarRange, Compass, FolderKanban, Megaphone, Plus, Users } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AppHeader } from "@/components/app/app-header";
@@ -12,6 +12,8 @@ import { formatDateRange } from "@/domain/format";
 import { isDatabaseReady, requireUser } from "@/server/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { findDemoProgramId } from "@/server/demo/loader";
+import { getPilotContext } from "@/server/pilot-auth";
+import { countActivePilots } from "@/server/queries/direction";
 import { listDeletedPrograms, listMyPrograms } from "@/server/queries/programs";
 
 // El admin ve el estado del ejemplo aunque esté en la papelera (existe una sola vez).
@@ -30,11 +32,15 @@ export default async function ProgramsPage() {
   const user = await requireUser();
   // El layout ya muestra el aviso; aquí solo evitamos consultar tablas inexistentes.
   if (!(await isDatabaseReady())) return null;
-  const [programs, deleted, demo] = await Promise.all([
+  const [programs, deleted, demo, pilotCtx] = await Promise.all([
     listMyPrograms(user.id),
     listDeletedPrograms(),
     user.isAdmin ? demoState() : Promise.resolve(null),
+    getPilotContext().catch(() => null),
   ]);
+  // Pilotos de medios: solo para quien tiene rol en ese módulo.
+  const activePilots = pilotCtx?.actor.role ? await countActivePilots() : null;
+  const showPilots = !!pilotCtx?.actor.role;
 
   return (
     <>
@@ -77,6 +83,32 @@ export default async function ProgramsPage() {
             </div>
             <span className="inline-flex items-center gap-1 rounded-full bg-highlight px-3 py-1.5 text-sm font-semibold text-[#111111]">
               Ver resumen <ArrowRight aria-hidden className="size-4 transition-transform group-hover:translate-x-1" />
+            </span>
+          </Link>
+        ) : null}
+
+        {showPilots ? (
+          <Link
+            href="/pilotos"
+            className="lift group mb-6 flex flex-wrap items-center gap-4 rounded-2xl border bg-paper p-5 shadow-card"
+          >
+            <Megaphone aria-hidden className="size-8 shrink-0" />
+            <div className="min-w-0 flex-1">
+              <div className="font-heading text-lg font-extrabold">Pilotos de medios</div>
+              <p className="text-sm text-soft">
+                Las pruebas en Meta, Google y demás medios: diseño, aprobación, lectura y aprendizajes.
+                {activePilots != null ? (
+                  <>
+                    {" "}
+                    <span className="font-semibold text-ink tabular-nums">
+                      {activePilots === 0 ? "Ninguno activo ahora." : `${activePilots} ${activePilots === 1 ? "activo" : "activos"} ahora.`}
+                    </span>
+                  </>
+                ) : null}
+              </p>
+            </div>
+            <span className="inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-sm font-semibold">
+              Ver pilotos <ArrowRight aria-hidden className="size-4 transition-transform group-hover:translate-x-1" />
             </span>
           </Link>
         ) : null}

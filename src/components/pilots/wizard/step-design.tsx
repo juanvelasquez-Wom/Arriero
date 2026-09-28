@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Equal, GitMerge, Plus, Sparkles, Trash2, TriangleAlert } from "lucide-react";
+import { Equal, GitMerge, Plus, RefreshCw, Sparkles, Trash2, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -60,6 +60,9 @@ export interface StepDesignProps {
 const MAX_ARMS = 12;
 const MAX_MEDIA = 10;
 
+/** Texto con que la base avisa que otra persona guardó primero (RPC save_pilot_design). */
+const STALE_MARK = "Otra persona cambió este piloto";
+
 function errorText(e: unknown): string | undefined {
   if (!e || typeof e !== "object") return undefined;
   const x = e as { message?: unknown; root?: { message?: unknown } };
@@ -71,6 +74,7 @@ function errorText(e: unknown): string | undefined {
 export function StepDesign({ pilotId, pilotTitle, initial, variables, media, others }: StepDesignProps) {
   const router = useRouter();
   const [error, setError] = useState<string>();
+  const [stale, setStale] = useState(false);
   const [pending, startTransition] = useTransition();
   const [catalog, setCatalog] = useState(media);
 
@@ -167,10 +171,17 @@ export function StepDesign({ pilotId, pilotTitle, initial, variables, media, oth
         startTransition(async () => {
           const r = await savePilotDesign(pilotId, data);
           if (!r.ok) {
+            if (r.error.includes(STALE_MARK)) {
+              setStale(true);
+              return;
+            }
             setError(r.error);
             applyFieldErrors(r.fieldErrors, form.setError);
             return;
           }
+          setStale(false);
+          // Lo guardado es la nueva versión de referencia para el próximo guardado.
+          if (r.data.updatedAt) form.setValue("expected_updated_at", r.data.updatedAt);
           toast.success(r.message ?? "Diseño guardado.");
           if (then === "next") router.push(pilotStepHref(pilotId, "metricas"));
           else router.refresh();
@@ -190,6 +201,14 @@ export function StepDesign({ pilotId, pilotTitle, initial, variables, media, oth
       className="space-y-6"
     >
       <FormError message={error} />
+      {stale ? (
+        <Callout icon={TriangleAlert} title="Otra persona guardó este piloto mientras usted lo editaba">
+          <p>Para no pisar sus cambios, no guardamos los suyos. Copie lo que necesite, recargue para ver lo último y vuelva a guardar.</p>
+          <Button type="button" variant="outline" size="sm" className="mt-2" onClick={() => window.location.reload()}>
+            <RefreshCw aria-hidden /> Recargar
+          </Button>
+        </Callout>
+      ) : null}
 
       {/* Qué se prueba */}
       <section className="space-y-4 rounded-2xl border bg-paper p-4 shadow-card sm:p-5">

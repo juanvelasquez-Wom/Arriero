@@ -1,5 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { buildExecutiveBrief, executiveBriefToText, periodChange, type ExecutiveProgramInput } from "./executive";
+import {
+  buildExecutiveBrief,
+  directionPilots,
+  executiveBriefToText,
+  growthDecisionsByWeek,
+  isEvidencedDecision,
+  periodChange,
+  sustainedLiftShare,
+  weeklyActiveUsers,
+  type DirectionPilot,
+  type ExecutiveProgramInput,
+} from "./executive";
 import type { Report } from "./report";
 import { reportPeriod } from "./report";
 import type { NorthStarStatus, ProgramRollup } from "./rollup";
@@ -124,5 +135,96 @@ describe("buildExecutiveBrief", () => {
     expect(text).toMatch(/^Resumen ejecutivo de growth/);
     expect(text).toMatch(/¿Qué está creciendo\?\n- Altas digitales/);
     expect(text).toMatch(/¿Qué hay que decidir\?\n- Nada esperando decisión\./);
+  });
+});
+
+describe("North Star de Arriero", () => {
+  const v = (sample: number | null, conversions: number | null, metric_value: number | null = null) => ({ sample, conversions, metric_value });
+  const good = {
+    status: "decided",
+    verdict: "winner" as const,
+    decided_at: "2026-09-22T15:00:00Z",
+    learning: "El botón de WhatsApp sube la conversión.",
+    variants: [v(1000, 50), v(1000, 70)],
+  };
+
+  it("cuenta solo decisiones con evidencia completa", () => {
+    expect(isEvidencedDecision(good)).toBe(true);
+    expect(isEvidencedDecision({ ...good, status: "scaled", variants: [v(null, null, 3), v(null, null, 4)] })).toBe(true);
+    expect(isEvidencedDecision({ ...good, learning: "  " })).toBe(false);
+    expect(isEvidencedDecision({ ...good, variants: [v(1000, 50), v(null, null)] })).toBe(false);
+    expect(isEvidencedDecision({ ...good, variants: [v(1000, 50)] })).toBe(false);
+    expect(isEvidencedDecision({ ...good, verdict: null })).toBe(false);
+    expect(isEvidencedDecision({ ...good, status: "in_reading" })).toBe(false);
+  });
+
+  it("arma la tendencia de 8 semanas con ejercicios y pilotos", () => {
+    const r = growthDecisionsByWeek({
+      experiments: [good, { ...good, decided_at: "2026-08-04T15:00:00Z" }, { ...good, learning: null }, { ...good, decided_at: "2026-01-01T00:00:00Z" }],
+      pilots: [
+        { status: "decided", decided_at: "2026-09-23T10:00:00Z" },
+        { status: "in_test", decided_at: null },
+      ],
+      today,
+    });
+    expect(r.weeks).toHaveLength(8);
+    expect(r.weeks[0].week_start).toBe("2026-08-03");
+    expect(r.weeks.at(-1)).toEqual({ week_start: "2026-09-21", experiments: 1, pilots: 1, total: 2 });
+    expect(r.weeks[0].total).toBe(1);
+    expect(r.total).toBe(3);
+    expect(r.average).toBeCloseTo(3 / 8);
+    expect(r.trend).toBe("up");
+    expect(growthDecisionsByWeek({ experiments: [], pilots: [], today }).trend).toBeNull();
+  });
+
+  it("cuenta personas activas por semana", () => {
+    const w = weeklyActiveUsers(
+      [
+        { user_id: "a", day: "2026-09-21" },
+        { user_id: "a", day: "2026-09-22" },
+        { user_id: "b", day: "2026-09-26" },
+        { user_id: "a", day: "2026-09-15" },
+        { user_id: "c", day: "2025-01-01" },
+      ],
+      today,
+      2,
+    );
+    expect(w).toEqual([
+      { week_start: "2026-09-14", users: 1 },
+      { week_start: "2026-09-21", users: 2 },
+    ]);
+  });
+
+  it("calcula el % de escalados que sostienen el lift", () => {
+    expect(sustainedLiftShare(["held", "held", "not_held", "missing"])).toEqual({ held: 2, notHeld: 1, missing: 1, share: 2 / 3 });
+    expect(sustainedLiftShare(["missing"]).share).toBeNull();
+  });
+});
+
+describe("pilotos para dirección", () => {
+  const p = (id: string, status: string, over: Partial<DirectionPilot> = {}): DirectionPilot => ({
+    id,
+    title: id,
+    status,
+    decision: null,
+    decided_at: null,
+    is_example: false,
+    ...over,
+  });
+  it("muestra activos y decididos de los últimos 30 días, con tope", () => {
+    const list = [
+      p("a", "in_test"),
+      p("b", "decided", { decision: "scale", decided_at: "2026-09-20T10:00:00Z" }),
+      p("c", "decided", { decision: "kill", decided_at: "2026-07-01T10:00:00Z" }),
+      p("d", "draft"),
+      p("e", "decided", { decided_at: "2026-09-20T10:00:00Z" }),
+      p("x", "in_test", { is_example: true }),
+    ];
+    const r = directionPilots(list, today);
+    expect(r.active.map((x) => x.id)).toEqual(["a"]);
+    expect(r.decided.map((x) => x.id)).toEqual(["b"]);
+    expect(r.hasMore).toBe(false);
+    expect(directionPilots(list, today, 1)).toMatchObject({ active: [{ id: "a" }], decided: [], hasMore: true });
+    expect(directionPilots([p("x", "in_test", { is_example: true })], today).active).toHaveLength(1);
   });
 });

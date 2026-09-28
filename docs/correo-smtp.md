@@ -73,6 +73,23 @@ Cuando el SMTP funcione, las invitaciones llegan solas por correo y ya no hace f
 
 Se cambia solo el paso 4 (host, puerto, usuario y contraseña del proveedor, por ejemplo Resend o Brevo) después de verificar el dominio en ese proveedor. Las plantillas siguen iguales.
 
-## Siguiente paso (opcional): avisos por correo
+## Resumen semanal por correo (desde la app)
 
-Los avisos de Arriero hoy son dentro de la app. Para mandarlos también por correo se puede usar esta misma cuenta de Gmail desde la app (con la contraseña de aplicación en `.env.local` y en Vercel). Se construye cuando el SMTP esté andando.
+Los lunes, el cron de avisos (`/api/cron/avisos`) le manda a cada persona un resumen de lo que le toca: carga semanal pendiente, ejercicios listos para leer, métricas norte atrasadas, pilotos que terminan esta semana e ideas quietas. Solo incluye programas donde la persona es miembro (el admin global ve todos) y no manda correos vacíos. Cada quien lo apaga en su menú de usuario: **Recibir el resumen semanal por correo** (`profiles.weekly_digest`).
+
+La app usa la misma cuenta de Gmail, pero con **otra** contraseña de aplicación (así se puede revocar una sin tumbar la otra):
+
+1. En [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords), con la cuenta de Arriero, cree una contraseña llamada `Vercel Arriero`. Cópiela sin espacios.
+2. En Vercel: **Project → Settings → Environment Variables**, agregue para *Production* (y *Preview* si quiere probar):
+
+| Variable | Valor |
+|---|---|
+| `SMTP_USER` | la cuenta de Gmail (`arriero.growth@gmail.com`) |
+| `SMTP_PASSWORD` | la contraseña de aplicación del paso 1 (escríbala usted en Vercel) |
+| `SMTP_HOST` | opcional; por defecto `smtp.gmail.com` |
+| `SMTP_PORT` | opcional; por defecto `465` |
+| `SMTP_FROM` | opcional; por defecto `Arriero <SMTP_USER>` |
+
+3. Vuelva a desplegar para que tome las variables.
+
+Para probar en local, ponga las mismas variables en `.env.local` (nunca en el código, en el chat ni en el repositorio). Sin `SMTP_USER` y `SMTP_PASSWORD`, el resumen se salta en silencio y el resto del cron sigue igual. Si un correo falla, se registra en los logs del cron y los demás salen normal.

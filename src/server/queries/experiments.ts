@@ -11,6 +11,8 @@ import type {
   Variant,
   Verdict,
 } from "@/domain/types";
+import type { ExperimentPowerInputs } from "@/domain/experiment-power";
+import type { PowerResult } from "@/domain/pilots/types";
 import type { MetricEconomics } from "@/domain/value";
 
 export interface ExperimentListItem extends ExperimentCore {
@@ -22,6 +24,8 @@ export interface ExperimentListItem extends ExperimentCore {
   problem_title: string;
   stage_id: string | null;
   stage_name: string | null;
+  /** Canal del problema del que nace (para ver cruces entre ejercicios). */
+  problem_channel: string | null;
   metric_id: string;
   metric_name: string;
   owner_name: string | null;
@@ -47,14 +51,14 @@ const LIST_SELECT = `
   verdict, decision, decision_rationale, status_changed_at, created_at, derived_from_learning_id,
   hypothesis_if, hypothesis_then, hypothesis_because,
   line:business_lines!experiments_line_id_fkey(name),
-  problem:problems!experiments_problem_id_fkey(title, stage_id, stage:funnel_stages!problems_stage_id_fkey(name)),
+  problem:problems!experiments_problem_id_fkey(title, stage_id, channel, stage:funnel_stages!problems_stage_id_fkey(name)),
   metric:metrics!experiments_metric_id_fkey(name),
   owner:profiles!experiments_owner_id_fkey(name, email)
 `;
 
 type Row = Record<string, unknown> & {
   line: { name: string } | null;
-  problem: { title: string; stage_id: string; stage: { name: string } | null } | null;
+  problem: { title: string; stage_id: string; channel: string | null; stage: { name: string } | null } | null;
   metric: { name: string } | null;
   owner: { name: string; email: string } | null;
 };
@@ -101,6 +105,7 @@ function mapRow(r: Row): ExperimentListItem {
     problem_title: r.problem?.title ?? "",
     stage_id: r.problem?.stage_id ?? null,
     stage_name: r.problem?.stage?.name ?? null,
+    problem_channel: r.problem?.channel ?? null,
     metric_id: r.metric_id as string,
     metric_name: r.metric?.name ?? "",
     owner_name: r.owner ? r.owner.name || r.owner.email : null,
@@ -126,29 +131,58 @@ export async function getExperiment(experimentId: string): Promise<ExperimentLis
   return data ? mapRow(data as unknown as Row) : null;
 }
 
+/**
+ * ¿El error es porque falta una columna o tabla de una migración pendiente?
+ * (42703 columna, 42P01 tabla, PGRST204/205 no está en el esquema de la API.)
+ */
+function isMissingSchema(error: { code?: string; message?: string } | null | undefined): boolean {
+  if (!error) return false;
+  return ["42703", "42P01", "PGRST204", "PGRST205", "PGRST200"].includes(error.code ?? "") || /does not exist|schema cache/i.test(error.message ?? "");
+}
+
 export interface VariantRow extends Variant {
   experiment_id: string;
   sort_order: number;
+  /** Valor de cada guardrail en esta variante: { guardrail_id: valor }. */
+  guardrail_values: Record<string, number>;
 }
+
+const VARIANT_COLUMNS = "id, experiment_id, name, is_control, description, sample, conversions, metric_value, notes, sort_order";
 
 export async function listVariants(filter: { programId?: string; experimentId?: string }): Promise<VariantRow[]> {
   const supabase = await createClient();
-  let q = supabase
-    .from("experiment_variants")
-    .select("id, experiment_id, name, is_control, description, sample, conversions, metric_value, notes, sort_order")
-    .order("is_control", { ascending: false })
-    .order("sort_order")
-    .order("created_at");
-  if (filter.programId) q = q.eq("program_id", filter.programId);
-  if (filter.experimentId) q = q.eq("experiment_id", filter.experimentId);
-  const { data, error } = await q;
-  if (error) throw new Error(error.message);
-  return (data ?? []).map((v) => ({
-    ...v,
+  const run = (columns: string) => {
+    let q = supabase
+      .from("experiment_variants")
+      .select(columns)
+      .order("is_control", { ascending: false })
+      .order("sort_order")
+      .order("created_at");
+    if (filter.programId) q = q.eq("program_id", filter.programId);
+    if (filter.experimentId) q = q.eq("experiment_id", filter.experimentId);
+    return q;
+  };
+  let res = await run(`${VARIANT_COLUMNS}, guardrail_values`);
+  // Sin la migración de guardrails, se lee sin esa columna.
+  if (res.error && isMissingSchema(res.error)) res = await run(VARIANT_COLUMNS);
+  if (res.error) throw new Error(res.error.message);
+  return ((res.data ?? []) as unknown as Record<string, unknown>[]).map((v) => ({
+    ...(v as unknown as VariantRow),
     sample: v.sample == null ? null : Number(v.sample),
     conversions: v.conversions == null ? null : Number(v.conversions),
     metric_value: v.metric_value == null ? null : Number(v.metric_value),
-  })) as VariantRow[];
+    guardrail_values: numberRecord(v.guardrail_values),
+  }));
+}
+
+function numberRecord(raw: unknown): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (!raw || typeof raw !== "object") return out;
+  for (const [k, val] of Object.entries(raw as Record<string, unknown>)) {
+    const n = Number(val);
+    if (val != null && val !== "" && Number.isFinite(n)) out[k] = n;
+  }
+  return out;
 }
 
 export interface LearningRow {
@@ -158,16 +192,119 @@ export interface LearningRow {
   applies_to_line_ids: string[];
   suggested_hypothesis: string | null;
   created_at: string;
+  /** Palanca (clave de VARIABLE_CATEGORY_LABEL) y canal: taxonomía común con Pilotos. */
+  lever: string | null;
+  channel: string | null;
 }
+
+const LEARNING_COLUMNS = "id, experiment_id, text, applies_to_line_ids, suggested_hypothesis, created_at";
 
 export async function getLearning(experimentId: string): Promise<LearningRow | null> {
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("learnings")
-    .select("id, experiment_id, text, applies_to_line_ids, suggested_hypothesis, created_at")
-    .eq("experiment_id", experimentId)
-    .maybeSingle();
-  return (data as LearningRow | null) ?? null;
+  const run = (columns: string) => supabase.from("learnings").select(columns).eq("experiment_id", experimentId).maybeSingle();
+  let res = await run(`${LEARNING_COLUMNS}, lever, channel`);
+  if (res.error && isMissingSchema(res.error)) res = await run(LEARNING_COLUMNS);
+  const data = res.data as unknown as (Omit<LearningRow, "lever" | "channel"> & { lever?: string | null; channel?: string | null }) | null;
+  return data ? { ...data, lever: data.lever ?? null, channel: data.channel ?? null } : null;
+}
+
+export interface ExperimentGuardrailRow {
+  id: string;
+  metric_id: string;
+  metric_name: string;
+  direction: MetricDirection;
+  unit: string | null;
+  limit_pct: number;
+  note: string | null;
+}
+
+/** Potencia y guardrails del ejercicio (X1). `ready` es false si la migración no se ha aplicado. */
+export interface ExperimentRigor {
+  ready: boolean;
+  expected_effect_pct: number | null;
+  power_inputs: ExperimentPowerInputs | null;
+  power_result: PowerResult | null;
+  guardrails: ExperimentGuardrailRow[];
+}
+
+export async function getExperimentRigor(experimentId: string): Promise<ExperimentRigor> {
+  const empty: ExperimentRigor = { ready: false, expected_effect_pct: null, power_inputs: null, power_result: null, guardrails: [] };
+  const supabase = await createClient();
+  const [exp, gs] = await Promise.all([
+    supabase.from("experiments").select("expected_effect_pct, power_inputs, power_result").eq("id", experimentId).maybeSingle(),
+    supabase
+      .from("experiment_guardrails")
+      .select("id, metric_id, limit_pct, note, created_at, metric:metrics!experiment_guardrails_metric_id_fkey(name, direction, unit)")
+      .eq("experiment_id", experimentId)
+      .order("created_at"),
+  ]);
+  if (exp.error) {
+    if (isMissingSchema(exp.error)) return empty;
+    throw new Error(exp.error.message);
+  }
+  if (gs.error && !isMissingSchema(gs.error)) throw new Error(gs.error.message);
+  const row = exp.data as { expected_effect_pct: number | string | null; power_inputs: ExperimentPowerInputs | null; power_result: PowerResult | null } | null;
+  return {
+    ready: !gs.error,
+    expected_effect_pct: row?.expected_effect_pct == null ? null : Number(row.expected_effect_pct),
+    power_inputs: row?.power_inputs ?? null,
+    power_result: row?.power_result ?? null,
+    guardrails: ((gs.data ?? []) as unknown as {
+      id: string;
+      metric_id: string;
+      limit_pct: number | string;
+      note: string | null;
+      metric: { name: string; direction: MetricDirection; unit: string | null } | null;
+    }[]).map((g) => ({
+      id: g.id,
+      metric_id: g.metric_id,
+      metric_name: g.metric?.name ?? "Métrica borrada",
+      direction: g.metric?.direction ?? "up",
+      unit: g.metric?.unit ?? null,
+      limit_pct: Number(g.limit_pct),
+      note: g.note,
+    })),
+  };
+}
+
+/** ¿Ya existen los guardrails y la potencia en la base (migración X1 aplicada)? */
+export async function rigorAvailable(): Promise<boolean> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("experiment_guardrails").select("id").limit(1);
+  return !isMissingSchema(error);
+}
+
+/** Efecto esperado de cada ejercicio del programa (para ubicar el impacto sugerido). */
+export async function listExpectedEffects(programId: string): Promise<Map<string, number>> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("experiments")
+    .select("id, expected_effect_pct")
+    .eq("program_id", programId)
+    .not("expected_effect_pct", "is", null);
+  if (error) {
+    if (isMissingSchema(error)) return new Map();
+    throw new Error(error.message);
+  }
+  return new Map((data ?? []).map((e) => [e.id as string, Number(e.expected_effect_pct)]));
+}
+
+/** Valores semanales de una métrica, del más viejo al más nuevo. */
+export async function listMetricWeeklyValues(metricId: string): Promise<{ week_start: string; value: number }[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("metric_values").select("week_start, value").eq("metric_id", metricId).order("week_start");
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((v) => ({ week_start: v.week_start as string, value: Number(v.value) }));
+}
+
+/** Cuántos adjuntos tiene cada problema del programa (para la confianza sugerida). */
+export async function countProblemAttachments(programId: string): Promise<Map<string, number>> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("attachments").select("problem_id").eq("program_id", programId).not("problem_id", "is", null);
+  if (error) throw new Error(error.message);
+  const out = new Map<string, number>();
+  for (const a of data ?? []) out.set(a.problem_id as string, (out.get(a.problem_id as string) ?? 0) + 1);
+  return out;
 }
 
 export interface AttachmentRow {

@@ -1,6 +1,6 @@
 # Módulo "Pilotos de medios" · plan de implementación
 
-> Estado: **propuesta para aprobar** (27 sep 2026). No hay código del módulo todavía.
+> Estado (28 sep 2026): **implementado y publicado** en modo manual (migraciones 012, 013 y 014). La Tía y las integraciones por MCP están construidas y apagadas: ver [`integraciones.md`](integraciones.md). Este documento queda como el plan y el glosario de referencia.
 > Guía de marca que aplica: [`../marca-y-lenguaje.md`](../marca-y-lenguaje.md).
 
 ---

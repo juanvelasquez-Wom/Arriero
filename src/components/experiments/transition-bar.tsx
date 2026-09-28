@@ -32,6 +32,13 @@ export interface TransitionOption {
   freezeName: string | null;
 }
 
+/** Aviso que se muestra cuando está disponible el paso `to` (no bloquea). */
+export interface TransitionWarning {
+  to: ExperimentStatus;
+  title: string;
+  items: string[];
+}
+
 const ACTION_LABEL: Partial<Record<ExperimentStatus, string>> = {
   prioritized: "Priorizar",
   in_design: "Pasar a diseño",
@@ -49,6 +56,7 @@ export function TransitionBar({
   options,
   durationWarning,
   decide,
+  warnings = [],
 }: {
   programId: string;
   experimentId: string;
@@ -56,6 +64,8 @@ export function TransitionBar({
   options: TransitionOption[];
   durationWarning: string | null;
   decide: Omit<DecideDialogProps, "open" | "onOpenChange"> | null;
+  /** Avisos antes de un paso (cruces con otros ejercicios, potencia insuficiente). */
+  warnings?: TransitionWarning[];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -131,6 +141,18 @@ export function TransitionBar({
           );
         })}
       </div>
+
+      {warnings
+        .filter((w) => w.items.length && options.some((o) => o.to === w.to))
+        .map((w) => (
+          <Callout key={`${w.to}-${w.title}`} icon={TriangleAlert} title={w.title}>
+            <ul className="list-disc space-y-0.5 pl-4">
+              {w.items.map((x) => (
+                <li key={x}>{x}</li>
+              ))}
+            </ul>
+          </Callout>
+        ))}
 
       {durationWarning && (status === "in_test" || status === "in_reading") ? (
         <Callout icon={TriangleAlert} title="Antes de cerrar">

@@ -25,15 +25,58 @@ import {
 } from "@/domain/home";
 import { CONTROL_LABEL, STATUS_LABEL } from "@/domain/labels";
 import { can } from "@/domain/permissions";
-import { EXPERIMENT_STATUSES } from "@/domain/types";
+import { expectedMonthlyValue, suggestIce, type IceSuggestion } from "@/domain/ice-assist";
+import { EXPERIMENT_STATUSES, type Verdict } from "@/domain/types";
 import { cn } from "@/lib/utils";
 import { getProgramContext } from "@/server/auth";
-import { listExperiments, type ExperimentListItem } from "@/server/queries/experiments";
+import {
+  countProblemAttachments,
+  listExpectedEffects,
+  listExperiments,
+  listMetricEconomics,
+  type ExperimentListItem,
+} from "@/server/queries/experiments";
 import { listCalendar, listLines, listMembers } from "@/server/queries/programs";
+import { listLearnings, listProblems } from "@/server/queries/structure";
 
 export const metadata: Metadata = { title: "Backlog de ejercicios" };
 
 const CLOSED = ["decided", "scaled", "discarded"];
+
+/** Sugerencia de ICE (Impacto y Confianza) para cada ejercicio abierto del backlog. */
+async function loadIceSuggestions(programId: string, experiments: ExperimentListItem[]): Promise<Map<string, IceSuggestion>> {
+  const open = experiments.filter((e) => !CLOSED.includes(e.status));
+  if (!open.length) return new Map();
+  const [problems, learnings, attachments, effects, economics] = await Promise.all([
+    listProblems(programId),
+    listLearnings(programId),
+    countProblemAttachments(programId),
+    listExpectedEffects(programId),
+    listMetricEconomics(experiments.map((e) => e.metric_id)),
+  ]);
+  const problemById = new Map(problems.map((p) => [p.id, p]));
+  const monthly = new Map<string, number>();
+  for (const e of experiments) {
+    const m = expectedMonthlyValue(effects.get(e.id), economics.get(e.metric_id));
+    if (m != null) monthly.set(e.id, m);
+  }
+  const out = new Map<string, IceSuggestion>();
+  for (const e of open) {
+    const p = problemById.get(e.problem_id);
+    out.set(
+      e.id,
+      suggestIce({
+        expectedEffectPct: effects.get(e.id) ?? null,
+        metric: economics.get(e.metric_id) ?? null,
+        peerMonthlyValues: [...monthly].filter(([id]) => id !== e.id).map(([, v]) => v),
+        problem: p ? { status: p.status, evidence: p.evidence, attachments: attachments.get(p.id) ?? 0, impact: p.impact } : null,
+        draftText: [e.title, e.hypothesis_if, e.hypothesis_then, e.hypothesis_because].filter(Boolean).join(" "),
+        learnings: learnings.filter((l) => l.experiment_id !== e.id).map((l) => ({ text: l.text, verdict: (l.verdict as Verdict | null) ?? null })),
+      }),
+    );
+  }
+  return out;
+}
 
 export default async function BacklogPage({ params, searchParams }: PageProps<"/programas/[programId]/ejercicios">) {
   const { programId } = await params;
@@ -45,6 +88,8 @@ export default async function BacklogPage({ params, searchParams }: PageProps<"/
     listMembers(programId),
     listCalendar(programId),
   ]);
+  const canScoreIce = can.scoreIce(ctx.actor);
+  const iceSuggestions = canScoreIce ? await loadIceSuggestions(programId, experiments) : new Map<string, IceSuggestion>();
   const get = (k: string) => (typeof sp[k] === "string" ? (sp[k] as string) : undefined);
   const f = { linea: get("linea"), estado: get("estado"), responsable: get("responsable"), etapa: get("etapa"), q: get("q") };
   const view = parseBacklogView(sp.vista);
@@ -105,6 +150,7 @@ export default async function BacklogPage({ params, searchParams }: PageProps<"/
         experimentId={e.id}
         title={e.title}
         values={{ impact: e.impact, confidence: e.confidence, ease: e.ease }}
+        suggestion={iceSuggestions.get(e.id) ?? null}
       />
     ) : (
       <span className="text-sm tabular-nums">

@@ -15,6 +15,10 @@ import { computeWorkload, OVERLOAD_IN_TEST, STALE_DAYS, type PersonWorkload, typ
 import { cn } from "@/lib/utils";
 import { getProgramContext } from "@/server/auth";
 import { listRecentActivity, listTeamMembers, loadProgramSnapshot } from "@/server/queries/management";
+import { loadCycleTimeData } from "@/server/queries/cycle-time";
+import { CYCLE_STAGES, cycleTimeByOwner, formatDays, summarizeCycleTime, type CycleTimeSummary } from "@/domain/cycle-time";
+import { STATUS_LABEL } from "@/domain/labels";
+import { CycleTimePanel } from "@/components/dashboards/cycle-time-panel";
 
 export const metadata: Metadata = { title: "Equipo" };
 
@@ -58,7 +62,7 @@ export default async function TeamPage({ params }: PageProps<"/programas/[progra
   const { programId } = await params;
   const ctx = await getProgramContext(programId);
   const today = todayIso();
-  const [members, snapshot, activity] = await Promise.all([
+  const [members, snapshot, activity, cycle] = await Promise.all([
     listTeamMembers(programId),
     loadProgramSnapshot(
       {
@@ -71,8 +75,14 @@ export default async function TeamPage({ params }: PageProps<"/programas/[progra
       today,
     ),
     listRecentActivity(programId, today),
+    loadCycleTimeData(programId),
   ]);
   const w = computeWorkload({ members, experiments: snapshot.experiments, activity, today });
+  const teamCycle = summarizeCycleTime(cycle.experiments, cycle.events);
+  const cycleByOwner = cycleTimeByOwner(cycle.experiments, cycle.events);
+  const cycleRows = w.people
+    .map((p) => ({ person: p, summary: cycleByOwner.get(p.user_id) }))
+    .filter((r): r is { person: PersonWorkload; summary: CycleTimeSummary } => !!r.summary && r.summary.stages.some((s) => s.count > 0));
   const base = `/programas/${programId}`;
 
   const ready = withOwner(w.people, (p) => p.readyToRead);
@@ -179,6 +189,48 @@ export default async function TeamPage({ params }: PageProps<"/programas/[progra
               </Table>
             </div>
           </Section>
+
+          <CycleTimePanel summary={teamCycle} />
+
+          {cycleRows.length ? (
+            <Section
+              title="Tiempo de ciclo por persona"
+              description="Días típicos (mediana) de los ejercicios de cada responsable en cada estado. En amarillo, el tramo más lento de cada quien."
+            >
+              <div className="-m-5 overflow-x-auto">
+                <Table className="tabular-nums">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="pl-5">Persona</TableHead>
+                      {CYCLE_STAGES.map((s) => (
+                        <TableHead key={s} className="text-right">
+                          {STATUS_LABEL[s]}
+                        </TableHead>
+                      ))}
+                      <TableHead className="pr-5 text-right">Hasta el aprendizaje</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {cycleRows.map(({ person, summary }) => (
+                      <TableRow key={person.user_id ?? "none"}>
+                        <TableCell className="pl-5 font-medium">{person.name}</TableCell>
+                        {summary.stages.map((s) => {
+                          const slow = summary.bottleneck?.stage === s.stage;
+                          return (
+                            <TableCell key={s.stage} className={cn("text-right", slow && "bg-highlight/20 font-semibold")}>
+                              {s.medianDays == null ? "·" : formatDays(s.medianDays)}
+                              {slow ? <span className="sr-only"> (tramo más lento)</span> : null}
+                            </TableCell>
+                          );
+                        })}
+                        <TableCell className="pr-5 text-right">{formatDays(summary.timeToLearning.medianDays)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </Section>
+          ) : null}
 
           <div className="grid gap-4 lg:grid-cols-3">
             <Section title={<span className="inline-flex items-center gap-1.5"><BookOpenCheck aria-hidden className="size-4" /> Listos para leer</span>}>

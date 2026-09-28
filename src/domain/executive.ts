@@ -2,13 +2,13 @@
 // lenguaje simple las preguntas de un comité, para todos los programas que la
 // persona puede ver. Funciones puras; se arma con los informes (`buildReport`)
 // y los consolidados (`rollupProgram`) de cada programa.
-import { daysBetween } from "./dates";
+import { addDays, daysBetween, weekStart } from "./dates";
 import { formatDate, formatMetricValue, formatSignedPercent } from "./format";
 import { DECISION_LABEL, VERDICT_LABEL, labelOf } from "./labels";
 import type { Report, ReportPeriod } from "./report";
-import type { NorthStarStatus, ProgramRollup } from "./rollup";
-import type { IsoDate } from "./types";
-import { formatCop } from "./value";
+import { bogotaDate, type NorthStarStatus, type ProgramRollup } from "./rollup";
+import type { IsoDate, Variant, Verdict } from "./types";
+import { formatValueRange } from "./value";
 
 export interface ExecutiveProgramInput {
   rollup: ProgramRollup;
@@ -127,12 +127,14 @@ export function buildExecutiveBrief(inputs: ExecutiveProgramInput[], period: Rep
   const results: BriefItem[] = [];
   const learned: BriefItem[] = [];
   let monthly = 0;
+  let monthlyHigh = 0;
   let counted = 0;
   let missing = 0;
   for (const i of used) {
     const r = i.report;
     if (r.value) {
       monthly += r.value.monthly;
+      monthlyHigh += r.value.monthlyHigh ?? r.value.monthly;
       counted += r.value.counted;
       missing += r.value.missingUnitValue;
     }
@@ -144,7 +146,7 @@ export function buildExecutiveBrief(inputs: ExecutiveProgramInput[], period: Rep
         detail: [
           c.diff != null ? `${formatSignedPercent(c.diff)} frente al control` : null,
           decision ? `Decisión: ${decision.toLowerCase()}` : null,
-          c.monthlyValue != null ? `≈ ${formatCop(c.monthlyValue)} al mes si se escala` : null,
+          c.monthlyValue != null ? `${formatValueRange(c.monthlyValue, c.monthlyValueHigh ?? c.monthlyValue, "al mes")} si se escala` : null,
         ]
           .filter(Boolean)
           .join(" · "),
@@ -160,8 +162,8 @@ export function buildExecutiveBrief(inputs: ExecutiveProgramInput[], period: Rep
   const value: BriefItem[] = [];
   if (counted) {
     value.push({
-      text: `≈ ${formatCop(monthly)} al mes`,
-      detail: `Valor estimado de ${counted} ganador${counted === 1 ? "" : "es"} del periodo si se escalan.${missing ? ` Faltan ${missing} por calcular: agregue el valor por unidad en su métrica.` : ""}`,
+      text: formatValueRange(monthly, monthlyHigh, "al mes"),
+      detail: `Valor estimado (piso conservador y techo optimista) de ${counted} ganador${counted === 1 ? "" : "es"} del periodo si se escalan.${missing ? ` Faltan ${missing} por calcular: agregue el valor por unidad en su métrica.` : ""}`,
       tone: "good",
     });
   } else if (missing) {
@@ -235,4 +237,144 @@ export function executiveBriefToText(brief: ExecutiveBrief, headline: { title: s
   out.push("");
   out.push("Arriero · Menos carreta, más crecimiento.");
   return out.join("\n");
+}
+
+// -----------------------------------------------------------------------------
+// North Star de Arriero: decisiones de growth con evidencia por semana
+// -----------------------------------------------------------------------------
+
+/** Semanas que muestra la tendencia de la North Star de Arriero. */
+export const ARRIERO_NORTH_STAR_WEEKS = 8;
+
+export interface EvidenceExperiment {
+  status: string;
+  verdict: Verdict | null;
+  decided_at: string | null;
+  learning: string | null;
+  variants: Pick<Variant, "sample" | "conversions" | "metric_value">[];
+}
+
+/** ¿La variante tiene resultado cargado? (muestra con conversiones, o valor de la métrica). */
+function variantHasResult(v: Pick<Variant, "sample" | "conversions" | "metric_value">): boolean {
+  return (v.sample != null && v.sample > 0 && v.conversions != null) || v.metric_value != null;
+}
+
+/**
+ * Una decisión de growth "con evidencia": el ejercicio se decidió, tiene veredicto,
+ * al menos dos variantes, resultado en todas y un aprendizaje escrito.
+ */
+export function isEvidencedDecision(e: EvidenceExperiment): boolean {
+  return (
+    !!e.decided_at &&
+    (e.status === "decided" || e.status === "scaled") &&
+    e.verdict != null &&
+    e.variants.length >= 2 &&
+    e.variants.every(variantHasResult) &&
+    !!e.learning?.trim()
+  );
+}
+
+export interface WeeklyDecisions {
+  week_start: IsoDate;
+  experiments: number;
+  pilots: number;
+  total: number;
+}
+
+export interface GrowthDecisionsTrend {
+  weeks: WeeklyDecisions[];
+  total: number;
+  /** Promedio por semana en la ventana. */
+  average: number;
+  /** Últimas 4 semanas frente a las 4 anteriores (null si no hay con qué comparar). */
+  trend: "up" | "down" | "flat" | null;
+}
+
+/** Semanas (lunes) de la ventana que termina en la semana de `today`, de la más vieja a la actual. */
+export function lastWeeks(today: IsoDate, weeks: number): IsoDate[] {
+  const current = weekStart(today);
+  return Array.from({ length: weeks }, (_, i) => addDays(current, -7 * (weeks - 1 - i)));
+}
+
+function trendOf(counts: number[]): GrowthDecisionsTrend["trend"] {
+  if (counts.length < 2) return null;
+  const half = Math.floor(counts.length / 2);
+  const before = counts.slice(0, counts.length - half).reduce((a, b) => a + b, 0);
+  const recent = counts.slice(counts.length - half).reduce((a, b) => a + b, 0);
+  if (before === 0 && recent === 0) return null;
+  return recent > before ? "up" : recent < before ? "down" : "flat";
+}
+
+/**
+ * North Star de Arriero: decisiones de growth con evidencia por semana (ejercicios
+ * con resultados y aprendizaje + pilotos de medios decididos), últimas N semanas.
+ */
+export function growthDecisionsByWeek(input: {
+  experiments: EvidenceExperiment[];
+  pilots: { status: string; decided_at: string | null }[];
+  today: IsoDate;
+  weeks?: number;
+}): GrowthDecisionsTrend {
+  const weeks = lastWeeks(input.today, input.weeks ?? ARRIERO_NORTH_STAR_WEEKS);
+  const rows = new Map(weeks.map((w) => [w, { week_start: w, experiments: 0, pilots: 0, total: 0 }]));
+  const bump = (ts: string | null, key: "experiments" | "pilots") => {
+    const day = bogotaDate(ts);
+    const row = day ? rows.get(weekStart(day)) : undefined;
+    if (!row) return;
+    row[key] += 1;
+    row.total += 1;
+  };
+  for (const e of input.experiments) if (isEvidencedDecision(e)) bump(e.decided_at, "experiments");
+  for (const p of input.pilots) if (p.status === "decided") bump(p.decided_at, "pilots");
+  const list = weeks.map((w) => rows.get(w)!);
+  const total = list.reduce((a, r) => a + r.total, 0);
+  return { weeks: list, total, average: list.length ? total / list.length : 0, trend: trendOf(list.map((r) => r.total)) };
+}
+
+/** Personas activas por semana (días de uso distintos por persona se cuentan una vez). */
+export function weeklyActiveUsers(rows: { user_id: string; day: IsoDate }[], today: IsoDate, weeks = ARRIERO_NORTH_STAR_WEEKS): { week_start: IsoDate; users: number }[] {
+  const window = lastWeeks(today, weeks);
+  const sets = new Map(window.map((w) => [w, new Set<string>()]));
+  for (const r of rows) sets.get(weekStart(r.day))?.add(r.user_id);
+  return window.map((w) => ({ week_start: w, users: sets.get(w)!.size }));
+}
+
+/** % de escalados que sostienen el lift (entre los que ya se pueden leer). */
+export function sustainedLiftShare(statuses: ("held" | "not_held" | "missing")[]): { held: number; notHeld: number; missing: number; share: number | null } {
+  const held = statuses.filter((s) => s === "held").length;
+  const notHeld = statuses.filter((s) => s === "not_held").length;
+  return { held, notHeld, missing: statuses.length - held - notHeld, share: held + notHeld ? held / (held + notHeld) : null };
+}
+
+// -----------------------------------------------------------------------------
+// Pilotos de medios en el resumen de dirección
+// -----------------------------------------------------------------------------
+
+export interface DirectionPilot {
+  id: string;
+  title: string;
+  status: string;
+  decision: string | null;
+  decided_at: string | null;
+  is_example: boolean;
+}
+
+const ACTIVE_PILOT = ["approved", "in_test", "in_reading"];
+
+/**
+ * Pilotos que dirección debe ver: los activos (aprobados, en prueba o en lectura) y
+ * los decididos en los últimos 30 días con su decisión. Hasta `limit` en total, los
+ * activos primero; los de ejemplo solo si no hay reales.
+ */
+export function directionPilots<T extends DirectionPilot>(pilots: T[], today: IsoDate, limit = 10): { active: T[]; decided: T[]; hasMore: boolean } {
+  const real = pilots.filter((p) => !p.is_example);
+  const pool = real.length ? real : pilots;
+  const since = addDays(today, -30);
+  const active = pool.filter((p) => ACTIVE_PILOT.includes(p.status));
+  const decided = pool
+    .filter((p) => p.status === "decided" && p.decision && (bogotaDate(p.decided_at) ?? "") >= since)
+    .sort((a, b) => (b.decided_at ?? "").localeCompare(a.decided_at ?? ""));
+  const shownActive = active.slice(0, limit);
+  const shownDecided = decided.slice(0, Math.max(0, limit - shownActive.length));
+  return { active: shownActive, decided: shownDecided, hasMore: active.length + decided.length > shownActive.length + shownDecided.length };
 }

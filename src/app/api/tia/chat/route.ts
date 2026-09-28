@@ -1,7 +1,7 @@
 import { after, NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { parseScoringConfig } from "@/domain/scoring";
-import { TIA_LINES, tiaSystem } from "@/domain/tia";
+import { TIA_LINES, tiaSystem, unverifiedNote, unverifiedNumbers } from "@/domain/tia";
 import {
   buildChatMessages,
   CHAT_HISTORY_BUDGET,
@@ -97,8 +97,10 @@ export async function POST(request: NextRequest) {
   }
 
   let system: string;
+  let context: unknown;
   try {
-    system = tiaSystem(CHAT_TASK, await programContextForTia(ctx));
+    context = await programContextForTia(ctx);
+    system = tiaSystem(CHAT_TASK, context);
   } catch (e) {
     console.error("[tia-chat] no se pudo armar el contexto", e instanceof Error ? e.message : e);
     return jsonError("La Tía no pudo leer los datos del programa. Intente de nuevo en un momentico.", 500);
@@ -137,6 +139,14 @@ export async function POST(request: NextRequest) {
           step = await events.next();
         }
         if (!answer.trim()) controller.enqueue(encoder.encode(`${CHAT_STREAM_ERROR}La Tía se quedó callada. Intente de nuevo.`));
+        else {
+          // Cifras citadas como hechos que no están en los datos: se avisa al final.
+          const note = unverifiedNote(unverifiedNumbers(answer, context));
+          if (note) {
+            answer += `\n\n${note}`;
+            controller.enqueue(encoder.encode(`\n\n${note}`));
+          }
+        }
       } catch (e) {
         const msg = e instanceof TiaError ? e.message : "La Tía no pudo terminar. Intente de nuevo.";
         if (!(e instanceof TiaError)) console.error("[tia-chat] error en el streaming", e instanceof Error ? e.message : e);

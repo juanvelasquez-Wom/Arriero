@@ -27,18 +27,27 @@ import { PILOT_STATUSES, PILOT_TEST_TYPES, VARIABLE_CATEGORIES } from "@/domain/
 import { formatCop } from "@/domain/value";
 import { getPilotContext, isPilotsReady } from "@/server/pilot-auth";
 import { analyzePilotDetail } from "@/server/pilot-reading";
-import { listPilots, loadPilotCatalogs, loadPilotDetail, type PilotCatalogs, type PilotListItem } from "@/server/queries/pilots";
+import {
+  listPilots,
+  loadPilotCatalogs,
+  loadPilotDetailsBatch,
+  type PilotCatalogs,
+  type PilotDetail,
+  type PilotListItem,
+} from "@/server/queries/pilots";
 
 export const metadata: Metadata = { title: "Portafolio de pilotos" };
 
+/** Muestras de Monte Carlo en el portafolio: bastan para el titular y cuestan menos que la ficha. */
+const PORTFOLIO_DRAWS = 4000;
+const PORTFOLIO_ITERATIONS = 2000;
+
 /** Lectura de la mejor variante de un piloto; si algo falla, el portafolio sigue sin ese dato. */
-async function resultOf(item: PilotListItem, catalogs: PilotCatalogs): Promise<PortfolioItem> {
+function resultOf(item: PilotListItem, detail: PilotDetail | undefined, catalogs: PilotCatalogs): PortfolioItem {
   const empty: PortfolioItem = { ...item, result: null, resultArmName: null };
-  if (!RESULT_PILOT_STATUSES.includes(item.status)) return empty;
+  if (!detail || !RESULT_PILOT_STATUSES.includes(item.status)) return empty;
   try {
-    const detail = await loadPilotDetail(item.id);
-    if (!detail) return empty;
-    const result = headlineResult(analyzePilotDetail(detail, catalogs));
+    const result = headlineResult(analyzePilotDetail(detail, catalogs, { draws: PORTFOLIO_DRAWS, iterations: PORTFOLIO_ITERATIONS }));
     return { ...item, result, resultArmName: result ? (detail.arms.find((a) => a.id === result.armId)?.name ?? null) : null };
   } catch {
     return empty;
@@ -58,7 +67,8 @@ export default async function PilotsPortfolioPage({ searchParams }: PageProps<"/
   const filters = parsePortfolioFilters(sp);
   const view = parsePortfolioView(sp);
   const filtered = filterPilots(pilots, filters);
-  const items = await Promise.all(filtered.map((p) => resultOf(p, catalogs)));
+  const details = await loadPilotDetailsBatch(filtered.filter((p) => RESULT_PILOT_STATUSES.includes(p.status)).map((p) => p.id));
+  const items = filtered.map((p) => resultOf(p, details.get(p.id), catalogs));
   const kpis = portfolioKpis(filtered);
   const hasExamples = pilots.some((p) => p.is_example);
   const owners = [...new Map(pilots.filter((p) => p.owner_id).map((p) => [p.owner_id!, p.owner_name ?? "Sin nombre"])).entries()].sort((a, b) =>

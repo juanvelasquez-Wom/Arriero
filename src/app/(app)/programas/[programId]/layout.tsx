@@ -9,16 +9,20 @@ import { can } from "@/domain/permissions";
 import { getProgramContext } from "@/server/auth";
 import { listLines } from "@/server/queries/programs";
 import { tiaStatus } from "@/server/tia/run";
+import { recordUsage } from "@/server/usage";
+import { getPilotContext } from "@/server/pilot-auth";
 
 export default async function ProgramLayout({ children, params }: LayoutProps<"/programas/[programId]">) {
   const { programId } = await params;
   const ctx = await getProgramContext(programId);
-  const [lines, tia] = await Promise.all([listLines(programId), tiaStatus().catch(() => ({ configured: false, left: null }))]);
+  recordUsage("programas", ctx.user.id);
+  const [lines, tia, pilots] = await Promise.all([listLines(programId), tiaStatus().catch(() => ({ configured: false, left: null })), getPilotContext().catch(() => null)]);
   const nav = {
     programId,
     lines: lines.map((l) => ({ id: l.id, name: l.name })),
     showTrash: can.viewTrash(ctx.actor),
     showSettings: can.editStructure(ctx.actor) || can.manageMembers(ctx.actor),
+    showPilots: !!pilots?.actor.role,
   };
 
   return (

@@ -5,12 +5,14 @@ import { EmptyState } from "@/components/app/page";
 import { PilotsNav } from "@/components/pilots/pilots-nav";
 import { isPilotApprover } from "@/domain/pilots/flow";
 import { getPilotContext, isPilotsReady } from "@/server/pilot-auth";
+import { recordUsage } from "@/server/usage";
 
 export const metadata: Metadata = { title: { template: "%s · Pilotos", default: "Pilotos de medios" } };
 
 export default async function PilotsLayout({ children }: { children: React.ReactNode }) {
   const { user, actor } = await getPilotContext();
   const ready = await isPilotsReady();
+  if (ready && actor.role) recordUsage("pilotos", user.id);
 
   return (
     <>

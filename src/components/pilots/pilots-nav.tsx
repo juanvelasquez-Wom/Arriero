@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, CalendarRange, LayoutGrid, Library, ShieldCheck, type LucideIcon } from "lucide-react";
+import { BookOpen, CalendarRange, LayoutGrid, Library, Megaphone, ShieldCheck, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 const ITEMS: { href: string; label: string; icon: LucideIcon; approverOnly?: boolean }[] = [
   { href: "/pilotos", label: "Portafolio", icon: LayoutGrid },
   { href: "/pilotos/calendario", label: "Calendario", icon: CalendarRange },
+  { href: "/pilotos/campanas", label: "Campañas", icon: Megaphone },
   { href: "/pilotos/aprendizajes", label: "Aprendizajes", icon: BookOpen },
   { href: "/pilotos/catalogos", label: "Catálogos", icon: Library },
   { href: "/pilotos/roles", label: "Roles", icon: ShieldCheck, approverOnly: true },

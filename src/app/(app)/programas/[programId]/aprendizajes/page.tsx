@@ -5,6 +5,7 @@ import { ExportCsvButton } from "@/components/app/export-csv-button";
 import { Term } from "@/components/app/info-tip";
 import { EmptyState, PageHeader } from "@/components/app/page";
 import { DecisionBadge, VerdictBadge } from "@/components/app/status-badge";
+import { IncludeToggle, leverLabel, UnifiedLearningCard } from "@/components/app/unified-learning";
 import { UrlFilters } from "@/components/app/url-filters";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,9 +19,12 @@ import { toCsv } from "@/domain/csv";
 import { todayIso } from "@/domain/dates";
 import { formatDate } from "@/domain/format";
 import { DECISION_LABEL, VERDICT_LABEL, labelOf } from "@/domain/labels";
+import { isOn, matchesTaxonomy, taxonomyOptions } from "@/domain/learning-search";
 import { can } from "@/domain/permissions";
 import { VERDICTS, type Decision, type Verdict } from "@/domain/types";
 import { getProgramContext } from "@/server/auth";
+import { getPilotContext } from "@/server/pilot-auth";
+import { listAllLearnings } from "@/server/queries/learnings";
 import { listLines } from "@/server/queries/programs";
 import { listLearnings } from "@/server/queries/structure";
 
@@ -30,16 +34,38 @@ export default async function LearningsPage({ params, searchParams }: PageProps<
   const { programId } = await params;
   const sp = await searchParams;
   const ctx = await getProgramContext(programId);
-  const [learnings, lines] = await Promise.all([listLearnings(programId), listLines(programId)]);
+  const { actor: pilotActor } = await getPilotContext();
+  // Pilotos de medios: solo para quien tiene rol en Pilotos (RLS igual lo filtra).
+  const canSeePilots = !!pilotActor.role;
+  const withPilots = canSeePilots && isOn(sp.pilotos);
+  const [learnings, lines, unified, pilotRows] = await Promise.all([
+    listLearnings(programId),
+    listLines(programId),
+    listAllLearnings({ programId, source: "experiment" }),
+    withPilots ? listAllLearnings({ source: "pilot" }) : Promise.resolve([]),
+  ]);
+  // Palanca y canal (taxonomía común) de cada aprendizaje, desde la vista unificada.
+  const taxonomy = new Map(unified.map((u) => [u.id, { lever: u.lever, channel: u.channel }]));
   const get = (k: string) => (typeof sp[k] === "string" ? (sp[k] as string) : undefined);
-  const f = { linea: get("linea"), veredicto: get("veredicto"), etapa: get("etapa"), q: get("q") };
+  const f = { linea: get("linea"), veredicto: get("veredicto"), etapa: get("etapa"), q: get("q"), palanca: get("palanca"), canal: get("canal") };
   const filtered = learnings.filter(
     (l) =>
       (!f.linea || l.line_id === f.linea || l.applies_to_line_ids.includes(f.linea)) &&
       (!f.veredicto || l.verdict === f.veredicto) &&
       (!f.etapa || l.stage_name === f.etapa) &&
+      matchesTaxonomy(taxonomy.get(l.id) ?? {}, f) &&
       (!f.q || `${l.text} ${l.experiment_title} ${l.suggested_hypothesis ?? ""}`.toLowerCase().includes(f.q.toLowerCase())),
   );
+  // Los de pilotos no tienen línea ni etapa del programa: con esos filtros no aparecen.
+  const filteredPilots = pilotRows.filter(
+    (l) =>
+      !f.linea &&
+      !f.etapa &&
+      (!f.veredicto || l.verdict === f.veredicto) &&
+      matchesTaxonomy(l, f) &&
+      (!f.q || `${l.text} ${l.item_title}`.toLowerCase().includes(f.q.toLowerCase())),
+  );
+  const options = taxonomyOptions([...unified, ...pilotRows]);
   const stageNames = [...new Set(learnings.map((l) => l.stage_name).filter((s): s is string => !!s))];
   const lineName = (id: string) => lines.find((l) => l.id === id)?.name ?? "—";
   const base = `/programas/${programId}`;
@@ -49,6 +75,8 @@ export default async function LearningsPage({ params, searchParams }: PageProps<
     { header: "Etapa", value: (l) => l.stage_name },
     { header: "Veredicto", value: (l) => labelOf(VERDICT_LABEL, l.verdict as Verdict | null, "") },
     { header: "Decisión", value: (l) => labelOf(DECISION_LABEL, l.decision as Decision | null, "") },
+    { header: "Palanca", value: (l) => leverLabel(taxonomy.get(l.id)?.lever) },
+    { header: "Canal", value: (l) => taxonomy.get(l.id)?.channel ?? "" },
     { header: "Aprendizaje", value: (l) => l.text },
     { header: "Aplica también a", value: (l) => l.applies_to_line_ids.map(lineName).join(", ") },
     { header: "Hipótesis derivada", value: (l) => l.suggested_hypothesis },
@@ -66,7 +94,12 @@ export default async function LearningsPage({ params, searchParams }: PageProps<
           ) : null
         }
       />
-      {learnings.length === 0 ? (
+      {canSeePilots ? (
+        <div className="mb-4">
+          <IncludeToggle pathname={`${base}/aprendizajes`} params={sp} param="pilotos" label="Incluir pilotos de medios" />
+        </div>
+      ) : null}
+      {learnings.length === 0 && !withPilots ? (
         <EmptyState art="tinto"
           icon={BookOpenCheck}
           title="Todavía no hay aprendizajes"
@@ -85,6 +118,10 @@ export default async function LearningsPage({ params, searchParams }: PageProps<
               { param: "linea", label: "Línea", options: lines.map((l) => ({ value: l.id, label: l.name })) },
               { param: "veredicto", label: "Veredicto", options: VERDICTS.map((v) => ({ value: v, label: VERDICT_LABEL[v] })) },
               { param: "etapa", label: "Etapa", options: stageNames.map((s) => ({ value: s, label: s })) },
+              ...(options.levers.length
+                ? [{ param: "palanca", label: "Palanca", options: options.levers.map((v) => ({ value: v, label: leverLabel(v) ?? v })) }]
+                : []),
+              ...(options.channels.length ? [{ param: "canal", label: "Canal", options: options.channels.map((v) => ({ value: v, label: v })) }] : []),
             ]}
           />
           <ul className="space-y-3">
@@ -100,6 +137,8 @@ export default async function LearningsPage({ params, searchParams }: PageProps<
                       <div className="text-xs text-soft">
                         {l.line_name}
                         {l.stage_name ? ` · ${l.stage_name}` : ""} · {formatDate(l.created_at.slice(0, 10))}
+                        {leverLabel(taxonomy.get(l.id)?.lever) ? ` · ${leverLabel(taxonomy.get(l.id)?.lever)}` : ""}
+                        {taxonomy.get(l.id)?.channel ? ` · ${taxonomy.get(l.id)?.channel}` : ""}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -147,8 +186,31 @@ export default async function LearningsPage({ params, searchParams }: PageProps<
                 </li>
               );
             })}
-            {filtered.length === 0 ? <li className="py-8 text-center text-sm text-soft">Ningún aprendizaje coincide con los filtros. Ese camino no era: pruebe con otros.</li> : null}
+            {filtered.length === 0 && filteredPilots.length === 0 ? (
+              <li className="py-8 text-center text-sm text-soft">Ningún aprendizaje coincide con los filtros. Ese camino no era: pruebe con otros.</li>
+            ) : null}
           </ul>
+          {withPilots ? (
+            <section aria-labelledby="aprendizajes-pilotos" className="mt-8">
+              <h2 id="aprendizajes-pilotos" className="mb-1 text-lg font-bold">
+                De los pilotos de medios
+              </h2>
+              <p className="mb-3 text-sm text-soft">
+                Lo que dejaron los pilotos decididos. No son de este programa, pero lo que funcionó en medios puede volverse hipótesis aquí.
+              </p>
+              {filteredPilots.length ? (
+                <ul className="space-y-3">
+                  {filteredPilots.map((l) => (
+                    <UnifiedLearningCard key={l.id} item={l} />
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-soft">
+                  {pilotRows.length ? "Ningún aprendizaje de pilotos coincide con los filtros." : "Todavía no hay aprendizajes de pilotos."}
+                </p>
+              )}
+            </section>
+          ) : null}
         </>
       )}
     </div>

@@ -1,9 +1,10 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { TriangleAlert } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition, type ReactNode } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { applyFieldErrors, FormError, FormField, SubmitButton } from "@/components/app/form";
 import { Button } from "@/components/ui/button";
@@ -21,7 +22,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Term } from "@/components/app/info-tip";
-import { METRIC_BRANCH_LABEL, METRIC_TYPE_LABEL } from "@/domain/labels";
+import { METRIC_BRANCH_LABEL, METRIC_SCOPE_LABEL, METRIC_TYPE_LABEL, PLATFORM_SCOPE_WARNING } from "@/domain/labels";
+import { METRIC_SCOPES, type MetricScope } from "@/domain/metric-formula";
 import { toInputValue } from "@/domain/metric-tree";
 import { METRIC_BRANCHES, type MetricBranch, type MetricDirection, type MetricType } from "@/domain/types";
 import { metricSchema, type MetricInput, type MetricValues } from "@/lib/validation/structure";
@@ -41,6 +43,9 @@ export interface MetricFormMetric {
   baseline: number | null;
   unit_value?: number | null;
   owner_id: string | null;
+  scope?: MetricScope | null;
+  numerator_id?: string | null;
+  denominator_id?: string | null;
 }
 
 export interface Option {
@@ -69,6 +74,7 @@ export function MetricFormDialog({
   defaultBranch = null,
   parentOptions,
   members,
+  formulaOptions,
   trigger,
   title,
 }: {
@@ -80,6 +86,11 @@ export function MetricFormDialog({
   defaultBranch?: MetricBranch | null;
   parentOptions: Option[];
   members: Option[];
+  /**
+   * Métricas de la misma línea para "Se calcula como" (numerador ÷ denominador).
+   * Si viene, el formulario muestra también el alcance y la fórmula.
+   */
+  formulaOptions?: Option[];
   trigger: ReactNode;
   title?: string;
 }) {
@@ -90,6 +101,8 @@ export function MetricFormDialog({
   const metricType = metric?.type ?? type;
   const isInput = metricType === "input";
   const idp = `metric-${metric?.id ?? `new-${defaultParentId ?? type}`}`;
+  const showDefinition = !!formulaOptions;
+  const ratioOptions = (formulaOptions ?? []).filter((o) => o.id !== metric?.id);
 
   const defaults = (): MetricInput => ({
     line_id: lineId,
@@ -105,6 +118,13 @@ export function MetricFormDialog({
     baseline: toInputValue(metric?.baseline),
     unit_value: toInputValue(metric?.unit_value),
     owner_id: metric?.owner_id ?? "none",
+    ...(showDefinition
+      ? {
+          scope: metric?.scope ?? "none",
+          numerator_id: metric?.numerator_id ?? "none",
+          denominator_id: metric?.denominator_id ?? "none",
+        }
+      : {}),
   });
 
   const form = useForm<MetricInput, unknown, MetricValues>({
@@ -112,6 +132,7 @@ export function MetricFormDialog({
     defaultValues: defaults(),
   });
   const { errors } = form.formState;
+  const scope = useWatch({ control: form.control, name: "scope" });
 
   function onOpenChange(next: boolean) {
     setOpen(next);
@@ -220,6 +241,97 @@ export function MetricFormDialog({
             >
               <Textarea id={`${idp}-definition`} rows={3} {...form.register("definition")} />
             </FormField>
+
+            {showDefinition ? (
+              <>
+                <FormField
+                  id={`${idp}-scope`}
+                  label="Alcance"
+                  description="¿Mide venta que el negocio no tendría sin nosotros, o qué tan bien anda la plataforma?"
+                  error={errors.scope?.message}
+                >
+                  <Controller
+                    control={form.control}
+                    name="scope"
+                    render={({ field }) => (
+                      <Select value={field.value || "none"} onValueChange={field.onChange}>
+                        <SelectTrigger id={`${idp}-scope`} className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Sin definir</SelectItem>
+                          {METRIC_SCOPES.map((s) => (
+                            <SelectItem key={s} value={s}>
+                              {METRIC_SCOPE_LABEL[s]}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                  {scope === "platform" ? (
+                    <p role="note" className="mt-1.5 flex items-start gap-1.5 rounded-lg border border-highlight bg-highlight/15 px-2.5 py-1.5 text-xs">
+                      <TriangleAlert aria-hidden className="mt-px size-3.5 shrink-0" />
+                      {PLATFORM_SCOPE_WARNING}
+                    </p>
+                  ) : null}
+                </FormField>
+
+                <fieldset className="grid gap-2">
+                  <legend className="text-sm font-medium">Se calcula como (opcional)</legend>
+                  <p className="text-xs text-soft">
+                    Si es una tasa, elija de qué métricas sale. Al cargar la semana avisamos si el valor no cuadra con la división.
+                  </p>
+                  <div className="grid items-start gap-2 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+                    <FormField id={`${idp}-numerator`} label="Numerador" error={errors.numerator_id?.message}>
+                      <Controller
+                        control={form.control}
+                        name="numerator_id"
+                        render={({ field }) => (
+                          <Select value={field.value || "none"} onValueChange={field.onChange}>
+                            <SelectTrigger id={`${idp}-numerator`} className="w-full" aria-invalid={!!errors.numerator_id}>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">Sin fórmula</SelectItem>
+                              {ratioOptions.map((o) => (
+                                <SelectItem key={o.id} value={o.id}>
+                                  {o.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
+                    </FormField>
+                    <span aria-hidden className="hidden pt-8 text-lg font-bold text-soft sm:block">
+                      ÷
+                    </span>
+                    <FormField id={`${idp}-denominator`} label="Denominador" error={errors.denominator_id?.message}>
+                      <Controller
+                        control={form.control}
+                        name="denominator_id"
+                        render={({ field }) => (
+                          <Select value={field.value || "none"} onValueChange={field.onChange}>
+                            <SelectTrigger id={`${idp}-denominator`} className="w-full" aria-invalid={!!errors.denominator_id}>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">Sin fórmula</SelectItem>
+                              {ratioOptions.map((o) => (
+                                <SelectItem key={o.id} value={o.id}>
+                                  {o.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
+                    </FormField>
+                  </div>
+                </fieldset>
+              </>
+            ) : null}
 
             <div className="grid gap-4 sm:grid-cols-2">
               <FormField id={`${idp}-direction`} label="Dirección deseada" required error={errors.direction?.message}>

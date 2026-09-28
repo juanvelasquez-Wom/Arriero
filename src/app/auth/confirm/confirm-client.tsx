@@ -5,10 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Spinner } from "@/components/ui/spinner";
 import { createClient } from "@/lib/supabase/client";
-
-function safeNext(next: string | null) {
-  return next && next.startsWith("/") && !next.startsWith("//") ? next : "/programas";
-}
+import { safeNext } from "@/domain/redirect";
 
 /**
  * Recibe los enlaces de invitación y de recuperación en cualquiera de sus

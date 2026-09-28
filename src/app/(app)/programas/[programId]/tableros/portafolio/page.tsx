@@ -12,17 +12,27 @@ import { formatShortDate } from "@/domain/format";
 import { isActive, isClosed } from "@/domain/lifecycle";
 import { cn } from "@/lib/utils";
 import { listProblems, listStages } from "@/server/queries/structure";
+import { loadCycleTimeData } from "@/server/queries/cycle-time";
+import { summarizeCycleTime } from "@/domain/cycle-time";
+import { CycleTimePanel } from "@/components/dashboards/cycle-time-panel";
 import { loadDashboard } from "../_lib/data";
 
 export const metadata: Metadata = { title: "Portafolio y velocidad" };
 
 export default async function PortfolioPage({ params, searchParams }: PageProps<"/programas/[programId]/tableros/portafolio">) {
   const { programId } = await params;
-  const [data, stages, problems] = await Promise.all([
+  const [data, stages, problems, cycle] = await Promise.all([
     loadDashboard(programId, await searchParams),
     listStages({ programId }),
     listProblems(programId),
+    loadCycleTimeData(programId),
   ]);
+  // Tiempo de ciclo con los mismos filtros del tablero.
+  const filteredIds = new Set(data.filtered.map((e) => e.id));
+  const cycleTime = summarizeCycleTime(
+    cycle.experiments.filter((e) => filteredIds.has(e.id)),
+    cycle.events.filter((e) => filteredIds.has(e.entity_id)),
+  );
   const base = `/programas/${programId}`;
   const lines = data.filters.linea ? data.lines.filter((l) => l.id === data.filters.linea) : data.lines;
 
@@ -258,6 +268,8 @@ export default async function PortfolioPage({ params, searchParams }: PageProps<
             </details>
           </Section>
         </div>
+
+        <CycleTimePanel summary={cycleTime} />
       </div>
     </DashboardFrame>
   );

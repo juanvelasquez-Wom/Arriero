@@ -106,6 +106,15 @@ export const CALENDAR_EVENT_LABEL: Record<CalendarEventType, string> = {
   decision: "Punto de decisión",
 };
 
+/** Alcance de una métrica del árbol (`metrics.scope`). */
+export const METRIC_SCOPE_LABEL: Record<"business" | "platform", string> = {
+  business: "De negocio",
+  platform: "De plataforma",
+};
+
+/** Aviso fijo para las métricas de plataforma. */
+export const PLATFORM_SCOPE_WARNING = "Esta métrica mide eficiencia en plataforma, no venta incremental.";
+
 export function labelOf<T extends string>(map: Record<T, string>, value: T | null | undefined, fallback = "—") {
   return value ? map[value] : fallback;
 }

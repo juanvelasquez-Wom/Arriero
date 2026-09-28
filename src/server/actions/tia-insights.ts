@@ -5,7 +5,7 @@ import { fail, ok, type ActionResult } from "@/lib/action-result";
 import { createClient } from "@/lib/supabase/server";
 import { todayIso } from "@/domain/dates";
 import { parseScoringConfig } from "@/domain/scoring";
-import { tiaSystem } from "@/domain/tia";
+import { tiaSystem, withNumberCheck } from "@/domain/tia";
 import {
   COMMITTEE_TASK,
   committeeContext,
@@ -135,7 +135,7 @@ export async function explainMetric(programId: string, metricId: string): Promis
     });
     await recordTiaUsage(programId, "explain_metric", reply.usage);
     const text = reply.text.trim();
-    return text ? ok(text) : fail("La Tía se quedó callada. Intente de nuevo.");
+    return text ? ok(withNumberCheck(text, data)) : fail("La Tía se quedó callada. Intente de nuevo.");
   } catch (e) {
     return tiaFail(e);
   }
@@ -161,7 +161,7 @@ export async function prepareCommittee(briefText: string): Promise<ActionResult<
     });
     await recordTiaUsage(null, "committee", reply.usage);
     const text = reply.text.trim();
-    return text ? ok(text) : fail("La Tía se quedó callada. Intente de nuevo.");
+    return text ? ok(withNumberCheck(text, committeeContext(parsed.data))) : fail("La Tía se quedó callada. Intente de nuevo.");
   } catch (e) {
     return tiaFail(e);
   }

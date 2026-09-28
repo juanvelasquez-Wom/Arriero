@@ -87,6 +87,18 @@ describe("analyzePilot · A/B", () => {
     expect(r.warnings).toEqual([]);
   });
 
+  it("menos muestras (portafolio): mismo titular; sin opciones, idéntico al valor por defecto", () => {
+    const input = base({
+      measurements: [...daily("c", "conv", 2000, 14), ...daily("c", "sales", 200, 14), ...daily("v", "conv", 2000, 14), ...daily("v", "sales", 280, 14)],
+    });
+    const full = analyzePilot(input);
+    expect(analyzePilot(input, {})).toEqual(full);
+    const light = analyzePilot(input, { draws: 4000, iterations: 2000 });
+    expect(light.primary!.bestArmId).toBe(full.primary!.bestArmId);
+    expect(light.suggestion.decision).toBe(full.suggestion.decision);
+    expect(Math.abs(light.primary!.comparisons[0].liftPct! - full.primary!.comparisons[0].liftPct!)).toBeLessThan(2);
+  });
+
   it("tres grupos: una comparación por variante y P(mejor) que suma 1", () => {
     const r = analyzePilot(
       base({

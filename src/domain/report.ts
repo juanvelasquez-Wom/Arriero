@@ -9,7 +9,7 @@ import { readExperiment } from "./results";
 import { bogotaDate, type NorthStarStatus, type RollupExperiment } from "./rollup";
 import { TARGET_STATUS_LABEL, type TargetStatus } from "./targets";
 import type { CalendarEvent, IsoDate } from "./types";
-import { formatCop, type MetricEconomics } from "./value";
+import { formatValueRange, type MetricEconomics } from "./value";
 
 export const REPORT_PERIODS = ["semana", "mes"] as const;
 export type ReportPeriodKey = (typeof REPORT_PERIODS)[number];
@@ -83,8 +83,10 @@ export interface ReportClosed {
   decision: RollupExperiment["decision"];
   decided: IsoDate | null;
   diff: number | null;
-  /** Valor mensual estimado (solo ganadores con valor por unidad). */
+  /** Valor mensual estimado, conservador (solo ganadores con valor por unidad). */
   monthlyValue: number | null;
+  /** Techo optimista del valor mensual (el cálculo con la mejora observada). */
+  monthlyValueHigh?: number | null;
   learning: string | null;
   rationale: string | null;
 }
@@ -111,7 +113,8 @@ export interface Report {
   launched: ReportLaunched[];
   closed: ReportClosed[];
   winners: number;
-  value: { monthly: number; counted: number; missingUnitValue: number } | null;
+  /** `monthly` es el piso conservador; `monthlyHigh`, el techo optimista. */
+  value: { monthly: number; monthlyHigh?: number; counted: number; missingUnitValue: number } | null;
   nextUp: ReportNext[];
   risks: ReportRisk[];
 }
@@ -150,6 +153,7 @@ export function buildReport(input: ReportInput): Report {
     .map((e) => ({ id: e.id, title: e.title, line_name: e.line_name, actual_start: e.actual_start!, owner_name: e.owner_name }));
 
   let monthly = 0;
+  let monthlyHigh = 0;
   let counted = 0;
   let missingUnitValue = 0;
   const closed: ReportClosed[] = input.experiments
@@ -158,10 +162,14 @@ export function buildReport(input: ReportInput): Report {
     .map((e) => {
       const headline = readExperiment({ variants: e.variants, testType: e.test_type, metric: input.economics.get(e.metric_id) ?? null }).headline;
       let value: number | null = null;
+      let valueHigh: number | null = null;
       if (e.verdict === "winner") {
         if (headline?.value_estimate) {
-          value = headline.value_estimate.monthly;
+          // Para dirección se cuenta el piso (conservador); el techo va aparte.
+          valueHigh = headline.value_estimate.monthly;
+          value = headline.value_conservative?.monthly ?? valueHigh;
           monthly += value;
+          monthlyHigh += valueHigh;
           counted += 1;
         } else if (headline?.value_missing === "unit_value") missingUnitValue += 1;
       }
@@ -174,6 +182,7 @@ export function buildReport(input: ReportInput): Report {
         decided: bogotaDate(e.decided_at),
         diff: headline?.diffVsControl ?? null,
         monthlyValue: value,
+        monthlyValueHigh: valueHigh,
         learning: e.learning,
         rationale: e.decision_rationale,
       };
@@ -219,7 +228,7 @@ export function buildReport(input: ReportInput): Report {
     launched,
     closed,
     winners: closed.filter((c) => c.verdict === "winner").length,
-    value: counted || missingUnitValue ? { monthly, counted, missingUnitValue } : null,
+    value: counted || missingUnitValue ? { monthly, monthlyHigh, counted, missingUnitValue } : null,
     nextUp,
     risks,
   };
@@ -251,7 +260,7 @@ export function reportToText(report: Report, programName: string): string {
   for (const c of report.closed) {
     const bits = [labelOf(VERDICT_LABEL, c.verdict), labelOf(DECISION_LABEL, c.decision)];
     if (c.diff != null) bits.push(`${formatSignedPercent(c.diff)} vs. control`);
-    if (c.monthlyValue != null) bits.push(`≈ ${formatCop(c.monthlyValue)} al mes`);
+    if (c.monthlyValue != null) bits.push(formatValueRange(c.monthlyValue, c.monthlyValueHigh ?? c.monthlyValue, "al mes"));
     out.push(`- ${c.title} (${c.line_name}): ${bits.join(" · ")}`);
     if (c.learning) out.push(`  Aprendizaje: ${c.learning}`);
   }
@@ -259,7 +268,7 @@ export function reportToText(report: Report, programName: string): string {
 
   out.push("VALOR ESTIMADO");
   if (report.value && report.value.counted) {
-    out.push(`- ≈ ${formatCop(report.value.monthly)} al mes si se escalan los ${report.value.counted} ganador(es) con valor por unidad.`);
+    out.push(`- ${formatValueRange(report.value.monthly, report.value.monthlyHigh ?? report.value.monthly, "al mes")} si se escalan los ${report.value.counted} ganador(es) con valor por unidad.`);
   } else out.push("- Sin valor estimado en este periodo.");
   if (report.value?.missingUnitValue) out.push(`- ${report.value.missingUnitValue} ganador(es) sin valor por unidad en su métrica.`);
   out.push("");

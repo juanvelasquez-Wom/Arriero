@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { isMonday } from "@/domain/dates";
+import { METRIC_SCOPES } from "@/domain/metric-formula";
 import { parseDecimal } from "@/domain/metric-tree";
 import { METRIC_BRANCHES, METRIC_DIRECTIONS, METRIC_TYPES } from "@/domain/types";
 
@@ -69,8 +70,33 @@ export const metricSchema = z
     /** Valor en COP de una unidad. Opcional; si no viene, no se toca. */
     unit_value: optionalDecimal.refine((v) => v == null || v >= 0, "El valor por unidad no puede ser negativo."),
     owner_id: optionalUuid,
+    /** Alcance: de negocio o de plataforma. Opcional; si no viene, no se toca. */
+    scope: z
+      .union([z.enum(METRIC_SCOPES), z.literal(""), z.literal("none"), z.null()])
+      .optional()
+      .transform((v) => (v === undefined ? undefined : v && v !== "none" ? v : null)),
+    /** Fórmula opcional: numerador ÷ denominador. Si no vienen, no se tocan. */
+    numerator_id: z
+      .union([uuid, z.literal(""), z.literal("none"), z.null()])
+      .optional()
+      .transform((v) => (v === undefined ? undefined : v && v !== "none" ? v : null)),
+    denominator_id: z
+      .union([uuid, z.literal(""), z.literal("none"), z.null()])
+      .optional()
+      .transform((v) => (v === undefined ? undefined : v && v !== "none" ? v : null)),
   })
   .superRefine((m, ctx) => {
+    if (m.numerator_id !== undefined || m.denominator_id !== undefined) {
+      if (m.numerator_id && !m.denominator_id) {
+        ctx.addIssue({ code: "custom", path: ["denominator_id"], message: "Elija también el denominador." });
+      }
+      if (!m.numerator_id && m.denominator_id) {
+        ctx.addIssue({ code: "custom", path: ["numerator_id"], message: "Elija también el numerador." });
+      }
+      if (m.numerator_id && m.numerator_id === m.denominator_id) {
+        ctx.addIssue({ code: "custom", path: ["denominator_id"], message: "El numerador y el denominador deben ser distintos." });
+      }
+    }
     if (m.type === "input" && !m.branch) {
       ctx.addIssue({ code: "custom", path: ["branch"], message: "Elija la rama del árbol." });
     }

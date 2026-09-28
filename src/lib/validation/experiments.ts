@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { VARIABLE_CATEGORIES } from "@/domain/pilots/types";
 import { CONTROL_LEVELS, DECISIONS, EXPERIMENT_STATUSES, OWNER_TYPES, TEST_TYPES, VERDICTS } from "@/domain/types";
 
 const uuid = z.string().uuid("Elija una opción.");
@@ -82,6 +83,39 @@ export const variantsSchema = z
   .max(12)
   .refine((vs) => vs.filter((v) => v.is_control).length <= 1, { message: "Solo puede haber un control." });
 
+const positiveOrNull = z.coerce.number().positive("Debe ser mayor que cero.").max(1e12).nullable().optional();
+
+/** Datos para calcular la potencia (se guardan en `experiments.power_inputs`). */
+export const powerInputsSchema = z.object({
+  baseline: positiveOrNull.transform((v) => v ?? null),
+  weekly_traffic: positiveOrNull.transform((v) => v ?? null),
+  daily_cv_pct: z.coerce.number().positive("Debe ser mayor que cero.").max(1000).nullable().optional().transform((v) => v ?? null),
+});
+
+export const expectedEffectSchema = z.coerce
+  .number()
+  .min(-100, "El efecto esperado va de −100 % a 1.000 %.")
+  .max(1000, "El efecto esperado va de −100 % a 1.000 %.")
+  .nullable();
+
+/** Potencia del ejercicio: efecto esperado + datos del cálculo. */
+export const experimentPowerSchema = z.object({
+  expected_effect_pct: expectedEffectSchema,
+  power_inputs: powerInputsSchema.nullable(),
+});
+
+export const guardrailSchema = z.object({
+  id: uuid.optional(),
+  metric_id: uuid,
+  limit_pct: z.coerce.number({ message: "Ponga el límite en %." }).positive("El límite debe ser mayor que 0 %.").max(1000, "Máximo 1.000 %."),
+  note: optionalText,
+});
+
+export const guardrailsSchema = z
+  .array(guardrailSchema)
+  .max(3, "Un ejercicio lleva máximo 3 guardrails.")
+  .refine((gs) => new Set(gs.map((g) => g.metric_id)).size === gs.length, { message: "Cada métrica va una sola vez como guardrail." });
+
 /** Borrador completo del asistente: todo es opcional excepto el origen. */
 export const experimentDraftSchema = experimentOriginSchema
   .merge(experimentHypothesisSchema)
@@ -93,6 +127,10 @@ export const experimentDraftSchema = experimentOriginSchema
     planned_start: isoDate,
     planned_end: isoDate,
     variants: variantsSchema.optional(),
+    /** Solo se manda si cambió o ya había algo (así la base sin la migración X1 sigue guardando). */
+    expected_effect_pct: expectedEffectSchema.optional(),
+    power_inputs: powerInputsSchema.nullable().optional(),
+    guardrails: guardrailsSchema.optional(),
     /** true: la persona cambió a mano el filtro de calendario; si no, lo calcula el servidor. */
     fits_calendar_override: z.boolean().optional(),
     /** updated_at que tenía el ejercicio al abrirlo (concurrencia optimista al editar). */
@@ -108,8 +146,20 @@ export const resultsSchema = z.array(
     conversions: z.coerce.number().min(0, "No puede ser negativo.").nullable().optional(),
     metric_value: z.coerce.number().nullable().optional(),
     notes: optionalText,
+    /** Valor de cada guardrail en esta variante: { guardrail_id: valor }. */
+    guardrail_values: z.record(z.string().uuid(), z.coerce.number()).optional(),
   }),
 );
+
+/** Palanca del aprendizaje: las categorías de variable de Pilotos (clave). */
+export const learningLeverSchema = z.enum(VARIABLE_CATEGORIES).nullable().optional();
+export const learningChannelSchema = z
+  .string()
+  .trim()
+  .max(80, "El canal va en máximo 80 caracteres.")
+  .optional()
+  .nullable()
+  .transform((v) => (v ? v : null));
 
 export const transitionSchema = z.object({
   experimentId: uuid,
@@ -128,6 +178,8 @@ export const decideSchema = z.object({
   learning: z.string().trim().min(10, "El aprendizaje es obligatorio (al menos 10 caracteres).").max(4000),
   appliesTo: z.array(uuid).default([]),
   suggestedHypothesis: z.string().trim().max(1000).optional(),
+  lever: learningLeverSchema,
+  channel: learningChannelSchema,
 });
 
 export type DecideInput = z.input<typeof decideSchema>;

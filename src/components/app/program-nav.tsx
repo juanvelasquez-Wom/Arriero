@@ -16,6 +16,7 @@ import {
   Menu,
   FileText,
   UsersRound,
+  Megaphone,
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -39,9 +40,11 @@ export interface ProgramNavProps {
   lines: { id: string; name: string }[];
   showTrash: boolean;
   showSettings: boolean;
+  /** Enlace al módulo de Pilotos de medios (solo con rol en Pilotos). */
+  showPilots?: boolean;
 }
 
-function useGroups({ programId, lines, showTrash, showSettings }: ProgramNavProps) {
+function useGroups({ programId, lines, showTrash, showSettings, showPilots }: ProgramNavProps) {
   const base = `/programas/${programId}`;
   const groups: { title?: string; items: NavItem[] }[] = [
     {
@@ -75,6 +78,7 @@ function useGroups({ programId, lines, showTrash, showSettings }: ProgramNavProp
       ],
     },
   ];
+  if (showPilots) groups.push({ title: "Medios", items: [{ href: "/pilotos", label: "Pilotos de medios", icon: Megaphone }] });
   if (showTrash) groups.push({ items: [{ href: `${base}/papelera`, label: "Papelera", icon: Trash2 }] });
   return groups;
 }

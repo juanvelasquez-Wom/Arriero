@@ -99,6 +99,8 @@ export const pilotDesignSchema = z
     planned_budget_cop: optionalNumber(0),
     arms: z.array(pilotArmSchema).max(12, "Máximo 12 grupos."),
     media: z.array(pilotMediaSchema).max(10, "Máximo 10 medios."),
+    /** `updated_at` del piloto cuando se abrió el formulario (bloqueo optimista). */
+    expected_updated_at: z.string().max(64).optional().nullable(),
   })
   .superRefine((v, ctx) => {
     if (v.planned_start && v.planned_end && v.planned_end < v.planned_start) {
@@ -250,3 +252,53 @@ export const pilotRoleSchema = z.object({
   user_id: uuid,
   role: z.enum(PILOT_ROLES).nullable(),
 });
+
+// -----------------------------------------------------------------------------
+// Integraciones (Meta primero)
+// -----------------------------------------------------------------------------
+
+/** Token de acceso: se escribe en un campo de contraseña y va directo a Vault. */
+const accessToken = z
+  .string()
+  .trim()
+  .min(20, "El token parece incompleto: cópielo entero desde Meta.")
+  .max(2000, "El token es demasiado largo.")
+  .refine((v) => !/\s/.test(v), "El token no lleva espacios.");
+
+export const integrationConnectionSchema = z.object({
+  account_label: z.string().trim().min(1, "Póngale un nombre a la cuenta.").max(120),
+  account_ref: z
+    .string()
+    .trim()
+    .regex(/^act_\d{3,30}$/, "El id de la cuenta publicitaria empieza por act_ y sigue con números (ej. act_1234567890)."),
+  token: z.union([accessToken, z.literal("")]).optional(),
+  expires_at: isoDate,
+});
+export type IntegrationConnectionInput = z.input<typeof integrationConnectionSchema>;
+
+export const integrationTokenSchema = z.object({
+  token: accessToken,
+  expires_at: isoDate,
+});
+export type IntegrationTokenInput = z.input<typeof integrationTokenSchema>;
+
+/** Mapeo de entidades de la plataforma a grupos del piloto (null = no se usa). */
+export const entityMapSchema = z.record(z.string().min(1).max(300), uuid.nullable()).refine((m) => Object.keys(m).length <= 500, "Demasiadas entidades.");
+
+export const businessConversionsSchema = z
+  .array(
+    z.object({
+      day: requiredDate,
+      channel: z.string().trim().min(1).max(80),
+      campaign_name: z.string().trim().max(200),
+      sales: z.number().finite().nonnegative(),
+      revenue_cop: z.number().finite().nonnegative().nullable(),
+      match_key: z
+        .string()
+        .trim()
+        .max(200)
+        .refine((v) => !(/^[\d\s+\-().]+$/.test(v) && v.replace(/\D/g, "").length >= 7), "La clave parece un teléfono en claro: use un hash."),
+    }),
+  )
+  .min(1, "No hay filas para guardar.")
+  .max(5000, "Máximo 5.000 filas por carga.");

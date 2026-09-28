@@ -8,7 +8,7 @@ import type { WizardValues } from "@/components/experiments/wizard-values";
 import { inferCalendarFit, isCalendarOverride } from "@/domain/experiment-inference";
 import { can } from "@/domain/permissions";
 import { getProgramContext } from "@/server/auth";
-import { getExperiment, listVariants } from "@/server/queries/experiments";
+import { getExperiment, getExperimentRigor, listVariants } from "@/server/queries/experiments";
 import { getExperimentVersion, loadWizardData } from "@/server/queries/wizard";
 
 export const metadata: Metadata = { title: "Editar ejercicio" };
@@ -25,10 +25,11 @@ export default async function EditExperimentPage({
   const base = `/programas/${programId}/ejercicios/${experimentId}`;
   if (!can.editExperiment(ctx.actor, experiment)) redirect(base);
 
-  const [data, variants, version] = await Promise.all([
+  const [data, variants, version, rigor] = await Promise.all([
     loadWizardData(ctx),
     listVariants({ experimentId }),
     getExperimentVersion(experimentId),
+    getExperimentRigor(experimentId),
   ]);
   const fit = inferCalendarFit(experiment, data.calendar);
   const initial: WizardValues = {
@@ -55,6 +56,13 @@ export default async function EditExperimentPage({
     planned_start: experiment.planned_start ?? "",
     planned_end: experiment.planned_end ?? "",
     variants: variants.map((v) => ({ id: v.id, name: v.name, is_control: v.is_control, description: v.description ?? "" })),
+    expected_effect_pct: rigor.expected_effect_pct,
+    power_inputs: {
+      baseline: rigor.power_inputs?.baseline ?? null,
+      weekly_traffic: rigor.power_inputs?.weekly_traffic ?? null,
+      daily_cv_pct: rigor.power_inputs?.daily_cv_pct ?? null,
+    },
+    guardrails: rigor.guardrails.map((g) => ({ id: g.id, metric_id: g.metric_id, limit_pct: g.limit_pct, note: g.note ?? "" })),
   };
   const requested = Number(sp.paso);
   const step = Number.isInteger(requested) && requested >= 1 && requested <= 5 ? requested : 1;

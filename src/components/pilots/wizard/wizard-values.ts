@@ -100,6 +100,7 @@ export function designValues(d: PilotDetail): PilotDesignInput {
       destination: m.destination ?? "",
       cities: m.cities,
     })),
+    expected_updated_at: p.updated_at,
   };
 }
 

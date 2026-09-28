@@ -1,10 +1,11 @@
-import { CalendarRange, TriangleAlert } from "lucide-react";
+import { CalendarRange, GitMerge, TriangleAlert } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Callout, EmptyState } from "@/components/app/page";
 import { DashboardFrame, FilteredOutNote } from "@/components/dashboards/dashboard-frame";
 import { Gantt, type GanttBar, type GanttGroup } from "@/components/dashboards/gantt";
 import { Button } from "@/components/ui/button";
+import { asCollisionCandidate, collisionPairs, describeCollision } from "@/domain/collisions";
 import { firstParam } from "@/domain/dashboard-filters";
 import { addDays, maxDate, minDate } from "@/domain/dates";
 import { formatDateRange, formatMonth, formatShortDate } from "@/domain/format";
@@ -85,6 +86,8 @@ export default async function GanttPage({ params, searchParams }: PageProps<"/pr
       }),
   }));
   const crossing = groups.flatMap((g) => g.items).filter((i) => i.freezes.length > 0);
+  // Ejercicios que corren a la vez en la misma línea y tocan la misma etapa o canal.
+  const collisions = collisionPairs(data.filtered.map(asCollisionCandidate), data.today);
 
   const zoomHref = (z: "semana" | "mes") => `?${new URLSearchParams({ ...data.current, zoom: z }).toString()}`;
   const zoomLinks = (
@@ -145,6 +148,28 @@ export default async function GanttPage({ params, searchParams }: PageProps<"/pr
           {crossing.length ? (
             <Callout icon={TriangleAlert} title={`${crossing.length} ejercicio(s) se cruzan con un congelamiento`}>
               {crossing.map((c) => c.title).join(" · ")}. En congelamiento no se lanzan ejercicios: revise sus fechas.
+            </Callout>
+          ) : null}
+          {collisions.length ? (
+            <Callout icon={GitMerge} title={`Ojo: ${collisions.length} ${collisions.length === 1 ? "pareja de ejercicios se cruza" : "parejas de ejercicios se cruzan"}`}>
+              <ul className="space-y-1">
+                {collisions.map((p) => (
+                  <li key={`${p.a.id}-${p.b.id}`}>
+                    <Link href={`/programas/${programId}/ejercicios/${p.a.id}`} className="font-medium underline underline-offset-2">
+                      {p.a.title}
+                    </Link>{" "}
+                    y{" "}
+                    <Link href={`/programas/${programId}/ejercicios/${p.b.id}`} className="font-medium underline underline-offset-2">
+                      {p.b.title}
+                    </Link>
+                    <span className="text-soft">
+                      {" "}
+                      · {describeCollision(p.collision)} · {formatDateRange(p.collision.from, p.collision.to)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-1">Si corren a la vez sobre la misma etapa o canal, no se sabe cuál movió la métrica. Separe las fechas.</p>
             </Callout>
           ) : null}
           <Gantt
