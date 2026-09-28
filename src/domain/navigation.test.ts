@@ -28,6 +28,7 @@ describe("sectionOf", () => {
     expect(sectionOf("/pilotos/nuevo")).toBe("pilotos");
     expect(sectionOf("/tableros")).toBe("tableros");
     expect(sectionOf("/direccion")).toBe("direccion");
+    expect(sectionOf("/recua")).toBe("recua");
     expect(sectionOf("/aprender")).toBeNull();
   });
 });

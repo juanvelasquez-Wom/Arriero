@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Columns3, Compass, FolderKanban, House, Megaphone, type LucideIcon } from "lucide-react";
+import { ArrowLeft, Columns3, Compass, FolderKanban, House, Megaphone, Trophy, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -13,6 +13,7 @@ const ICON: Record<AppSection, LucideIcon> = {
   pilotos: Megaphone,
   tableros: Columns3,
   direccion: Compass,
+  recua: Trophy,
 };
 
 // Cuántas pantallas lleva la persona dentro de la app en esta pestaña. Vive en el

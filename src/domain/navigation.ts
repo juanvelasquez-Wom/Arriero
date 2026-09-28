@@ -3,7 +3,7 @@
  * cuando no hay historial dentro de la app (enlace abierto directo, pestaña nueva).
  */
 
-export type AppSection = "inicio" | "programas" | "pilotos" | "tableros" | "direccion";
+export type AppSection = "inicio" | "programas" | "pilotos" | "tableros" | "direccion" | "recua";
 
 export const APP_SECTIONS: { key: AppSection; href: string; label: string }[] = [
   { key: "inicio", href: "/", label: "Inicio" },
@@ -11,6 +11,7 @@ export const APP_SECTIONS: { key: AppSection; href: string; label: string }[] = 
   { key: "pilotos", href: "/pilotos", label: "Pilotos" },
   { key: "tableros", href: "/tableros", label: "Tableros" },
   { key: "direccion", href: "/direccion", label: "Dirección" },
+  { key: "recua", href: "/recua", label: "Recua" },
 ];
 
 /** Sección activa según la ruta. `null` fuera de las cinco (admin, aprender, guía). */

@@ -393,3 +393,16 @@ Migración `014_matriz_hallazgos` e informe en el artefacto "Auditoría integral
   - "Descargar en PDF" abre la impresión del navegador. Al imprimir solo sale una copia del cartón, puesta directo en `<body>` (`.print-portal` en `globals.css`), en una hoja A4 horizontal.
   - El resultado se guarda en `localStorage` (`arriero:carton:<tipo>`).
 - **Inicio con humor:** saludo según la hora de Bogotá (`src/domain/greeting.ts`) y la mula de la trocha, que opina al hacerle clic (`components/brand/talking-mule.tsx`).
+
+## 14. La Recua (gamificación)
+
+- **Qué es:** puntos, niveles de arriero, insignias y escalafón por persona.
+- **Dónde se ve:** en `/recua`, con cuatro pestañas en `?vista=`: Escalafón (con `?periodo=mes`), Mi carriel, Muro de la vergüenza y Así se gana. También aparece como sección de la barra y como franja en el inicio.
+- **De dónde salen los datos:** la migración `016_gamificacion` crea la RPC `gamification_stats(p_since)`, `security definer` y solo para `authenticated`. Devuelve **solo conteos por persona** (días de uso, programas, problemas, ejercicios, decisiones, ganadores, pilotos, aprendizajes, semanas cargadas, comentarios, papelera…). No cuenta el programa de ejemplo, los pilotos de ejemplo ni lo que está en la papelera. Por eso el ranking es visible para todos sin tocar el RLS del detalle.
+- **Reglas en `src/domain/gamification.ts`:**
+  - `POINT_RULES`, con topes y con resta por ideas quietas; el total nunca baja de 0.
+  - `LEVELS`: de "Turista en chanclas" a "Mula Mayor honoraria".
+  - `BADGES`, incluidas las oscuras.
+  - `currentStreak`, `rankUsers`, apodos por puesto y frases.
+- **Celebración:** `LevelUpWatcher` celebra en este navegador cuando la persona sube de nivel.
+- **Tests:** `tests/db/recua.test.ts`, que se salta si la migración no está.

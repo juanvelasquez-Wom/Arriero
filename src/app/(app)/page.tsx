@@ -1,16 +1,19 @@
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Trophy } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AppHeader } from "@/components/app/app-header";
 import { Credits } from "@/components/brand/credits";
 import { BrandIcon, type BrandIconName } from "@/components/brand/icons";
 import { TalkingMule } from "@/components/brand/talking-mule";
+import { LevelUpWatcher } from "@/components/recua/level-up-watcher";
 import { phraseOfTheDay } from "@/components/brand/phrases";
+import { levelFor, nudge } from "@/domain/gamification";
 import { bogotaHour, greetingFor } from "@/domain/greeting";
 import { canWritePilots } from "@/domain/pilots/flow";
 import { cn } from "@/lib/utils";
 import { isDatabaseReady, requireUser } from "@/server/auth";
 import { getPilotContext } from "@/server/pilot-auth";
+import { loadRecua } from "@/server/queries/gamification";
 import { listMyPrograms } from "@/server/queries/programs";
 
 export const metadata: Metadata = { title: "Inicio" };
@@ -29,7 +32,13 @@ interface Path {
 export default async function HomePage() {
   const user = await requireUser();
   if (!(await isDatabaseReady())) return null;
-  const [programs, pilotCtx] = await Promise.all([listMyPrograms(user.id), getPilotContext().catch(() => null)]);
+  const [programs, pilotCtx, recua] = await Promise.all([
+    listMyPrograms(user.id),
+    getPilotContext().catch(() => null),
+    loadRecua("siempre").catch(() => null),
+  ]);
+  const me = recua?.ready ? (recua.ranked.find((u) => u.userId === user.id) ?? null) : null;
+  const myPoints = me?.points ?? 0;
   const pilotActor = pilotCtx?.actor.role ? pilotCtx.actor : null;
   const newbie = programs.length === 0;
   const hi = greetingFor(bogotaHour());
@@ -124,6 +133,30 @@ export default async function HomePage() {
             </li>
           ))}
         </ul>
+
+
+        {recua?.ready ? (
+          <>
+            <LevelUpWatcher userId={user.id} points={myPoints} />
+            <Link
+              href="/recua"
+              className="lift group mt-4 flex flex-wrap items-center gap-3 rounded-2xl bg-[#111111] px-5 py-4 text-[#F6F6F4] shadow-card"
+            >
+              <Trophy aria-hidden className="wiggle-on-hover size-7 shrink-0 text-highlight" />
+              <div className="min-w-0 flex-1">
+                <div className="font-heading text-lg font-extrabold leading-tight">
+                  {me ? `Usted va de ${me.position} en La Recua · ${levelFor(myPoints).level.title}` : "La Recua: el escalafón de los arrieros"}
+                </div>
+                <p className="text-sm text-[#F6F6F4]/70">
+                  {me ? `${myPoints.toLocaleString("es-CO")} puntos. ${nudge(myPoints)}` : "Todavía no tiene puntos. Entre, cree, decida: la mula anota todo."}
+                </p>
+              </div>
+              <span className="inline-flex items-center gap-1 rounded-full bg-highlight px-3 py-1.5 text-sm font-semibold text-[#111111]">
+                Ver el ranking <ArrowRight aria-hidden className="size-4 transition-transform group-hover:translate-x-1" />
+              </span>
+            </Link>
+          </>
+        ) : null}
 
         {programs.length ? (
           <section className="mt-10">
