@@ -59,7 +59,7 @@ Fuente de verdad del dominio: [`docs/modelo-growth-marketing-wom.pdf`](docs/mode
 | Desarrollo | `npm run dev` |
 | Build | `npm run build` |
 | Lint | `npm run lint` |
-| Typecheck | `npm run typecheck` |
+| Typecheck (genera los tipos de rutas con `next typegen` y corre `tsc`) | `npm run typecheck` |
 | Tests de dominio | `npm test` |
 | Tests de RLS, borrado y ejemplo (contra Supabase) | `npm run test:db` |
 | Smoke E2E | `npx playwright install chromium` (una vez) y `npm run test:e2e` |
