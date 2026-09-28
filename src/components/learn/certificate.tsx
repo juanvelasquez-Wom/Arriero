@@ -8,13 +8,13 @@ import { formatDate } from "@/domain/format";
 const COPY: Record<CertificateKind, { title: string; body: (correct: number) => string; licence: string }> = {
   growth: {
     title: "Cartón de Arriero en Growth",
-    body: (c) => `arrió sin perderse las once ideas del growth y en el examen sacó ${c} de 10.`,
+    body: (c) => `Arrió sin perderse las once ideas del growth y en el examen sacó ${c} de 10.`,
     licence:
       "Queda con licencia oficial para pedir el dato antes de opinar, probar antes de escalar y preguntar «¿y eso con qué evidencia?» en cualquier reunión, sin que lo miren feo.",
   },
   arriero: {
     title: "Cartón de Arriero de la Herramienta",
-    body: (c) => `recorrió el Arriero de punta a punta y en el examen sacó ${c} de 10.`,
+    body: (c) => `Recorrió el Arriero de punta a punta y en el examen sacó ${c} de 10.`,
     licence:
       "Queda con permiso para arrear programas, cargar los datos del lunes sin que se lo recuerden, lanzar por fuera de los congelamientos y no dejar un solo ejercicio huérfano. Ctrl + K es ahora su mejor amigo.",
   },
@@ -65,14 +65,14 @@ export function Certificate({ kind, name, correct, date, printable = false }: Ce
         </div>
 
         <div className="mt-auto grid w-full grid-cols-3 items-end gap-[3cqw] text-[1.25em]">
-          <Signature name="La Mula Mayor" role="Firma con la pata (derecha)" path="M5 30 C 20 5, 30 40, 45 18 S 70 5, 80 25 S 100 35, 115 10" />
+          <Signature name="Doña Canela" role="La Mula Mayor · firma con la pata (derecha)" path="M5 30 C 20 5, 30 40, 45 18 S 70 5, 80 25 S 100 35, 115 10" />
           <div className="pb-[0.4cqw] text-[#5C5C5C]">
             Dado en la trocha, el {formatDate(date)}.
             <br />
-            Válido en toda Antioquia y alrededores (y en Bogotá, si lo dejan).
+            Válido en Caldas, Antioquia y alrededores (y en Bogotá, si lo dejan).
             <div className="mt-[0.4cqw] font-mono text-[0.9em] tracking-wider">{certificateNumber(kind, shown, date)}</div>
           </div>
-          <Signature name="El Arriero Jefe" role="Dueño de la trocha y del tinto" path="M5 25 C 15 10, 25 10, 30 25 S 45 40, 55 15 C 60 5, 75 30, 90 20 L 115 22" />
+          <Signature name="Don Aníbal de Jesús Restrepo Arango" role="El Arriero Jefe · dueño de la trocha y del tinto" path="M5 25 C 15 10, 25 10, 30 25 S 45 40, 55 15 C 60 5, 75 30, 90 20 L 115 22" />
         </div>
       </div>
       </div>
@@ -92,23 +92,26 @@ function Signature({ name, role, path }: { name: string; role: string; path: str
   );
 }
 
-/** Sello amarillo que gira con el texto alrededor. */
+/** Sello amarillo: el texto del anillo se reparte solo (textLength) para que nunca se monte. */
 function Seal() {
   return (
-    <svg aria-hidden viewBox="0 0 120 120" className="h-[12cqw] w-[12cqw] rotate-[-12deg]">
+    <svg aria-hidden viewBox="0 0 140 140" className="h-[13.5cqw] w-[13.5cqw] rotate-[-12deg]">
       <defs>
-        <path id="seal-ring" d="M60 60 m -44 0 a 44 44 0 1 1 88 0 a 44 44 0 1 1 -88 0" />
+        {/* Círculo que arranca arriba a la izquierda y gira en el sentido del reloj. */}
+        <path id="seal-ring" d="M70 70 m -52 0 a 52 52 0 1 1 104 0 a 52 52 0 1 1 -104 0" />
       </defs>
-      <circle cx="60" cy="60" r="57" fill="#F2C200" />
-      <circle cx="60" cy="60" r="52" fill="none" stroke="#1F1F1F" strokeWidth="1.5" strokeDasharray="3 3" />
-      <circle cx="60" cy="60" r="33" fill="none" stroke="#1F1F1F" strokeWidth="1.5" />
-      <text fill="#1F1F1F" fontSize="10.5" fontWeight="800" letterSpacing="2.2">
-        <textPath href="#seal-ring">100% SIN CARRETA · CERTIFICADO ·</textPath>
+      <circle cx="70" cy="70" r="68" fill="#F2C200" />
+      <circle cx="70" cy="70" r="64" fill="none" stroke="#1F1F1F" strokeWidth="1.6" />
+      <circle cx="70" cy="70" r="41" fill="none" stroke="#1F1F1F" strokeWidth="1.6" />
+      <text fill="#1F1F1F" fontSize="11" fontWeight="800" fontFamily="Inter, Arial, sans-serif">
+        <textPath href="#seal-ring" textLength="322" lengthAdjust="spacing">
+          100% GARANTIZADO ★ NO MÁS CARRETA ★
+        </textPath>
       </text>
-      <text x="60" y="57" textAnchor="middle" fill="#1F1F1F" fontSize="15" fontWeight="900">
+      <text x="70" y="66" textAnchor="middle" fill="#1F1F1F" fontSize="19" fontWeight="900" fontFamily="Inter, Arial, sans-serif">
         ¡ARRE!
       </text>
-      <text x="60" y="72" textAnchor="middle" fill="#1F1F1F" fontSize="8" fontWeight="700">
+      <text x="70" y="82" textAnchor="middle" fill="#1F1F1F" fontSize="9" fontWeight="800" letterSpacing="1.5" fontFamily="Inter, Arial, sans-serif">
         ORIGINAL
       </text>
     </svg>
