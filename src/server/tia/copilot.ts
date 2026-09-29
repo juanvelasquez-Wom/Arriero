@@ -272,7 +272,8 @@ export async function copilotTurn(input: { state: unknown; message?: string; chi
   if (!next.mode) {
     return { state: next, out: [{ text: "No le entendí bien qué quiere hacer. ¿Me ayuda escogiendo una opción?", chips: startChips(loaded.ctx) }], spend };
   }
-  let { state: patched, applied } = applyPatch(next, x.patch, loaded.ctx);
+  // Con el mensaje: se descarta lo que el modelo completó sin que la persona lo dijera.
+  let { state: patched, applied } = applyPatch(next, x.patch, loaded.ctx, message);
   // Si eligió un programa para una oportunidad, se cargan sus líneas y se reintenta lo que dependía de ellas.
   if (applied.includes("target")) {
     await loadLinesFor(loaded.ctx, patched, loaded.scope);
@@ -390,12 +391,18 @@ async function callTia(opts: { feature: TiaFeature; programId: string | null; mo
       model: opts.model,
       system: opts.system,
       cacheSystem: opts.cacheSystem,
+      // Respuestas cortas: sin "pensar" por dentro (en Sonnet 5.5 eso gastaba ~330 tokens por respuesta).
+      effort: "low",
       messages: [{ role: "user", content: opts.message }],
       maxTokens: opts.maxTokens,
       temperature: opts.temperature,
     });
     await recordTiaUsage(opts.programId, opts.feature, reply.usage);
     spend.push(spendOf(reply.usage));
+    if (process.env.NODE_ENV !== "production") {
+      const u = reply.usage;
+      console.info(`[tia-uso] ${opts.feature} ${u.model} entrada=${u.inputTokens} cache_lee=${u.cacheReadTokens ?? 0} cache_escribe=${u.cacheWriteTokens ?? 0} salida=${u.outputTokens} usd=${costUsd(u).toFixed(5)} max=${opts.maxTokens} fin=${reply.stopReason}`);
+    }
     return { ok: true as const, text: reply.text.trim() };
   } catch (e) {
     if (e instanceof TiaError) return { ok: false as const, error: e.message };
@@ -420,6 +427,7 @@ async function extract(state: CopilotState, message: string, loaded: Loaded, spe
     spend,
   );
   if (!res.ok) return { ok: false as const, error: res.error };
+  if (process.env.NODE_ENV !== "production") console.info(`[tia-uso] intérprete devolvió: ${res.text.slice(0, 600)}`);
   const parsed = parseExtraction(res.text);
   if (!parsed) return { ok: false as const, error: "Se me enredó la lengua. ¿Me lo repite con otras palabras?" };
   return { ok: true as const, value: parsed };

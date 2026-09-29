@@ -24,6 +24,11 @@ export interface TiaRequest {
   model?: string;
   /** Marca el sistema como cacheable: si se repite igual, Claude lo cobra al 10 %. */
   cacheSystem?: boolean;
+  /**
+   * Esfuerzo en los modelos Claude 5: "low" no piensa por dentro antes de responder
+   * (por defecto gasta cientos de tokens de salida pensando). Se ignora en los demás.
+   */
+  effort?: "low" | "medium" | "high";
 }
 
 export interface TiaUsage {
@@ -37,6 +42,8 @@ export interface TiaUsage {
 export interface TiaReply {
   text: string;
   usage: TiaUsage;
+  /** "end_turn" o "max_tokens" (se cortó). */
+  stopReason?: string;
 }
 
 export class TiaError extends Error {
@@ -70,11 +77,17 @@ function headers() {
   };
 }
 
+/** Los modelos Claude 5 ya no aceptan `temperature` (la API responde 400). */
+export function supportsTemperature(model: string): boolean {
+  return !/^claude-[a-z]+-5\b/.test(model);
+}
+
 function body(req: TiaRequest, stream: boolean) {
+  const model = req.model ?? tiaModel();
   return JSON.stringify({
-    model: req.model ?? tiaModel(),
+    model,
     max_tokens: req.maxTokens ?? 1200,
-    temperature: req.temperature ?? 0.4,
+    ...(supportsTemperature(model) ? { temperature: req.temperature ?? 0.4 } : req.effort ? { output_config: { effort: req.effort } } : {}),
     system: req.cacheSystem ? [{ type: "text", text: req.system, cache_control: { type: "ephemeral" } }] : req.system,
     messages: req.messages,
     stream,
@@ -98,15 +111,22 @@ export async function askTia(req: TiaRequest): Promise<TiaReply> {
     if (e instanceof TiaError) throw e;
     throw new TiaError("No hubo conexión con La Tía. Revise su internet e intente de nuevo.", "network");
   }
-  if (!res.ok) throw errorFor(res.status);
+  if (!res.ok) {
+    // El cuerpo de error de la API trae el motivo (nunca la llave ni el prompt).
+    const detail = await res.text().catch(() => "");
+    console.error("[tia] Claude respondió", res.status, detail.slice(0, 300));
+    throw errorFor(res.status);
+  }
   const data = (await res.json()) as {
     content?: { type: string; text?: string }[];
     usage?: { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number; cache_creation_input_tokens?: number };
     model?: string;
+    stop_reason?: string;
   };
   const text = (data.content ?? []).filter((c) => c.type === "text").map((c) => c.text ?? "").join("");
   return {
     text,
+    stopReason: data.stop_reason,
     usage: {
       model: data.model ?? req.model ?? tiaModel(),
       inputTokens: data.usage?.input_tokens ?? 0,

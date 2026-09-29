@@ -10,7 +10,7 @@ import { PILOT_STATUS_LABEL, PILOT_TEST_TYPE_LABEL } from "./pilots/labels";
 import { PILOT_TEST_TYPES, type PilotStatus, type PilotTestType } from "./pilots/types";
 import { addMonths, CUSTOM_LINE_KEY, QUICK_DURATIONS, quickProgramEnd, suggestProgramName, type QuickDuration } from "./quick-start";
 import { normalizeText } from "./search";
-import { isSkip, parseDateEs, parseNumberEs, parseWeekEs, parseYesNo } from "./tia-parse";
+import { isSkip, parseDateEs, parseDurationDays, parseNumberEs, parseWeekEs, parseYesNo } from "./tia-parse";
 import { IMPACT_LEVELS, type ExperimentStatus, type ImpactLevel, type IsoDate } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -698,6 +698,8 @@ export function applyValue(s: CopilotState, field: string, raw: unknown, c: Copi
 
 const str = (v: unknown, min: number, max: number) => (typeof v === "string" && v.trim().length >= min ? v.trim().slice(0, max) : undefined);
 const isoDate = (v: unknown) => (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? (v as IsoDate) : undefined);
+/** Fecha exacta o en palabras ("el lunes"): las palabras las convierte el código, no el modelo. */
+const anyDate = (v: unknown, today: IsoDate) => isoDate(v) ?? (typeof v === "string" ? (parseDateEs(v, today) ?? undefined) : undefined);
 const num = (v: unknown, min: number, max: number) => {
   const n = typeof v === "number" ? v : typeof v === "string" ? parseNumberEs(v) : null;
   return n != null && Number.isFinite(n) && n >= min && n <= max ? n : undefined;
@@ -720,7 +722,7 @@ function cleanValue(s: CopilotState, field: string, v: unknown, c: CopilotContex
       case "months":
         return (QUICK_DURATIONS as readonly number[]).includes(Number(v)) ? (Number(v) as QuickDuration) : undefined;
       case "startDate":
-        return isoDate(v);
+        return anyDate(v, c.today);
       case "calendar":
         return typeof v === "boolean" ? v : undefined;
       case "name":
@@ -753,9 +755,9 @@ function cleanValue(s: CopilotState, field: string, v: unknown, c: CopilotContex
       case "testType":
         return (PILOT_TEST_TYPES as readonly string[]).includes(String(v)) ? (v as PilotTestType) : undefined;
       case "plannedStart":
-        return isoDate(v);
+        return anyDate(v, c.today);
       case "plannedEnd": {
-        const d = isoDate(v);
+        const d = anyDate(v, c.today);
         return d && (!s.pilot.plannedStart || d >= s.pilot.plannedStart) ? d : undefined;
       }
       case "budgetCop":
@@ -788,11 +790,11 @@ function cleanValue(s: CopilotState, field: string, v: unknown, c: CopilotContex
     case "value":
       return num(v, -1e13, 1e13);
     case "week": {
-      const d = isoDate(v);
+      const d = isoDate(v) ?? (typeof v === "string" ? (parseWeekEs(v, c.today) ?? undefined) : undefined);
       return d ? weekStart(d) : undefined;
     }
     case "date":
-      return isoDate(v);
+      return anyDate(v, c.today);
     case "impact":
       return (IMPACT_LEVELS as readonly string[]).includes(String(v)) ? (v as ImpactLevel) : undefined;
   }
@@ -800,9 +802,25 @@ function cleanValue(s: CopilotState, field: string, v: unknown, c: CopilotContex
 }
 
 /** Aplica lo que Claude entendió (un parche por campo); ignora lo que no valida. */
-export function applyPatch(s: CopilotState, patch: Record<string, unknown>, c: CopilotContext): { state: CopilotState; applied: string[] } {
+export function applyPatch(s: CopilotState, rawPatch: Record<string, unknown>, c: CopilotContext, message?: string): { state: CopilotState; applied: string[] } {
   let state = s;
   const applied: string[] = [];
+  const patch = message ? groundPatch(rawPatch, message) : { ...rawPatch };
+  // Las fechas en palabras las calcula el código (el modelo se equivoca con "el lunes").
+  if (message) {
+    const local = parseDateEs(message, c.today);
+    for (const key of ["startDate", "plannedStart"] as const) if (key in patch && local) patch[key] = local;
+    const days = parseDurationDays(message);
+    const start = anyDate(patch.plannedStart, c.today) ?? s.pilot.plannedStart;
+    if (days && start && ("plannedEnd" in patch || "duration" in patch)) patch.plannedEnd = addDays(start, days - 1);
+  }
+  // Un plazo ("4 semanas") se convierte en fecha de cierre aquí, con el calendario real.
+  if (typeof patch.duration === "string" && !patch.plannedEnd) {
+    const days = parseDurationDays(patch.duration);
+    const start = anyDate(patch.plannedStart, c.today) ?? s.pilot.plannedStart;
+    if (days && start) patch.plannedEnd = addDays(start, days - 1);
+  }
+  delete patch.duration;
   // El tipo de avance y el objetivo van primero: de ellos dependen los demás campos.
   const keys = Object.keys(patch).sort((a, b) => order(a) - order(b));
   for (const key of keys) {
@@ -814,7 +832,37 @@ export function applyPatch(s: CopilotState, patch: Record<string, unknown>, c: C
   }
   return { state, applied };
 }
-const order = (k: string) => (k === "kind" ? 0 : k === "target" ? 1 : k === "lineId" ? 2 : 3);
+const order = (k: string) => (k === "kind" ? 0 : k === "target" ? 1 : k === "lineId" ? 2 : k === "plannedStart" ? 3 : 4);
+
+/**
+ * Quita lo que el modelo "completó" sin que la persona lo dijera: un nombre, una
+ * métrica, un efecto esperado o una forma de medir que no aparecen en el mensaje.
+ */
+export function groundPatch(patch: Record<string, unknown>, message: string): Record<string, unknown> {
+  const t = normalizeText(message);
+  const out = { ...patch };
+  const said = (v: unknown) => typeof v === "string" && t.includes(normalizeText(v));
+  if ("title" in out && !said(out.title)) delete out.title;
+  if ("name" in out && !said(out.name)) delete out.name;
+  if ("expectedPct" in out) {
+    // Solo cuenta si está dicho como meta ("esperamos +15 %", "subir un 10 %"), no el % de la evidencia.
+    const n = Math.abs(Number(out.expectedPct));
+    const pct = `${String(n).replace(".", "[.,]")}\\s*(%|por ciento)`;
+    const asGoal = new RegExp(`(\\+\\s*${pct}|(esper|mejor|subir|suba|crec|aument|mover|lift|incremen)[^.]{0,40}\\b${pct})`);
+    if (!Number.isFinite(n) || !asGoal.test(t)) delete out.expectedPct;
+  }
+  if ("metric" in out) {
+    const words = normalizeText(String(out.metric)).split(/\s+/).filter((w) => w.length >= 4);
+    if (!words.some((w) => t.includes(w))) delete out.metric;
+  }
+  if ("testType" in out) {
+    const aliases = TEST_TYPE_ALIASES[out.testType as PilotTestType] ?? [];
+    const esc = (a: string) => normalizeText(a).replace(/[.*+?^${}()|[\]\\/]/g, "\\$&");
+    if (!aliases.some((a) => new RegExp(`(^|\\s)${esc(a)}(\\s|$|[.,;])`).test(t))) delete out.testType;
+  }
+  if ("calendar" in out && !/\b(calendario|black|congel|picos?|temporada)/.test(t)) delete out.calendar;
+  return out;
+}
 
 // ---------------------------------------------------------------------------
 // Detectar intención sin Claude (mensajes cortos y obvios)
@@ -824,6 +872,8 @@ export type QuickIntent = { mode: CopilotMode } | { advice: true } | null;
 export function quickIntent(message: string): QuickIntent {
   const t = normalizeText(message);
   if (t.length > 70) return null;
+  // Pedir opinión gana: "¿qué opina del proyecto que acabamos de armar?" no es crear otro.
+  if (isAdviceLike(t)) return { advice: true };
   const create = /\b(crear|cree|creemos|nuevo|nueva|armar|arme|armemos|montar|monte|hacer|haga|quiero|empezar|arrancar)\b/.test(t);
   if (create && /\bpiloto\b/.test(t)) return { mode: "pilot" };
   if (create && /\b(proyecto|programa)\b/.test(t)) return { mode: "project" };

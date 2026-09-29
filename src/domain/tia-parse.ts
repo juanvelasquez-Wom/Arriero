@@ -110,6 +110,16 @@ export function parseYesNo(text: string): YesNo {
   return null;
 }
 
+/** Días de un plazo: "4 semanas" → 28, "un mes" → 30, "15 días" → 15. Null si no hay plazo. */
+export function parseDurationDays(text: string): number | null {
+  const t = normalizeText(text);
+  const words: Record<string, number> = { un: 1, una: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, ocho: 8, diez: 10, doce: 12 };
+  const m = t.match(/\b(\d{1,3}|un|una|dos|tres|cuatro|cinco|seis|ocho|diez|doce)\s+(dia|dias|semana|semanas|mes|meses)\b/);
+  if (!m) return null;
+  const n = words[m[1]] ?? Number(m[1]);
+  return m[2].startsWith("dia") ? n : m[2].startsWith("semana") ? n * 7 : n * 30;
+}
+
 /** "después", "no sé", "saltar"… */
 export function isSkip(text: string): boolean {
   return /^(despues|luego|mas tarde|saltar|salte|omitir|no se|ns|paso|ninguno|ninguna|no tengo|todavia no|aun no|no aplica|n\/a)\b/.test(normalizeText(text));

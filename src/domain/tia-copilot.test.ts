@@ -155,7 +155,9 @@ describe("conversación para crear un proyecto", () => {
 
   it("ignora lo que no valida (inventos del modelo)", () => {
     const { state, applied } = applyPatch(mode("project"), { lines: [{ k: "satelital" }], months: 7, startDate: "mañana", calendar: "sí", name: "Pospago 2026" }, ctx());
-    expect(applied).toEqual(["name"]);
+    // "mañana" en palabras sí sirve: lo convierte el código.
+    expect(applied).toEqual(["startDate", "name"]);
+    expect(state.project.startDate).toBe("2026-09-29");
     expect(state.project.months).toBeUndefined();
   });
 
@@ -206,6 +208,52 @@ describe("conversación para crear un piloto", () => {
 
   it("no deja crear pilotos a quien solo lee", () => {
     expect(nextStep(mode("pilot"), ctx({ canCreatePilot: false })).out.tone).toBe("warn");
+  });
+});
+
+describe("lo que el modelo real se inventó en la prueba del 28 sep", () => {
+  const message =
+    "Quiero probar anuncios de clic a WhatsApp en Meta en vez de mandar a la landing de pospago, porque los leads de la landing no contestan la llamada. Cierran el 6 % según el CRM de agosto. Arrancamos el lunes, 4 semanas, con 20 millones";
+  // Respuesta real de Haiku: fecha mal ("el lunes" → martes 29) y datos que la persona no dijo.
+  const haiku = {
+    problem: "Leads de landing de pospago no contestan llamada, cierre bajo",
+    evidence: "6% de cierre en agosto según CRM",
+    change: "Anuncios Meta con clic a WhatsApp en lugar de landing de pospago",
+    metric: "Tasa de cierre de leads",
+    expectedPct: 12,
+    channels: ["meta"],
+    testType: "ab_platform",
+    plannedStart: "2026-09-29",
+    plannedEnd: "2026-10-27",
+    budgetCop: 20000000,
+    title: "Clic a WhatsApp vs landing pospago",
+  };
+
+  it("descarta lo inventado y corrige las fechas con el código", () => {
+    const { state } = applyPatch(mode("pilot"), haiku, ctx(), message);
+    expect(state.pilot.expectedPct).toBeUndefined();
+    expect(state.pilot.title).toBeUndefined();
+    expect(state.pilot.testType).toBeUndefined();
+    expect(state.pilot.plannedStart).toBe("2026-10-05");
+    expect(state.pilot.plannedEnd).toBe("2026-11-01");
+    expect(state.pilot.budgetCop).toBe(20_000_000);
+    // "cierre" sí aparece en el mensaje ("Cierran"): la métrica se conserva solo si la dijo.
+    expect(nextField(state)?.key).toBe(state.pilot.metric ? "expectedPct" : "metric");
+  });
+
+  it("el % de la evidencia no es el efecto esperado", () => {
+    expect(applyPatch(mode("pilot"), { expectedPct: 6 }, ctx(), message).state.pilot.expectedPct).toBeUndefined();
+    expect(applyPatch(mode("pilot"), { expectedPct: 10 }, ctx(), "esperamos subir las ventas un 10 %").state.pilot.expectedPct).toBe(10);
+  });
+
+  it("acepta las fechas en palabras que ahora devuelve el modelo", () => {
+    const { state } = applyPatch(mode("pilot"), { plannedStart: "el lunes", duration: "4 semanas" }, ctx());
+    expect(state.pilot).toMatchObject({ plannedStart: "2026-10-05", plannedEnd: "2026-11-01" });
+  });
+
+  it("conserva lo que sí se dijo", () => {
+    const { state } = applyPatch(mode("pilot"), { expectedPct: 15, title: "WhatsApp Meta", testType: "geo" }, ctx(), "esperamos +15 % en ventas, se llama WhatsApp Meta, por ciudades");
+    expect(state.pilot).toMatchObject({ expectedPct: 15, title: "WhatsApp Meta", testType: "geo" });
   });
 });
 
@@ -276,6 +324,7 @@ describe("intención y modelo", () => {
     expect(quickIntent("Quiero crear un piloto")).toEqual({ mode: "pilot" });
     expect(quickIntent("armemos un proyecto nuevo")).toEqual({ mode: "project" });
     expect(quickIntent("¿Qué opina de cómo vamos?")).toEqual({ advice: true });
+    expect(quickIntent("¿Qué opina del proyecto que acabamos de armar?")).toEqual({ advice: true });
     expect(quickIntent("Quiero probar anuncios de clic a WhatsApp en Meta en vez de la landing de pospago, arrancando el lunes")).toBeNull();
   });
 

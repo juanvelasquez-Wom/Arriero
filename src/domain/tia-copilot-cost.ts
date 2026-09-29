@@ -10,10 +10,10 @@ const HAIKU = "claude-haiku-4-5-20251001";
 const SONNET = "claude-sonnet-5-5";
 const TODAY = "2026-09-28";
 
-/** Salida típica del intérprete: un JSON corto. */
-const EXTRACT_OUT = 90;
-/** Salida típica de una opinión (máximo 150 palabras). */
-const ADVICE_OUT = 320;
+/** Salida típica del intérprete: un JSON corto (real: 57 a 148 tokens). */
+const EXTRACT_OUT = 110;
+/** Salida típica de una opinión con effort "low" (real: 405 a 409 tokens). */
+const ADVICE_OUT = 410;
 
 function extractCall(what: string, state: CopilotState, message: string, refs: RefItem[] = []): CallEstimate {
   return {

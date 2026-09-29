@@ -47,9 +47,12 @@ export function costUsd(u: UsageForCost): number {
   );
 }
 
-/** Tokens aproximados de un texto en español (≈ 3,6 caracteres por token). */
+/**
+ * Tokens aproximados de un texto en español. Calibrado con llamadas reales del
+ * 28 sep 2026 (JSON y español con tildes): ≈ 2,8 caracteres por token.
+ */
 export function approxTokens(text: string): number {
-  return Math.ceil(text.length / 3.6);
+  return Math.ceil(text.length / 2.8);
 }
 
 export interface CallEstimate {
