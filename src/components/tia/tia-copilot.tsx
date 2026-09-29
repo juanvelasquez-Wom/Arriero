@@ -48,8 +48,8 @@ let seq = 0;
 const nextId = () => `b${Date.now().toString(36)}${(seq++).toString(36)}`;
 
 /** Abre La Tía desde cualquier botón de la app (opcionalmente, directo en un modo). */
-export function openTia(mode?: CopilotMode) {
-  window.dispatchEvent(new CustomEvent(OPEN_EVENT, { detail: { mode } }));
+export function openTia(mode?: CopilotMode, opts: { message?: string; chip?: ChipAction; echo?: string } = {}) {
+  window.dispatchEvent(new CustomEvent(OPEN_EVENT, { detail: { mode, ...opts } }));
 }
 
 /** Botón "Hágalo con La Tía" para poner en tarjetas y asistentes. */
@@ -129,9 +129,11 @@ function TiaCopilotInner({ showCost }: { showCost: boolean }) {
   // Abrir desde otros botones de la app.
   useEffect(() => {
     function onOpen(e: Event) {
-      const mode = (e as CustomEvent<{ mode?: CopilotMode }>).detail?.mode;
+      const detail = (e as CustomEvent<{ mode?: CopilotMode; message?: string; chip?: ChipAction; echo?: string }>).detail ?? {};
       setOpen(true);
-      if (mode) void send({ chip: { t: "mode", mode }, echo: MODE_ECHO[mode] });
+      if (detail.message) void send({ message: detail.message, echo: detail.message });
+      else if (detail.chip) void send({ chip: detail.chip, echo: detail.echo ?? "" });
+      else if (detail.mode) void send({ chip: { t: "mode", mode: detail.mode }, echo: MODE_ECHO[detail.mode] });
       else if (!live.current.bubbles.length) void greet();
     }
     window.addEventListener(OPEN_EVENT, onOpen);
@@ -264,6 +266,8 @@ const MODE_ECHO: Record<CopilotMode, string> = {
   project: "Quiero crear un proyecto de growth",
   pilot: "Quiero crear un piloto de medios",
   update: "Le quiero contar un avance",
+  insight: "Quiero anotar un insight",
+  session: "Quiero armar una lluvia de ideas",
 };
 
 function TiaBubble({ out, active, onChip }: { out: TiaOut; active: boolean; onChip: (c: Chip) => void }) {
@@ -338,31 +342,72 @@ export function TiaShortcut({ mode, text }: { mode: CopilotMode; text: string })
   );
 }
 
-/** Franja del inicio: pedirle a La Tía que arme las cosas en vez de llenar formularios. */
-export function TiaHomeStrip({ canProject, canPilot }: { canProject: boolean; canPilot: boolean }) {
+/** Inicio: La Tía como camino principal. Se le escribe aquí mismo y se abre la conversación. */
+export function TiaHero({ canProject, canPilot }: { canProject: boolean; canPilot: boolean }) {
+  const [text, setText] = useState("");
+  const inputId = useId();
   if (!TIA_ENABLED) return null;
+  const quick: { label: string; run: () => void }[] = [
+    ...(canProject ? [{ label: "Armar un proyecto", run: () => openTia("project") }] : []),
+    ...(canPilot ? [{ label: "Armar un piloto", run: () => openTia("pilot") }] : []),
+    { label: "Anotar un insight", run: () => openTia("insight") },
+    { label: "Lluvia de ideas", run: () => openTia("session") },
+    { label: "Contarle un avance", run: () => openTia("update") },
+    { label: "Resumen ejecutivo", run: () => openTia(undefined, { chip: { t: "summary" }, echo: "Hágame el resumen ejecutivo" }) },
+  ];
+  function submit(e: FormEvent) {
+    e.preventDefault();
+    const message = text.trim();
+    // Si el foco se queda en este cuadro, el panel lo toma como "clic afuera" y se cierra solo.
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    setText("");
+    setTimeout(() => (message ? openTia(undefined, { message }) : openTia()), 0);
+  }
   return (
-    <section className="rise mt-5 flex flex-col gap-3 rounded-2xl border border-highlight/70 bg-highlight/10 p-4 sm:flex-row sm:items-center">
-      <TiaAvatar className="size-11" />
-      <div className="min-w-0 flex-1">
-        <h2 className="font-heading text-lg font-extrabold">¿Pereza de formularios? Cuéntele a La Tía</h2>
-        <p className="text-sm text-soft">Dígale qué quiere con sus palabras: ella le pregunta lo que falta, lo arma y le lleva el hilo. No cobra, pero sí juzga.</p>
+    <section className="rise mt-6 rounded-3xl border-2 border-highlight bg-paper p-5 shadow-card sm:p-6" aria-labelledby={`${inputId}-t`}>
+      <div className="flex items-start gap-4">
+        <TiaAvatar className="size-14" />
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-soft">El camino corto</p>
+          <h2 id={`${inputId}-t`} className="font-heading text-2xl font-extrabold leading-tight sm:text-3xl">
+            Dígale a La Tía qué quiere hacer
+          </h2>
+          <p className="mt-1 text-sm text-soft">Con sus palabras. Ella le pregunta lo que falta, lo arma en Arriero y le lleva el hilo. No cobra, pero sí juzga.</p>
+        </div>
       </div>
-      <div className="flex flex-wrap gap-2">
-        {canProject ? (
-          <Button type="button" onClick={() => openTia("project")}>
-            Armar un proyecto
-          </Button>
-        ) : null}
-        {canPilot ? (
-          <Button type="button" variant={canProject ? "outline" : "default"} onClick={() => openTia("pilot")}>
-            Armar un piloto
-          </Button>
-        ) : null}
-        <Button type="button" variant="outline" onClick={() => openTia("update")}>
-          Contarle un avance
+      <form onSubmit={submit} className="mt-4 flex items-end gap-2">
+        <label htmlFor={inputId} className="sr-only">
+          Qué quiere hacer
+        </label>
+        <Textarea
+          id={inputId}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) submit(e);
+          }}
+          rows={2}
+          maxLength={2000}
+          placeholder="Ej.: quiero un piloto de clic a WhatsApp en Meta para pospago, arrancando el lunes, con 20 millones"
+          className="min-h-12 resize-none text-base"
+        />
+        <Button type="submit" size="icon" className="size-12 shrink-0" aria-label="Contarle a La Tía">
+          <SendHorizontalIcon />
         </Button>
-      </div>
+      </form>
+      <ul className="mt-3 flex flex-wrap gap-2" aria-label="Atajos">
+        {quick.map((q) => (
+          <li key={q.label}>
+            <button
+              type="button"
+              onClick={q.run}
+              className="rounded-full border border-line bg-wash px-3 py-1 text-sm transition hover:border-highlight hover:bg-highlight/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            >
+              {q.label}
+            </button>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }

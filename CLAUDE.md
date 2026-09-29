@@ -486,4 +486,14 @@ Migración `014_matriz_hallazgos` e informe en el artefacto "Auditoría integral
   - Haiku inventa campos que la persona no dijo (nombre, efecto esperado, forma de medir) y se equivoca con fechas relativas: `groundPatch` descarta lo que no aparece en el mensaje y las fechas y plazos en palabras los calcula el código (`parseDateEs`, `parseDurationDays`). En desarrollo, cada llamada deja `[tia-uso]` en la consola con tokens, costo y motivo de fin.
   - Anotar un avance ≈ COP 8. Una pregunta de opinión ≈ COP 30 (más si el programa tiene muchos ejercicios).
   - Cada llamada queda en `tia_usage` (`copilot` y `copilot_advice`) y cuenta para `TIA_DAILY_LIMIT`; los botones no cuentan. Un admin ve en el panel cuánto va costando la charla.
+- **Inicio (29 sep 2026):** La Tía es el camino principal (`TiaHero`: se le escribe ahí mismo, con atajos). Crear un proyecto o un piloto a mano queda debajo como «Experiencia inmersiva en growth». Si La Tía está apagada, el inicio vuelve a lo de antes.
+- **Solo Arriero:** una pregunta que no suena a Arriero (`looksArriero`) y sin proyecto, piloto o aguacero a la vista no va directo a Sonnet: la revisa Haiku, que puede devolver `m:"off"`. Sonnet también tiene la orden de responder `FUERA_DE_TEMA`. En los dos casos sale la plantilla `OFF_TOPIC_TEXT` (sin más tokens).
+- **Insights y lluvia de ideas:**
+  - Modos `insight` (frase, fuente y detalle → `createInsight`; «Me di cuenta de que…» ya es el insight) y `session` (reto, contexto y fecha → `createIdeaSession`).
+  - Avance `idea`: anota una idea en un aguacero abierto (`addIdea`).
+  - «Proponga ideas» (`copilot_ideas`, Sonnet `effort: "low"`, 300 tokens): 5 ideas que se anotan con un botón. `parseBrainstorm` descarta las que traen cifras.
+  - «¿Qué insights hay sobre X?» busca en el carriel sin Claude.
+- **Resumen ejecutivo sin Claude:** «resumen», «cómo vamos», «status» → `server/tia/summary.ts` usa el mismo `buildExecutiveBrief` de /direccion (portafolio, o solo el programa abierto) y `pilotSummaryText` para un piloto (con la lectura del motor de Pilotos). Cero tokens, ningún número inventado.
+- **Ahorro:** Haiku recibe solo los campos del modo actual (`extractSystem(mode)`) y el arranque `{` (`EXTRACT_PREFILL`; Sonnet 5.5 no lo acepta), con 300 tokens máximo. Sonnet responde en máximo 120 palabras (500 tokens). Resúmenes, búsquedas, glosario, botones y respuestas cortas no usan Claude.
+- **Sin inventos:** `groundPatch` y las fechas calculadas por el código (arriba). `ADVICE_TASK` exige usar solo cifras de `<datos>` y decir «no tengo ese dato», y `withNumberCheck` avisa si aparece una cifra que no está en los datos.
 - **Tests:** `src/domain/tia-copilot.test.ts`.

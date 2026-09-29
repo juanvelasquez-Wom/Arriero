@@ -25,6 +25,7 @@ export const TIA_FEATURES = [
   "pilot_conclusion", // Pilotos: borrador de conclusión con los números ya calculados
   "copilot", // Copiloto: entender un mensaje (Haiku)
   "copilot_advice", // Copiloto: opinar e interpretar (Sonnet, o Haiku si es una duda de uso)
+  "copilot_ideas", // Copiloto: proponer ideas para un aguacero (Sonnet)
 ] as const;
 export type TiaFeature = (typeof TIA_FEATURES)[number];
 

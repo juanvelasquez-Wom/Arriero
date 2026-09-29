@@ -13,7 +13,7 @@ const path = z
   .max(300)
   .refine((p) => p.startsWith("/") && !p.startsWith("//"), "Ruta inválida.");
 
-const chipSchema = z.object({ t: z.enum(["set", "skip", "mode", "update", "commit", "edit", "reset", "advice"]) }).passthrough();
+const chipSchema = z.object({ t: z.enum(["set", "skip", "mode", "update", "commit", "edit", "reset", "advice", "summary", "brainstorm", "addIdea"]) }).passthrough();
 
 const disabled: CopilotReply = { state: emptyCopilotState(), out: [{ text: "La Tía está apagada por ahora.", tone: "warn" }], spend: [] };
 

@@ -25,6 +25,7 @@ import {
   introFor,
   isHowTo,
   nextStep,
+  OFF_TOPIC_TEXT,
   recommendTestType,
   refFor,
   routeMessage,
@@ -39,7 +40,18 @@ import {
   type TiaOut,
   type UpdateTarget,
 } from "@/domain/tia-copilot";
-import { adviceSystem, buildExtractInput, EXTRACT_SYSTEM, needsRefs, parseExtraction } from "@/domain/tia-copilot-prompt";
+import {
+  adviceSystem,
+  brainstormSystem,
+  buildExtractInput,
+  EXTRACT_PREFILL,
+  extractSystem,
+  needsRefs,
+  OFF_TOPIC_MARK,
+  parseBrainstorm,
+  parseExtraction,
+} from "@/domain/tia-copilot-prompt";
+import { SOURCE_LABEL } from "@/domain/insights";
 import { costUsd, usdCop } from "@/domain/tia-cost";
 import type { PilotRole, PilotStatus } from "@/domain/pilots/types";
 import { createClient } from "@/lib/supabase/server";
@@ -47,16 +59,21 @@ import { addComment } from "@/server/actions/comments";
 import { transitionExperiment } from "@/server/actions/experiments";
 import { saveWeeklyValues } from "@/server/actions/metric-values";
 import { createPilot, logIncident, moveToReading, savePilotDesign, startPilot } from "@/server/actions/pilots";
+import { addIdea, createIdeaSession } from "@/server/actions/ideas";
+import { createInsight } from "@/server/actions/insights";
 import { createProblem } from "@/server/actions/problems";
 import { saveQuickStart } from "@/server/actions/setup";
 import { getActionActor, getSessionUser, type ProgramContext, type ProgramSummary, type SessionUser } from "@/server/auth";
 import { analyzePilotDetail } from "@/server/pilot-reading";
+import { getIdeaSession, listIdeaSessions } from "@/server/queries/ideas";
+import { listInsights } from "@/server/queries/insights";
 import { listPilots, loadPilotCatalogs, loadPilotDetail } from "@/server/queries/pilots";
 import { listLines, listMyPrograms } from "@/server/queries/programs";
 import { listStages } from "@/server/queries/structure";
-import { askTia, TiaError, tiaConfigured, tiaFastModel, tiaModel, type TiaUsage } from "./client";
+import { askTia, supportsTemperature, TiaError, tiaConfigured, tiaFastModel, tiaModel, type TiaUsage } from "./client";
 import { programContextForTia } from "./context";
 import { ensureTiaAvailable, recordTiaUsage } from "./run";
+import { pilotSummary, programsSummary } from "./summary";
 
 export interface CopilotSpend {
   model: string;
@@ -76,6 +93,7 @@ interface Scope {
   programId: string | null;
   pilotId: string | null;
   experimentId: string | null;
+  sessionId: string | null;
 }
 
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
@@ -85,7 +103,8 @@ export function scopeFromPath(path: string): Scope {
   const program = path.match(new RegExp(`^/programas/(${UUID})`, "i"))?.[1] ?? null;
   const experiment = path.match(new RegExp(`/ejercicios/(${UUID})`, "i"))?.[1] ?? null;
   const pilot = path.match(new RegExp(`^/pilotos/(${UUID})`, "i"))?.[1] ?? null;
-  return { programId: program, pilotId: pilot, experimentId: experiment };
+  const session = path.match(new RegExp(`^/ideas/(${UUID})`, "i"))?.[1] ?? null;
+  return { programId: program, pilotId: pilot, experimentId: experiment, sessionId: session };
 }
 
 interface Loaded {
@@ -125,13 +144,14 @@ async function loadContext(state: CopilotState, path: string, user: SessionUser)
   )
     .is("deleted_at", null)
     .limit(30);
-  const [pilotRole, programs, pilots, catalogs, experimentsRes, metricsRes] = await Promise.all([
+  const [pilotRole, programs, pilots, catalogs, experimentsRes, metricsRes, sessions] = await Promise.all([
     pilotRoleOf(user),
     needRefs ? listMyPrograms(user.id).catch(() => []) : Promise.resolve([]),
     needRefs ? listPilots().catch(() => []) : Promise.resolve([]),
     needChannels ? loadPilotCatalogs().catch(() => null) : Promise.resolve(null),
     needRefs ? experimentsQuery : none,
     needRefs ? metricsQuery : none,
+    needRefs ? listIdeaSessions(user.id).then((d) => d.items).catch(() => []) : Promise.resolve([]),
   ]);
   const programName = new Map(programs.map((p) => [p.id, p.name]));
   const experiments = (experimentsRes.data ?? []) as { id: string; title: string; status: string; program_id: string; actual_start: string | null; min_duration_days: number | null }[];
@@ -151,6 +171,10 @@ async function loadContext(state: CopilotState, path: string, user: SessionUser)
     })),
     ...metrics.map((m) => ({ ref: refFor("metric", m.id), kind: "metric" as const, id: m.id, label: m.name, programId: m.program_id, programName: programName.get(m.program_id) ?? null })),
     ...activePilots.map((p) => ({ ref: refFor("pilot", p.id), kind: "pilot" as const, id: p.id, label: p.title, status: p.status })),
+    ...sessions
+      .filter((s) => s.phase === "open")
+      .slice(0, 10)
+      .map((s) => ({ ref: refFor("session", s.id), kind: "session" as const, id: s.id, label: s.title, status: s.phase })),
   ];
   // Lo de la pantalla actual va primero en los botones.
   refs.sort((a, b) => Number(isInScope(b, scope)) - Number(isInScope(a, scope)));
@@ -178,7 +202,13 @@ async function loadContext(state: CopilotState, path: string, user: SessionUser)
 }
 
 function isInScope(r: RefItem, scope: Scope): boolean {
-  return r.id === scope.programId || r.id === scope.pilotId || r.id === scope.experimentId || (!!scope.programId && r.programId === scope.programId);
+  return (
+    r.id === scope.programId ||
+    r.id === scope.pilotId ||
+    r.id === scope.experimentId ||
+    r.id === scope.sessionId ||
+    (!!scope.programId && r.programId === scope.programId)
+  );
 }
 
 /** Líneas y etapas del programa al que va una oportunidad de mejora nueva. */
@@ -211,8 +241,11 @@ export async function openCopilot(rawState: unknown, path: string): Promise<Copi
     return { state: step.state, out: [step.out], spend: [] };
   }
   const nudges = copilotNudges(loaded.nudgeInput, loaded.ctx.today);
-  const hello = `¡Quiubo, ${firstName(user.name)}! Soy La Tía. Dígame qué quiere hacer y yo le voy pidiendo lo que falta: armo proyectos y pilotos, anoto avances y le doy mi opinión.`;
-  const out: TiaOut[] = [{ text: hello, chips: startChips(loaded.ctx) }];
+  const hello = `¡Quiubo, ${firstName(user.name)}! Soy La Tía. Dígame qué quiere hacer y yo le voy pidiendo lo que falta: armo proyectos, pilotos, insights y aguaceros, anoto avances, le hago el resumen ejecutivo y le doy mi opinión. Solo de Arriero, eso sí.`;
+  const chips = startChips(loaded.ctx);
+  // En un aguacero, lo primero que se ofrece es que llueva.
+  if (loaded.scope.sessionId) chips.unshift({ label: "Proponga ideas para este aguacero", action: { t: "brainstorm", sessionId: loaded.scope.sessionId }, primary: true });
+  const out: TiaOut[] = [{ text: hello, chips }];
   if (nudges.length) out.push({ text: nudges.map((n) => `• ${n.text}`).join("\n"), chips: nudges.map((n) => n.chip) });
   return { state, out, spend: [] };
 }
@@ -231,8 +264,15 @@ export async function copilotTurn(input: { state: unknown; message?: string; chi
   if (!message) return { state, out: [nextStep(state, loaded.ctx).out], spend };
 
   // Primero todo lo que se resuelve sin Claude (routeMessage, en el dominio).
-  const route = routeMessage(state, message, loaded.ctx, glossaryAnswer);
+  const hasSubject = !!subjectFromScope(loaded.scope, state);
+  const route = routeMessage(state, message, loaded.ctx, glossaryAnswer, hasSubject);
   switch (route.t) {
+    case "summary":
+      return summarize(state, route.period, loaded, spend);
+    case "insights":
+      return searchInsights(state, route.query, loaded, spend);
+    case "brainstorm":
+      return brainstorm(state, loaded, spend);
     case "reset": {
       const reset = { ...emptyCopilotState(), last: state.last };
       return { state: reset, out: [nextStep(reset, loaded.ctx, "Listo, borrón y cuenta nueva.").out], spend };
@@ -262,6 +302,8 @@ export async function copilotTurn(input: { state: unknown; message?: string; chi
   const extraction = await extract(state, message, loaded, spend);
   if (!extraction.ok) return { state, out: [{ text: extraction.error, tone: "warn" }], spend };
   const x = extraction.value;
+  if (x.mode === "off") return offTopic(state, loaded, spend);
+  if (x.mode === "summary") return summarize(state, /\bmes\b|mensual/i.test(message) ? "mes" : "semana", loaded, spend);
   if (x.mode === "advice") return advise(x.question ?? message, state, loaded, spend);
 
   let next = state;
@@ -350,7 +392,111 @@ async function handleChip(state: CopilotState, chip: ChipAction, loaded: Loaded,
     case "advice":
       if (chip.about === "last" && state.last) return advise(`¿Qué opina de «${state.last.label}» y qué debería hacer ahora?`, state, loaded, spend, state.last);
       return { state: { ...state, asked: ADVICE_FIELD }, out: [{ text: "Hágale, pregunte. Si es sobre un proyecto o un piloto, ábralo primero y así le miro los datos de ese." }], spend };
+    case "summary":
+      return summarize(state, chip.period ?? "semana", loaded, spend);
+    case "brainstorm":
+      return brainstorm(state, loaded, spend, chip.sessionId);
+    case "addIdea": {
+      const session = loaded.ctx.refs.find((r) => r.kind === "session" && r.id === chip.sessionId) ?? (chip.sessionId === loaded.scope.sessionId ? { id: chip.sessionId } : null);
+      const text = typeof chip.text === "string" ? chip.text.trim().slice(0, 200) : "";
+      if (!session || text.length < 3) return { state, out: [{ text: "Esa idea ya no la puedo anotar. Escríbamela, porfa.", tone: "warn" }], spend };
+      const res = await addIdea(session.id, { title: text, anonymous: false });
+      if (!res.ok) return { state, out: [{ text: `No pude anotarla: ${res.error}`, tone: "warn" }], spend };
+      return {
+        state,
+        out: [{ text: `Anotada: «${text}». Llueve sobre mojado, pero llueve.`, tone: "ok", links: [{ label: "Ver el aguacero", href: `/ideas/${session.id}` }] }],
+        spend,
+      };
+    }
   }
+}
+
+function offTopic(state: CopilotState, loaded: Loaded, spend: CopilotSpend[]): CopilotReply {
+  return { state: { ...state, asked: state.asked === ADVICE_FIELD ? null : state.asked }, out: [{ text: OFF_TOPIC_TEXT, chips: startChips(loaded.ctx) }], spend };
+}
+
+// ---------------------------------------------------------------------------
+// Sin Claude: resúmenes ejecutivos y búsqueda de insights
+
+async function summarize(state: CopilotState, period: "semana" | "mes", loaded: Loaded, spend: CopilotSpend[]): Promise<CopilotReply> {
+  const subject = subjectFromScope(loaded.scope, state);
+  const result =
+    subject?.kind === "pilot"
+      ? await pilotSummary(subject.id).catch(() => null)
+      : await programsSummary({ programId: subject?.programId ?? (subject?.kind === "program" ? subject.id : null), period }).catch(() => null);
+  const chips: Chip[] = [
+    { label: period === "semana" ? "El del mes" : "El de la semana", action: { t: "summary", period: period === "semana" ? "mes" : "semana" } },
+    { label: "¿Qué opina, Tía?", action: { t: "advice", about: "last" } },
+  ];
+  if (!result) return { state, out: [{ text: "Todavía no hay programas con datos para resumir. Cargue la semana y vuelva, que la mula no inventa.", chips: startChips(loaded.ctx) }], spend };
+  const note = "\n\nHecho con los números de Arriero, sin inventar nada (y sin gastar un peso en IA).";
+  const last = subject ?? state.last;
+  return { state: { ...state, last }, out: [{ text: result.text + note, links: result.links, chips: last ? chips : chips.slice(0, 1) }], spend };
+}
+
+async function searchInsights(state: CopilotState, query: string, loaded: Loaded, spend: CopilotSpend[]): Promise<CopilotReply> {
+  const data = await listInsights(loaded.user.id).catch(() => null);
+  const words = normalizeText(query)
+    .split(/\s+/)
+    .filter((w) => w.length >= 3);
+  const hits = (data?.items ?? [])
+    .filter((i) => i.status !== "archived")
+    .map((i) => {
+      const hay = normalizeText(`${i.title} ${i.detail ?? ""} ${i.tags.join(" ")} ${i.line_hint ?? ""} ${i.channel ?? ""}`);
+      return { i, score: words.filter((w) => hay.includes(w)).length };
+    })
+    .filter((x) => x.score > 0)
+    .sort((a, b) => b.score - a.score || b.i.votes - a.i.votes)
+    .slice(0, 5);
+  if (!hits.length)
+    return { state, out: [{ text: `No encontré insights sobre «${query}» en el carriel. ¿Lo anotamos usted y yo?`, chips: [{ label: "Anotar un insight", action: { t: "mode", mode: "insight" } }] }], spend };
+  const text = [`Esto hay en el carriel sobre «${query}»:`, ...hits.map(({ i }) => `- **${i.title}** · ${SOURCE_LABEL[i.source]}${i.votes ? ` · ${i.votes} ${i.votes === 1 ? "voto" : "votos"}` : ""}`)].join("\n");
+  return { state, out: [{ text, links: hits.slice(0, 3).map(({ i }) => ({ label: clip(i.title, 40) ?? "Ver", href: `/insights/${i.id}` })) }], spend };
+}
+
+/** Lluvia de ideas: Sonnet propone 5 ideas (sin cifras) y cada una se anota con un botón. */
+async function brainstorm(state: CopilotState, loaded: Loaded, spend: CopilotSpend[], sessionId?: string): Promise<CopilotReply> {
+  const id = sessionId ?? loaded.scope.sessionId ?? (state.last?.kind === "session" ? state.last.id : null);
+  if (!id) {
+    const open = loaded.ctx.refs.filter((r) => r.kind === "session").slice(0, 5);
+    return {
+      state,
+      out: [
+        {
+          text: open.length ? "¿Para qué aguacero le propongo ideas?" : "No hay aguaceros abiertos. ¿Armamos uno?",
+          chips: open.length ? open.map((r) => ({ label: r.label, action: { t: "brainstorm", sessionId: r.id } })) : [{ label: "Armar una lluvia de ideas", action: { t: "mode", mode: "session" } }],
+        },
+      ],
+      spend,
+    };
+  }
+  const detail = await getIdeaSession(id, loaded.user.id).catch(() => null);
+  if (!detail) return { state, out: [{ text: "No encontré ese aguacero o no lo puede ver.", tone: "warn" }], spend };
+  if (detail.session.phase !== "open") return { state, out: [{ text: "Ese aguacero ya no recibe ideas: está en votación o cerrado." }], spend };
+  const res = await callTia(
+    {
+      feature: "copilot_ideas",
+      programId: null,
+      model: tiaModel(),
+      system: brainstormSystem({ reto: detail.session.title, contexto: clip(detail.session.context, 400), ya_anotadas: detail.ideas.slice(0, 30).map((i) => clip(i.title, 80) ?? "") }),
+      message: "Hágale pues.",
+      maxTokens: 300,
+    },
+    spend,
+  );
+  if (!res.ok) return { state, out: [{ text: res.error, tone: "warn" }], spend };
+  const ideas = parseBrainstorm(res.text);
+  if (!ideas.length) return { state, out: [{ text: "Se me secó el aguacero. Intente de nuevo en un momento." }], spend };
+  return {
+    state: { ...state, last: { kind: "session", id, label: detail.session.title, href: `/ideas/${id}` } },
+    out: [
+      {
+        text: `Para «${detail.session.title}» se me ocurren estas (toque la que quiera anotar; quedan a su nombre):\n${ideas.map((i) => `- ${i}`).join("\n")}`,
+        chips: [...ideas.map((i) => ({ label: `Anotar: ${clip(i, 60)}`, action: { t: "addIdea" as const, sessionId: id, text: i } })), { label: "Otras ideas", action: { t: "brainstorm", sessionId: id } }],
+      },
+    ],
+    spend,
+  };
 }
 
 function validTarget(t: UpdateTarget, ctx: CopilotContext): UpdateTarget | undefined {
@@ -383,7 +529,10 @@ function spendOf(usage: TiaUsage): CopilotSpend {
   return { model: usage.model, inputTokens: usage.inputTokens + (usage.cacheReadTokens ?? 0) + (usage.cacheWriteTokens ?? 0), outputTokens: usage.outputTokens, usd, cop: Math.round(usd * usdCop(process.env.TIA_USD_COP)) };
 }
 
-async function callTia(opts: { feature: TiaFeature; programId: string | null; model: string; system: string; message: string; maxTokens: number; cacheSystem?: boolean; temperature?: number }, spend: CopilotSpend[]) {
+async function callTia(
+  opts: { feature: TiaFeature; programId: string | null; model: string; system: string; message: string; maxTokens: number; cacheSystem?: boolean; temperature?: number; prefill?: string },
+  spend: CopilotSpend[],
+) {
   const available = await ensureTiaAvailable(opts.programId, opts.feature);
   if (!available.ok) return { ok: false as const, error: available.error };
   try {
@@ -393,7 +542,10 @@ async function callTia(opts: { feature: TiaFeature; programId: string | null; mo
       cacheSystem: opts.cacheSystem,
       // Respuestas cortas: sin "pensar" por dentro (en Sonnet 5.5 eso gastaba ~330 tokens por respuesta).
       effort: "low",
-      messages: [{ role: "user", content: opts.message }],
+      // El arranque ("{") solo lo aceptan los modelos anteriores a Claude 5 (Haiku 4.5 sí).
+      messages: opts.prefill && supportsTemperature(opts.model)
+        ? [{ role: "user", content: opts.message }, { role: "assistant", content: opts.prefill }]
+        : [{ role: "user", content: opts.message }],
       maxTokens: opts.maxTokens,
       temperature: opts.temperature,
     });
@@ -418,11 +570,12 @@ async function extract(state: CopilotState, message: string, loaded: Loaded, spe
       feature: "copilot",
       programId: loaded.scope.programId,
       model: tiaFastModel(),
-      system: EXTRACT_SYSTEM,
-      cacheSystem: true,
+      // Con un modo activo, solo los campos de ese modo: instrucciones más cortas.
+      system: extractSystem(state.mode),
       message: buildExtractInput({ state, message, today: loaded.ctx.today, refs }),
-      maxTokens: 400,
+      maxTokens: 300,
       temperature: 0,
+      prefill: EXTRACT_PREFILL,
     },
     spend,
   );
@@ -446,24 +599,36 @@ async function advise(question: string, state: CopilotState, loaded: Loaded, spe
       model: smart ? tiaModel() : tiaFastModel(),
       system: adviceSystem(data),
       message: question,
-      maxTokens: smart ? 700 : 400,
+      maxTokens: smart ? 500 : 350,
     },
     spend,
   );
   const chips: Chip[] = [{ label: "Otra pregunta", action: { t: "advice" } }, ...startChips(loaded.ctx).slice(0, 2)];
   if (!res.ok) return { state, out: [{ text: res.error, tone: "warn" }], spend };
+  // Segunda barrera: el modelo también rechaza lo que no es de Arriero.
+  if (res.text.includes(OFF_TOPIC_MARK)) return offTopic(state, loaded, spend);
   const text = data ? withNumberCheck(res.text, data) : res.text;
   return { state: { ...state, asked: state.mode ? state.asked : null }, out: [{ text: text || "Me quedé sin palabras. Pregúnteme de otra forma.", chips: state.mode ? undefined : chips }], spend };
 }
 
 function subjectFromScope(scope: Scope, state: CopilotState): CreatedRef | null {
   if (scope.pilotId) return { kind: "pilot", id: scope.pilotId, label: "este piloto", href: `/pilotos/${scope.pilotId}` };
+  if (scope.sessionId) return { kind: "session", id: scope.sessionId, label: "este aguacero", href: `/ideas/${scope.sessionId}` };
   if (scope.programId) return { kind: "program", id: scope.programId, label: "este programa", href: `/programas/${scope.programId}`, programId: scope.programId };
   return state.last;
 }
 
 /** Datos compactos para opinar (recortados para gastar pocos tokens). */
 async function briefFor(subject: CreatedRef, loaded: Loaded): Promise<unknown> {
+  if (subject.kind === "session") {
+    const d = await getIdeaSession(subject.id, loaded.user.id);
+    if (!d) return null;
+    return {
+      hoy: loaded.ctx.today,
+      aguacero: { reto: d.session.title, contexto: clip(d.session.context, 300), fase: d.session.phase, fecha_limite: d.session.deadline, ideas: d.ideas.length },
+      ideas: d.ideas.slice(0, 25).map((i) => ({ idea: clip(i.title, 100), decision: i.decision })),
+    };
+  }
   if (subject.kind === "pilot") {
     const [detail, catalogs] = await Promise.all([loadPilotDetail(subject.id), loadPilotCatalogs()]);
     if (!detail) return null;
@@ -537,7 +702,15 @@ async function programContextFor(programId: string): Promise<ProgramContext | nu
 
 async function commit(state: CopilotState, loaded: Loaded, spend: CopilotSpend[]): Promise<CopilotReply> {
   const result =
-    state.mode === "project" ? await commitProject(state, loaded) : state.mode === "pilot" ? await commitPilot(state, loaded) : await commitUpdate(state, loaded);
+    state.mode === "project"
+      ? await commitProject(state, loaded)
+      : state.mode === "pilot"
+        ? await commitPilot(state, loaded)
+        : state.mode === "insight"
+          ? await commitInsight(state)
+          : state.mode === "session"
+            ? await commitSession(state)
+            : await commitUpdate(state, loaded);
   if (!result.ok) {
     return {
       state: { ...state, confirming: true },
@@ -546,10 +719,11 @@ async function commit(state: CopilotState, loaded: Loaded, spend: CopilotSpend[]
     };
   }
   const done: CopilotState = { ...emptyCopilotState(), last: result.last };
-  const chips: Chip[] = [
-    { label: "¿Qué opina, Tía?", action: { t: "advice", about: "last" }, primary: true },
-    ...startChips(loaded.ctx).slice(0, 3),
-  ];
+  const first: Chip =
+    result.last.kind === "session"
+      ? { label: "Proponga ideas, Tía", action: { t: "brainstorm", sessionId: result.last.id }, primary: true }
+      : { label: "¿Qué opina, Tía?", action: { t: "advice", about: "last" }, primary: true };
+  const chips: Chip[] = [first, ...startChips(loaded.ctx).slice(0, 3)];
   return { state: done, out: [{ text: result.text, tone: "ok", links: result.links, chips }], spend };
 }
 
@@ -647,6 +821,34 @@ async function commitPilot(state: CopilotState, loaded: Loaded): Promise<CommitR
   };
 }
 
+async function commitInsight(state: CopilotState): Promise<CommitResult> {
+  const i = state.insight;
+  if (!i.title || !i.source) return { ok: false, error: "falta el insight o de dónde sale." };
+  const res = await createInsight({ title: i.title, detail: i.detail ?? undefined, source: i.source, tags: [] });
+  if (!res.ok) return { ok: false, error: res.error };
+  const href = `/insights/${res.data.id}`;
+  return {
+    ok: true,
+    text: "¡Al carriel! Ya lo ve todo el equipo; si otros lo votan, se calienta. De ahí puede nacer una oportunidad de mejora, un proyecto o un piloto.",
+    links: [{ label: "Ver el insight", href }],
+    last: { kind: "insight", id: res.data.id, label: i.title, href },
+  };
+}
+
+async function commitSession(state: CopilotState): Promise<CommitResult> {
+  const s = state.session;
+  if (!s.title) return { ok: false, error: "falta el reto." };
+  const res = await createIdeaSession({ title: s.title, context: s.context ?? null, deadline: s.deadline ?? null });
+  if (!res.ok) return { ok: false, error: res.error };
+  const href = `/ideas/${res.data.id}`;
+  return {
+    ok: true,
+    text: "¡Armado el aguacero! Ya puede llover: compártalo con el equipo. Si quiere, yo le suelto las primeras ideas.",
+    links: [{ label: "Abrir el aguacero", href }],
+    last: { kind: "session", id: res.data.id, label: s.title, href },
+  };
+}
+
 async function commitUpdate(state: CopilotState, loaded: Loaded): Promise<CommitResult> {
   const u = state.update;
   const target = u.target ? validTarget(u.target, loaded.ctx) : undefined;
@@ -707,6 +909,13 @@ async function commitUpdate(state: CopilotState, loaded: Loaded): Promise<Commit
       const res = await startPilot(target.id, u.date);
       if (!res.ok) return { ok: false, error: res.error };
       return pilotDone(target, "¡Arrancó! Cargue datos al menos cada semana y, si algo raro pasa, me cuenta y lo anoto como incidente.");
+    }
+    case "idea": {
+      if (!u.text) return { ok: false, error: "falta la idea." };
+      const res = await addIdea(target.id, { title: u.text, anonymous: false });
+      if (!res.ok) return { ok: false, error: res.error };
+      const href = `/ideas/${target.id}`;
+      return { ok: true, text: "¡Anotada! Una gota más en el aguacero.", links: [{ label: "Ver el aguacero", href }], last: { kind: "session", id: target.id, label: target.label, href } };
     }
     case "pilot_reading": {
       if (!u.date) return { ok: false, error: "falta la fecha." };

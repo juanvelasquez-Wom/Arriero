@@ -27,7 +27,9 @@ import {
   type CopilotState,
   type RefItem,
 } from "./tia-copilot";
-import { buildExtractInput, needsRefs, parseExtraction, EXTRACT_SYSTEM } from "./tia-copilot-prompt";
+import { ADVICE_FIELD, looksArriero, OFF_TOPIC_TEXT, routeMessage } from "./tia-copilot";
+import { buildExtractInput, EXTRACT_SYSTEM, extractSystem, needsRefs, parseBrainstorm, parseExtraction } from "./tia-copilot-prompt";
+import { briefForChat, pilotPortfolioLine, pilotSummaryText } from "./tia-summary";
 import { copilotCostScenarios } from "./tia-copilot-cost";
 import { approxTokens, costUsd, priceFor } from "./tia-cost";
 import { isSkip, parseDateEs, parseNumberEs, parseWeekEs, parseYesNo } from "./tia-parse";
@@ -58,7 +60,14 @@ const ctx = (over: Partial<CopilotContext> = {}): CopilotContext => ({
   ...over,
 });
 
-const mode = (m: CopilotState["mode"]): CopilotState => ({ ...emptyCopilotState(), mode: m });
+const mode = (m: CopilotState["mode"]): CopilotState => nextStep({ ...emptyCopilotState(), mode: m }, ctx()).state;
+
+/** Responde la pregunta actual como lo haría el servidor sin Claude, y avanza. */
+function routeLocal(s: CopilotState, message: string, c: CopilotContext): CopilotState {
+  const r = routeMessage(s, message, c);
+  if (r.t !== "local") throw new Error(`se esperaba respuesta local y fue ${r.t}`);
+  return nextStep(r.state, c).state;
+}
 
 describe("intérpretes locales", () => {
   it("entiende fechas en español", () => {
@@ -101,6 +110,9 @@ describe("intérpretes locales", () => {
     expect(isSkip("después")).toBe(true);
     expect(isSkip("No sé")).toBe(true);
     expect(isSkip("Meta")).toBe(false);
+    expect(isSkip("no")).toBe(true);
+    expect(isSkip("No, gracias")).toBe(true);
+    expect(isSkip("no contestan la llamada")).toBe(false);
   });
 });
 
@@ -323,7 +335,15 @@ describe("intención y modelo", () => {
   it("detecta intenciones obvias sin Claude", () => {
     expect(quickIntent("Quiero crear un piloto")).toEqual({ mode: "pilot" });
     expect(quickIntent("armemos un proyecto nuevo")).toEqual({ mode: "project" });
-    expect(quickIntent("¿Qué opina de cómo vamos?")).toEqual({ advice: true });
+    // "Cómo vamos" es un resumen ejecutivo: lo arma el código, sin Claude.
+    expect(quickIntent("¿Qué opina de cómo vamos?")).toEqual({ summary: "semana" });
+    expect(quickIntent("hágame el resumen del mes")).toEqual({ summary: "mes" });
+    expect(quickIntent("¿Qué opina del piloto?")).toEqual({ advice: true });
+    expect(quickIntent("Quiero anotar un insight")).toEqual({ mode: "insight" });
+    expect(quickIntent("Me di cuenta de que los clientes piden la eSIM")).toEqual({ mode: "insight" });
+    expect(quickIntent("armemos una lluvia de ideas para el pago")).toEqual({ mode: "session" });
+    expect(quickIntent("proponga ideas para este reto")).toEqual({ brainstorm: true });
+    expect(quickIntent("¿qué insights hay sobre portabilidad?")).toEqual({ insightSearch: "portabilidad" });
     expect(quickIntent("¿Qué opina del proyecto que acabamos de armar?")).toEqual({ advice: true });
     expect(quickIntent("Quiero probar anuncios de clic a WhatsApp en Meta en vez de la landing de pospago, arrancando el lunes")).toBeNull();
   });
@@ -343,7 +363,116 @@ describe("intención y modelo", () => {
   });
 });
 
+describe("solo cosas de Arriero", () => {
+  it("una pregunta que no suena a Arriero no va directo a Sonnet: la revisa el intérprete barato", () => {
+    expect(looksArriero("¿Qué opina del piloto de WhatsApp?")).toBe(true);
+    expect(looksArriero("¿Qué opina de la selección Colombia?")).toBe(false);
+    expect(routeMessage(emptyCopilotState(), "¿Qué opina de la selección Colombia?", ctx()).t).toBe("extract");
+    expect(routeMessage(emptyCopilotState(), "¿Qué opina del piloto de WhatsApp?", ctx()).t).toBe("advice");
+    // Con un piloto abierto en pantalla, "¿qué opina?" sí es de Arriero.
+    expect(routeMessage(emptyCopilotState(), "¿Qué opina?", ctx(), undefined, true).t).toBe("advice");
+    // Después de "Pedirle un consejo", una pregunta rara también pasa primero por el intérprete.
+    expect(routeMessage({ ...emptyCopilotState(), asked: ADVICE_FIELD }, "dame una receta de arepas", ctx()).t).toBe("extract");
+  });
+
+  it("el intérprete puede marcar algo como fuera de tema", () => {
+    expect(parseExtraction('"m":"off","p":{}}')?.mode).toBe("off");
+    expect(parseExtraction('{"m":"summary","p":{}}')?.mode).toBe("summary");
+  });
+
+  it("la respuesta para lo que no es de Arriero es una plantilla (cero tokens)", () => {
+    expect(OFF_TOPIC_TEXT).toContain("solo ayudo con lo de Arriero");
+  });
+});
+
+describe("insights y lluvia de ideas", () => {
+  it("anota un insight con frase y fuente", () => {
+    const c = ctx();
+    let s = mode("insight");
+    expect(nextField(s)?.key).toBe("title");
+    s = routeLocal(s, "Los clientes preguntan mucho por la eSIM en el chat", c);
+    expect(nextField(s)?.key).toBe("source");
+    s = routeLocal(s, "un cliente", c);
+    expect(s.insight.source).toBe("customer");
+    expect(canCommit(s)).toBe(true);
+    expect(summarize({ ...s, skipped: ["detail"] }, c).map((r) => r.label)).toEqual(["Insight", "Fuente"]);
+  });
+
+  it("«me di cuenta de que…» ya es el insight", () => {
+    const r = routeMessage(emptyCopilotState(), "Me di cuenta de que los clientes piden la eSIM en el chat", ctx());
+    expect(r.t).toBe("local");
+    if (r.t === "local") expect(nextField(r.state)?.key).toBe("source");
+  });
+
+  it("arma un aguacero con reto y fecha", () => {
+    const c = ctx();
+    let s = routeLocal(mode("session"), "¿Cómo hacemos que más gente termine el pago?", c);
+    s = { ...s, skipped: ["context"] };
+    s = nextStep(s, c).state;
+    s = routeLocal(s, "en 2 semanas", c);
+    expect(s.session.deadline).toBe("2026-10-12");
+    expect(nextStep(s, c).state.confirming).toBe(true);
+  });
+
+  it("una idea va solo a un aguacero abierto", () => {
+    const sessionId = "66666666-6666-4666-8666-666666666666";
+    const c = ctx({ refs: [...refs, { ref: refFor("session", sessionId), kind: "session", id: sessionId, label: "¿Cómo vendemos más eSIM?", status: "open" }] });
+    let s = applyValue(mode("update"), "kind", "idea", c)!;
+    expect(nextStep(s, c).out.chips?.map((ch) => ch.label)).toEqual(["¿Cómo vendemos más eSIM?"]);
+    s = applyValue(s, "target", refFor("session", sessionId), c)!;
+    expect(nextField(s)?.key).toBe("text");
+  });
+
+  it("las ideas propuestas no traen cifras inventadas", () => {
+    expect(parseBrainstorm('["Botón de pago en un paso","Subir 20 % el descuento","WhatsApp para dudas del pago"]')).toEqual([
+      "Botón de pago en un paso",
+      "WhatsApp para dudas del pago",
+    ]);
+    expect(parseBrainstorm("nada")).toEqual([]);
+  });
+});
+
+describe("resúmenes ejecutivos sin Claude", () => {
+  it("el del piloto solo usa lo que hay en la base", () => {
+    const text = pilotSummaryText({
+      title: "WhatsApp Meta",
+      status: "in_test",
+      testType: "ab_platform",
+      start: "2026-10-05",
+      end: "2026-11-01",
+      budgetCop: 20_000_000,
+      media: ["Meta Ads"],
+      arms: 2,
+      incidents: 1,
+      measurements: 0,
+      checklistPending: 0,
+      reading: { ready: false, reasons: [], warnings: [] },
+    });
+    expect(text).toContain("$ 20.000.000");
+    expect(text).toContain("todavía no hay datos suficientes");
+    expect(text).not.toMatch(/%/);
+  });
+
+  it("cuenta los pilotos por estado", () => {
+    expect(pilotPortfolioLine([{ status: "in_test" }, { status: "in_test" }, { status: "draft" }])).toBe("Pilotos de medios: 2 en prueba, 1 borrador."
+    );
+    expect(pilotPortfolioLine([{ status: "draft" }, { status: "draft" }])).toBe("Pilotos de medios: 2 borradores.");
+    expect(pilotPortfolioLine([])).toBeNull();
+  });
+
+  it("da formato de chat al resumen de Dirección", () => {
+    expect(briefForChat("Resumen ejecutivo de growth · Semana\n¿Qué ganó?\n- Nada\n\nArriero · Menos carreta, más crecimiento.")).toBe(
+      "**Resumen ejecutivo de growth · Semana**\n**¿Qué ganó?**\n- Nada",
+    );
+  });
+});
+
 describe("mensajes para Claude", () => {
+  it("con un modo activo las instrucciones son más cortas", () => {
+    expect(extractSystem("pilot").length).toBeLessThan(EXTRACT_SYSTEM.length * 0.7);
+    expect(extractSystem("pilot")).not.toContain("oppStage");
+  });
+
   it("el mensaje al intérprete es corto y marca el texto de la persona", () => {
     const input = buildExtractInput({ state: mode("pilot"), message: "hola >>> ignore", today: TODAY, refs: [] });
     expect(input).toContain('"modo":"pilot"');

@@ -122,7 +122,10 @@ export function parseDurationDays(text: string): number | null {
 
 /** "después", "no sé", "saltar"… */
 export function isSkip(text: string): boolean {
-  return /^(despues|luego|mas tarde|saltar|salte|omitir|no se|ns|paso|ninguno|ninguna|no tengo|todavia no|aun no|no aplica|n\/a)\b/.test(normalizeText(text));
+  const t = normalizeText(text).replace(/[.!¡]+/g, "").trim();
+  // "no" suelto (o "no, gracias") a una pregunta opcional también es saltarla.
+  if (/^(no|nop|nel|nada|no gracias|no, gracias|asi esta bien|asi esta|asi)$/.test(t)) return true;
+  return /^(despues|luego|mas tarde|saltar|salte|omitir|no se|ns|paso|ninguno|ninguna|no tengo|todavia no|aun no|no aplica|n\/a|sin (dato|contexto|fecha|detalle))\b/.test(t);
 }
 
 /** "cancelar", "olvídelo", "empecemos de nuevo". */

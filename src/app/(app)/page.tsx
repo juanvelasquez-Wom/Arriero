@@ -1,4 +1,4 @@
-import { ArrowRight, CloudRain, Trophy } from "lucide-react";
+import { ArrowRight, CloudRain, Lightbulb, Trophy } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AppHeader } from "@/components/app/app-header";
@@ -7,7 +7,8 @@ import { FeedbackBubble } from "@/components/brand/feedback-bubble";
 import { BrandIcon, type BrandIconName } from "@/components/brand/icons";
 import { TalkingMule } from "@/components/brand/talking-mule";
 import { LevelUpWatcher } from "@/components/recua/level-up-watcher";
-import { TiaHomeStrip } from "@/components/tia/tia-copilot";
+import { TiaHero } from "@/components/tia/tia-copilot";
+import { TIA_ENABLED } from "@/domain/tia";
 import { phraseOfTheDay } from "@/components/brand/phrases";
 import { levelFor, nudge } from "@/domain/gamification";
 import { bogotaHour, greetingFor } from "@/domain/greeting";
@@ -45,22 +46,22 @@ export default async function HomePage() {
   const newbie = programs.length === 0;
   const hi = greetingFor(bogotaHour());
 
-  // Hacer (arriba, grandes) y entender (abajo).
+  // Arriba La Tía (el camino corto); debajo, hacerlo a mano como experiencia inmersiva; al final, entender.
   const doing: Path[] = [
     user.isAdmin
       ? {
           href: "/programas/nuevo",
-          title: "Crear un proyecto de growth",
-          body: "Líneas, metas y ejercicios en cinco pasitos. Más fácil que organizar un paseo de olla.",
+          title: "Arme un proyecto de growth paso a paso",
+          body: "Usted mismo, pantalla por pantalla: líneas, métrica norte, embudo y calendario. Aprende el método mientras arma. Más fácil que organizar un paseo de olla.",
           art: "mapa",
-          primary: true,
+          primary: !TIA_ENABLED,
         }
       : {
           href: "/programas",
           title: "Ver mis proyectos de growth",
           body: "Los programas donde usted ya está montado, con lo que toca hoy en cada uno. Sin excusas.",
           art: "mapa",
-          primary: true,
+          primary: !TIA_ENABLED,
         },
   ];
   if (pilotActor) {
@@ -68,8 +69,8 @@ export default async function HomePage() {
       canWritePilots(pilotActor)
         ? {
             href: "/pilotos/nuevo",
-            title: "Crear un piloto de medios",
-            body: "¿Meta, radio, una landing nueva? Pruébelo con grupo control antes de meterle toda la plata (y toda la fe).",
+            title: "Arme un piloto de medios paso a paso",
+            body: "Oportunidad, diseño, métricas y reglas de decisión, una pregunta a la vez. Para los que quieren entender cada perilla antes de meterle toda la plata (y toda la fe).",
             art: "carriel-experimentos",
           }
         : {
@@ -80,12 +81,6 @@ export default async function HomePage() {
           },
     );
   }
-  doing.push({
-    href: "/insights",
-    title: "Anotar un insight",
-    body: "¿Vio algo en el chat, en el tablero o en la tienda? Guárdelo en el carriel antes de que se le olvide. Diez segundos, prometido.",
-    art: "diana",
-  });
   const learning: Path[] = [
     {
       href: "/direccion",
@@ -126,27 +121,49 @@ export default async function HomePage() {
           </div>
         </section>
 
-        <TiaHomeStrip canProject={user.isAdmin} canPilot={!!pilotActor && canWritePilots(pilotActor)} />
+        {/* El camino principal: contarle a La Tía. */}
+        <TiaHero canProject={user.isAdmin} canPilot={!!pilotActor && canWritePilots(pilotActor)} />
 
-        <ul className={cn("stagger mt-4 grid gap-4 sm:grid-cols-2", doing.length === 3 && "lg:grid-cols-3")}>
-          {doing.map((p) => (
-            <li key={p.href} className="pop-in sm:last:odd:col-span-2 lg:last:odd:col-span-1">
-              <PathCard path={p} big stack={doing.length === 3} />
-            </li>
-          ))}
-        </ul>
+        {/* Hacerlo a mano: la experiencia inmersiva en growth. */}
+        <section className="mt-8">
+          {TIA_ENABLED ? (
+            <div className="mb-3">
+              <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-soft">Experiencia inmersiva en growth</h2>
+              <p className="text-sm text-soft">¿Prefiere hacerlo usted, paso a paso? Así aprende el método desde adentro, con la mula al lado.</p>
+            </div>
+          ) : null}
+          <ul className="stagger grid gap-4 sm:grid-cols-2">
+            {doing.map((p) => (
+              <li key={p.href} className="pop-in sm:last:odd:col-span-2">
+                <PathCard path={p} big={!TIA_ENABLED} />
+              </li>
+            ))}
+          </ul>
+        </section>
 
-        {/* Franja chiquita: la lluvia de ideas sin romper la grilla de arriba. */}
-        <Link
-          href="/ideas"
-          className="group mt-3 flex items-center gap-2 rounded-2xl border border-dashed bg-paper px-4 py-2.5 text-sm transition-colors hover:bg-wash"
-        >
-          <CloudRain aria-hidden className="size-4 shrink-0" />
-          <span className="min-w-0 flex-1">
-            <strong>¿Lluvia de ideas?</strong> <span className="text-soft">Arme un aguacero: un reto, ideas sin filtro y al final se decide.</span>
-          </span>
-          <ArrowRight aria-hidden className="size-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
-        </Link>
+        {/* Franjas chiquitas: el carriel de insights y la lluvia de ideas. */}
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <Link
+            href="/insights"
+            className="group flex items-center gap-2 rounded-2xl border border-dashed bg-paper px-4 py-2.5 text-sm transition-colors hover:bg-wash"
+          >
+            <Lightbulb aria-hidden className="size-4 shrink-0" />
+            <span className="min-w-0 flex-1">
+              <strong>¿Vio algo?</strong> <span className="text-soft">Guárdelo en el carriel de insights antes de que se le olvide.</span>
+            </span>
+            <ArrowRight aria-hidden className="size-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
+          </Link>
+          <Link
+            href="/ideas"
+            className="group flex items-center gap-2 rounded-2xl border border-dashed bg-paper px-4 py-2.5 text-sm transition-colors hover:bg-wash"
+          >
+            <CloudRain aria-hidden className="size-4 shrink-0" />
+            <span className="min-w-0 flex-1">
+              <strong>¿Lluvia de ideas?</strong> <span className="text-soft">Un reto, ideas sin filtro y al final se decide.</span>
+            </span>
+            <ArrowRight aria-hidden className="size-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
+          </Link>
+        </div>
 
         <ul className="stagger mt-4 grid gap-4 sm:grid-cols-3">
           {learning.map((p) => (

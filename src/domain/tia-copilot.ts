@@ -12,11 +12,12 @@ import { addMonths, CUSTOM_LINE_KEY, QUICK_DURATIONS, quickProgramEnd, suggestPr
 import { normalizeText } from "./search";
 import { isSkip, parseDateEs, parseDurationDays, parseNumberEs, parseWeekEs, parseYesNo } from "./tia-parse";
 import { IMPACT_LEVELS, type ExperimentStatus, type ImpactLevel, type IsoDate } from "./types";
+import { INSIGHT_SOURCES, SOURCE_LABEL, type InsightSource } from "./insights";
 
 // ---------------------------------------------------------------------------
 // Estado
 
-export const COPILOT_MODES = ["project", "pilot", "update"] as const;
+export const COPILOT_MODES = ["project", "pilot", "update", "insight", "session"] as const;
 export type CopilotMode = (typeof COPILOT_MODES)[number];
 
 export const UPDATE_KINDS = [
@@ -27,6 +28,7 @@ export const UPDATE_KINDS = [
   "pilot_incident",
   "pilot_start",
   "pilot_reading",
+  "idea",
 ] as const;
 export type UpdateKind = (typeof UPDATE_KINDS)[number];
 
@@ -34,7 +36,7 @@ export type UpdateKind = (typeof UPDATE_KINDS)[number];
 export const COPILOT_MOVES = ["prioritized", "in_design", "in_test", "in_reading", "discarded"] as const satisfies readonly ExperimentStatus[];
 export type CopilotMove = (typeof COPILOT_MOVES)[number];
 
-export type RefKind = "program" | "experiment" | "metric" | "pilot";
+export type RefKind = "program" | "experiment" | "metric" | "pilot" | "session";
 
 /** Algo del sistema que la persona puede nombrar en un avance. `ref` es corto (E3) para gastar menos tokens. */
 export interface RefItem {
@@ -72,6 +74,20 @@ export interface PilotDraft {
   title?: string;
 }
 
+/** Insight para el carriel. */
+export interface InsightDraft {
+  title?: string;
+  source?: InsightSource;
+  detail?: string;
+}
+
+/** Aguacero (sesión de lluvia de ideas). */
+export interface SessionDraft {
+  title?: string;
+  context?: string;
+  deadline?: IsoDate;
+}
+
 export interface UpdateTarget {
   id: string;
   kind: RefKind;
@@ -95,7 +111,7 @@ export interface UpdateDraft {
 }
 
 export interface CreatedRef {
-  kind: "program" | "pilot" | "experiment" | "problem";
+  kind: "program" | "pilot" | "experiment" | "problem" | "insight" | "session";
   id: string;
   label: string;
   href: string;
@@ -108,6 +124,8 @@ export interface CopilotState {
   project: ProjectDraft;
   pilot: PilotDraft;
   update: UpdateDraft;
+  insight: InsightDraft;
+  session: SessionDraft;
   /** Campo que La Tía acaba de preguntar ("__advice" = espera una pregunta para opinar). */
   asked: string | null;
   skipped: string[];
@@ -117,7 +135,7 @@ export interface CopilotState {
 }
 
 export function emptyCopilotState(): CopilotState {
-  return { v: 1, mode: null, project: {}, pilot: {}, update: {}, asked: null, skipped: [], confirming: false, last: null };
+  return { v: 1, mode: null, project: {}, pilot: {}, update: {}, insight: {}, session: {}, asked: null, skipped: [], confirming: false, last: null };
 }
 
 // ---------------------------------------------------------------------------
@@ -131,7 +149,10 @@ export type ChipAction =
   | { t: "commit" }
   | { t: "edit" }
   | { t: "reset" }
-  | { t: "advice"; about?: "last" };
+  | { t: "advice"; about?: "last" }
+  | { t: "summary"; period?: "semana" | "mes" }
+  | { t: "brainstorm"; sessionId?: string }
+  | { t: "addIdea"; sessionId: string; text: string };
 
 export interface Chip {
   label: string;
@@ -223,6 +244,7 @@ const UPDATE_KIND_LABEL: Record<UpdateKind, string> = {
   pilot_incident: "Una novedad de un piloto",
   pilot_start: "Arrancó un piloto",
   pilot_reading: "Terminó un piloto",
+  idea: "Una idea para un aguacero",
 };
 
 const REF_KIND_FOR: Record<UpdateKind, RefKind> = {
@@ -233,6 +255,7 @@ const REF_KIND_FOR: Record<UpdateKind, RefKind> = {
   pilot_incident: "pilot",
   pilot_start: "pilot",
   pilot_reading: "pilot",
+  idea: "session",
 };
 
 const refChips = (field: string, kinds: RefKind[], c: CopilotContext, filter?: (r: RefItem) => boolean): Chip[] =>
@@ -422,6 +445,7 @@ const UPDATE_FIELDS: FieldSpec[] = [
         experiment: "¿De qué ejercicio?",
         metric: "¿Qué métrica?",
         pilot: "¿De qué piloto?",
+        session: "¿Para qué aguacero? (solo los que están recibiendo ideas)",
       })[REF_KIND_FOR[s.update.kind as UpdateKind]],
     chips: (s, c) => {
       const kind = s.update.kind as UpdateKind;
@@ -434,7 +458,9 @@ const UPDATE_FIELDS: FieldSpec[] = [
               ? (r) => r.status === "in_test" || r.status === "approved"
               : kind === "experiment_move"
                 ? (r) => movesFrom(r.status).length > 0
-                : undefined;
+                : kind === "idea"
+                  ? (r) => r.status === "open"
+                  : undefined;
       return refChips("target", [REF_KIND_FOR[kind]], c, filter);
     },
   },
@@ -472,6 +498,15 @@ const UPDATE_FIELDS: FieldSpec[] = [
     question: (s) => (s.update.kind === "pilot_incident" ? "¿Qué tanto puede afectar la lectura?" : "¿Qué tanto duele?"),
     options: () => IMPACT_OPTIONS,
     chips: () => IMPACT_LEVELS.map((v) => set("impact", v, IMPACT_LABEL[v], v === "medium")),
+  },
+  // Idea para un aguacero abierto
+  {
+    key: "text",
+    kind: "long",
+    required: true,
+    min: 3,
+    when: kindIs("idea"),
+    question: () => "¿Cuál es la idea? En una frase, sin filtro: aquí no se juzga (todavía).",
   },
   // Novedad de ejercicio o de piloto
   {
@@ -518,7 +553,69 @@ const UPDATE_FIELDS: FieldSpec[] = [
   },
 ];
 
-const FIELDS: Record<CopilotMode, FieldSpec[]> = { project: PROJECT_FIELDS, pilot: PILOT_FIELDS, update: UPDATE_FIELDS };
+const INSIGHT_FIELDS: FieldSpec[] = [
+  {
+    key: "title",
+    kind: "long",
+    required: true,
+    min: 5,
+    question: () => "¿Qué vio? Cuéntelo en una frase: «me di cuenta de que…». Una idea por insight.",
+  },
+  {
+    key: "source",
+    kind: "enum",
+    required: true,
+    question: () => "¿De dónde sale?",
+    options: () =>
+      INSIGHT_SOURCES.map((s) => ({
+        value: s.key,
+        label: s.label,
+        aliases: { data: ["dato", "tablero", "reporte", "excel", "ga"], customer: ["cliente", "chat", "llamada", "tienda"], competition: ["competencia", "claro", "tigo", "movistar"], team: ["equipo", "ventas", "agencia", "comite"], market: ["mercado", "redes", "noticia", "tendencia", "estudio"], hunch: ["corazonada", "intuicion", "creo", "presiento"] }[s.key],
+      })),
+    chips: () => INSIGHT_SOURCES.map((s) => set("source", s.key, s.label)),
+  },
+  {
+    key: "detail",
+    kind: "long",
+    required: false,
+    min: 5,
+    question: () => "¿Tiene la evidencia o un detalle más? (el número, el pantallazo, dónde lo vio)",
+    chips: () => [skip("detail", "No, así está bien")],
+  },
+];
+
+const SESSION_FIELDS: FieldSpec[] = [
+  {
+    key: "title",
+    kind: "long",
+    required: true,
+    min: 5,
+    question: () => "¿Cuál es el reto? Escríbalo como pregunta: «¿Cómo hacemos que más gente termine el pago?»",
+  },
+  {
+    key: "context",
+    kind: "long",
+    required: false,
+    min: 5,
+    question: () => "¿Algo de contexto para que llueva mejor? (el dato, la línea, lo que ya se probó)",
+    chips: () => [skip("context", "Sin contexto")],
+  },
+  {
+    key: "deadline",
+    kind: "date",
+    required: false,
+    question: () => "¿Hasta cuándo reciben ideas?",
+    chips: (_s, c) => [set("deadline", addDays(c.today, 7), "Una semana", true), set("deadline", addDays(c.today, 3), "Tres días"), skip("deadline", "Sin fecha")],
+  },
+];
+
+const FIELDS: Record<CopilotMode, FieldSpec[]> = {
+  project: PROJECT_FIELDS,
+  pilot: PILOT_FIELDS,
+  update: UPDATE_FIELDS,
+  insight: INSIGHT_FIELDS,
+  session: SESSION_FIELDS,
+};
 
 export function movesFrom(status: string | null | undefined): CopilotMove[] {
   const next = TRANSITIONS[(status ?? "idea") as ExperimentStatus] ?? [];
@@ -526,7 +623,7 @@ export function movesFrom(status: string | null | undefined): CopilotMove[] {
 }
 
 function draftOf(s: CopilotState, mode: CopilotMode): Record<string, unknown> {
-  return (mode === "project" ? s.project : mode === "pilot" ? s.pilot : s.update) as Record<string, unknown>;
+  return s[mode] as Record<string, unknown>;
 }
 
 function isFilled(value: unknown): boolean {
@@ -687,6 +784,8 @@ export function applyValue(s: CopilotState, field: string, raw: unknown, c: Copi
   const next: CopilotState = { ...s, skipped: s.skipped.filter((k) => k !== field) };
   if (s.mode === "project") next.project = { ...s.project, [field]: clean };
   else if (s.mode === "pilot") next.pilot = { ...s.pilot, [field]: clean };
+  else if (s.mode === "insight") next.insight = { ...s.insight, [field]: clean };
+  else if (s.mode === "session") next.session = { ...s.session, [field]: clean };
   else {
     next.update = { ...s.update, [field]: clean };
     // Cambiar el tipo de avance o el objetivo invalida lo que dependía de ellos.
@@ -767,6 +866,30 @@ function cleanValue(s: CopilotState, field: string, v: unknown, c: CopilotContex
     }
     return undefined;
   }
+  if (s.mode === "insight") {
+    switch (field) {
+      case "title":
+        return str(v, 5, 200);
+      case "source":
+        return INSIGHT_SOURCES.some((x) => x.key === v) ? (v as InsightSource) : undefined;
+      case "detail":
+        return str(v, 3, 4000);
+    }
+    return undefined;
+  }
+  if (s.mode === "session") {
+    switch (field) {
+      case "title":
+        return str(v, 5, 200);
+      case "context":
+        return str(v, 3, 2000);
+      case "deadline": {
+        const d = anyDate(v, c.today);
+        return d && d >= c.today ? d : undefined;
+      }
+    }
+    return undefined;
+  }
   switch (field) {
     case "kind":
       return (UPDATE_KINDS as readonly string[]).includes(String(v)) ? (v as UpdateKind) : undefined;
@@ -784,7 +907,7 @@ function cleanValue(s: CopilotState, field: string, v: unknown, c: CopilotContex
     case "title":
       return str(v, 5, 240);
     case "text":
-      return str(v, s.update.kind === "opportunity" ? 10 : 5, 4000);
+      return str(v, s.update.kind === "opportunity" ? 10 : s.update.kind === "idea" ? 3 : 5, s.update.kind === "idea" ? 200 : 4000);
     case "to":
       return movesFrom(s.update.target?.status).includes(v as CopilotMove) ? (v as CopilotMove) : undefined;
     case "value":
@@ -867,24 +990,51 @@ export function groundPatch(patch: Record<string, unknown>, message: string): Re
 // ---------------------------------------------------------------------------
 // Detectar intención sin Claude (mensajes cortos y obvios)
 
-export type QuickIntent = { mode: CopilotMode } | { advice: true } | null;
+export type QuickIntent =
+  | { mode: CopilotMode }
+  | { advice: true }
+  | { summary: "semana" | "mes" }
+  | { insightSearch: string }
+  | { brainstorm: true }
+  | null;
 
 export function quickIntent(message: string): QuickIntent {
   const t = normalizeText(message);
-  if (t.length > 70) return null;
+  if (t.length > 90) return null;
+  // Resumen ejecutivo: lo arma el código con los números reales (cero tokens, cero inventos).
+  if (/\b(resumen|resuma|resumame|resumir|status|estatus|como vamos|como va todo|estado de todo|informe)\b/.test(t)) return { summary: /\bmes\b|mensual/.test(t) ? "mes" : "semana" };
+  if (/\b(armar|arme|armemos|crear|cree|creemos|montar|monte|hacer|haga|nueva|nuevo)\b/.test(t) && /\b(aguacero|lluvia de ideas|brainstorm)\b/.test(t)) return { mode: "session" };
+  if (/\b(propong|propon|deme ideas|dame ideas|lluevan ideas|ideas para|sugiera ideas|se le ocurre)\b/.test(t)) return { brainstorm: true };
   // Pedir opinión gana: "¿qué opina del proyecto que acabamos de armar?" no es crear otro.
   if (isAdviceLike(t)) return { advice: true };
-  const create = /\b(crear|cree|creemos|nuevo|nueva|armar|arme|armemos|montar|monte|hacer|haga|quiero|empezar|arrancar)\b/.test(t);
+  const create = /\b(crear|cree|creemos|nuevo|nueva|armar|arme|armemos|montar|monte|hacer|haga|quiero|empezar|arrancar|anotar|anote|guardar|guarde|registrar)\b/.test(t);
   if (create && /\bpiloto\b/.test(t)) return { mode: "pilot" };
   if (create && /\b(proyecto|programa)\b/.test(t)) return { mode: "project" };
+  if (create && /\b(aguacero|lluvia de ideas|brainstorm)\b/.test(t)) return { mode: "session" };
+  if (create && /\binsight\b/.test(t)) return { mode: "insight" };
+  if (/^(me di cuenta|vi que|note que|descubri que)\b/.test(t)) return { mode: "insight" };
+  const search = t.match(/\b(?:insights?|hallazgos?)\b.*?\b(?:sobre|de|del|con|acerca de)\s+(.{3,})$/);
+  if (search && /\b(hay|busque|buscar|muestreme|muestre|cuales|que)\b/.test(t)) return { insightSearch: search[1].replace(/[?¿.!]+/g, "").trim() };
   if (/\b(avance|actualizar|actualizacion|novedad|contarle|reportar)\b/.test(t)) return { mode: "update" };
-  if (/\?$/.test(message.trim()) && isAdviceLike(t)) return { advice: true };
   return null;
 }
 
 export function isAdviceLike(normalized: string): boolean {
-  return /\b(que opina|opinion|consej|recomiend|interpret|como va|como vamos|por que|analic|analis|lectura|que hago|que haria|vale la pena|sirve|funciono|gano|esta bien)\b/.test(normalized);
+  return /\b(que opina|opinion|consej|recomiend|interpret|por que|analic|analis|lectura|que hago|que haria|vale la pena|sirve|funciono|gano|esta bien)\b/.test(normalized);
 }
+
+/**
+ * ¿La pregunta es de Arriero? Palabras del trabajo del equipo. Si no las tiene y no
+ * hay un proyecto o piloto a la vista, se le pregunta al intérprete barato (que puede
+ * rechazarla) antes de gastar Sonnet.
+ */
+export function looksArriero(text: string): boolean {
+  return /\b(arriero|proyecto|programa|piloto|ejercicio|metrica|norte|arbol|embudo|oportunidad|hipotesis|ice|growth|venta|ventas|lead|leads|campana|medio|medios|meta ads|whatsapp|landing|ecommerce|conversion|cierre|altas|recarga|pospago|portabilidad|equipos|insight|idea|aguacero|resultado|control|variante|congelamiento|calendario|presupuesto|kpi|cac|roas|cpa|cpl|funnel|churn|retencion|adquisicion|activacion|comite|aprendizaje|decidir|escalar|prueba|test|datos?|semana|carga)\b/.test(normalizeText(text));
+}
+
+/** Respuesta cuando piden algo que no es de Arriero (plantilla: cero tokens). */
+export const OFF_TOPIC_TEXT =
+  "Eso no es de mi potrero. Yo solo ayudo con lo de Arriero: proyectos, pilotos, insights, lluvia de ideas, avances y resúmenes. Para lo demás, pregúntele a otra tía, que yo tengo la mula cargada.";
 
 /**
  * ¿Opinar con Sonnet o basta Haiku? Sonnet cuando hay que interpretar datos o
@@ -909,13 +1059,18 @@ const MODE_INTRO: Record<CopilotMode, string> = {
   project: "¡Hágale pues! Armemos el proyecto de growth. Le voy preguntando y usted me va contando.",
   pilot: "¡Eso! Armemos el piloto. Le pregunto lo justo y yo lo monto.",
   update: "Cuénteme, que para eso estoy.",
+  insight: "¡Al carriel! Anotemos ese insight antes de que se le olvide.",
+  session: "¡Que llueva! Armemos el aguacero. Primero el reto.",
 };
 
 export function startChips(c: CopilotContext): Chip[] {
   const chips: Chip[] = [];
   if (c.canCreateProject) chips.push({ label: "Crear un proyecto de growth", action: { t: "mode", mode: "project" } });
   if (c.canCreatePilot) chips.push({ label: "Crear un piloto de medios", action: { t: "mode", mode: "pilot" } });
+  chips.push({ label: "Anotar un insight", action: { t: "mode", mode: "insight" } });
+  chips.push({ label: "Armar una lluvia de ideas", action: { t: "mode", mode: "session" } });
   chips.push({ label: "Contarle un avance", action: { t: "mode", mode: "update" } });
+  chips.push({ label: "Resumen ejecutivo", action: { t: "summary" } });
   chips.push({ label: "Pedirle un consejo", action: { t: "advice" } });
   return chips;
 }
@@ -963,9 +1118,14 @@ export function nextStep(s: CopilotState, c: CopilotContext, prefix?: string): {
 
 function confirmStep(s: CopilotState, c: CopilotContext, prefix?: string): { state: CopilotState; out: TiaOut } {
   const mode = s.mode as CopilotMode;
-  const text =
-    mode === "project" ? "Así quedaría el proyecto. ¿Lo creo?" : mode === "pilot" ? "Así quedaría el piloto (en borrador, para que lo revise antes de mandarlo). ¿Lo creo?" : "Esto es lo que voy a guardar. ¿Listo?";
-  const commitLabel = mode === "update" ? "Guárdelo" : "Créelo, Tía";
+  const text = {
+    project: "Así quedaría el proyecto. ¿Lo creo?",
+    pilot: "Así quedaría el piloto (en borrador, para que lo revise antes de mandarlo). ¿Lo creo?",
+    update: "Esto es lo que voy a guardar. ¿Listo?",
+    insight: "Así va al carriel de insights, a la vista de todo el equipo. ¿Lo anoto?",
+    session: "Así quedaría el aguacero, abierto para que todos anoten ideas. ¿Lo armo?",
+  }[mode];
+  const commitLabel = mode === "update" || mode === "insight" ? "Guárdelo" : "Créelo, Tía";
   return {
     state: { ...s, asked: null, confirming: true },
     out: {
@@ -1011,7 +1171,10 @@ export function summarize(s: CopilotState, c: CopilotContext): SummaryRow[] {
   } else if (s.mode === "update") {
     const u = s.update;
     push("Qué", u.kind && UPDATE_KIND_LABEL[u.kind]);
-    push(u.target?.kind === "program" ? "Programa" : u.target?.kind === "metric" ? "Métrica" : u.target?.kind === "pilot" ? "Piloto" : "Ejercicio", u.target?.label);
+    push(
+      { program: "Programa", metric: "Métrica", pilot: "Piloto", session: "Aguacero", experiment: "Ejercicio" }[u.target?.kind ?? "experiment"],
+      u.target?.label,
+    );
     push("Línea", u.lineId && c.lines.find((l) => l.id === u.lineId)?.name);
     push("Etapa", u.stage);
     push("Nuevo estado", u.to && STATUS_LABEL[u.to]);
@@ -1020,6 +1183,14 @@ export function summarize(s: CopilotState, c: CopilotContext): SummaryRow[] {
     push("Fecha", u.date);
     push("Detalle", u.text && clipText(u.text, 200));
     push("Impacto", u.impact && IMPACT_LABEL[u.impact]);
+  } else if (s.mode === "insight") {
+    push("Insight", s.insight.title);
+    push("Fuente", s.insight.source && SOURCE_LABEL[s.insight.source]);
+    push("Detalle", s.insight.detail && clipText(s.insight.detail, 200));
+  } else if (s.mode === "session") {
+    push("Reto", s.session.title);
+    push("Contexto", s.session.context && clipText(s.session.context, 200));
+    push("Reciben ideas hasta", s.session.deadline ?? "Sin fecha");
   }
   return rows;
 }
@@ -1119,15 +1290,30 @@ export type MessageRoute =
   | { t: "short"; text: string; chips?: Chip[] }
   | { t: "glossary"; text: string }
   | { t: "mode"; mode: CopilotMode }
+  | { t: "summary"; period: "semana" | "mes" }
+  | { t: "insights"; query: string }
+  | { t: "brainstorm" }
   | { t: "extract"; state: CopilotState };
 
 /** Tipos de respuesta que, si vienen con más palabras de las necesarias, seguramente traen más datos. */
 const TERSE_KINDS: FieldKind[] = ["date", "week", "number", "percent", "months", "yesno", "lines", "channels", "enum", "ref", "line"];
 
-export function routeMessage(s: CopilotState, message: string, c: CopilotContext, glossary: (m: string) => string | null = () => null): MessageRoute {
+/**
+ * `hasSubject`: hay un proyecto, piloto o aguacero a la vista (o recién creado), así que
+ * "¿qué opina?" se entiende como pregunta de Arriero aunque no nombre nada.
+ */
+export function routeMessage(
+  s: CopilotState,
+  message: string,
+  c: CopilotContext,
+  glossary: (m: string) => string | null = () => null,
+  hasSubject = false,
+): MessageRoute {
   const t = normalizeText(message);
   if (/^(cancelar|cancele|olvidelo|empecemos de nuevo|empezar de nuevo|reiniciar)\b/.test(t)) return { t: "reset" };
-  if (s.asked === ADVICE_FIELD) return { t: "advice", question: message, state: { ...s, asked: null } };
+  // Una pregunta que no suena a Arriero la revisa primero el intérprete barato (puede rechazarla).
+  const onTopic = hasSubject || looksArriero(message);
+  if (s.asked === ADVICE_FIELD) return onTopic ? { t: "advice", question: message, state: { ...s, asked: null } } : { t: "extract", state: { ...s, asked: null } };
   let state = s;
   if (state.confirming) {
     if (/^(si|claro|de una|hagale|listo|ok|dale|confirmo|creelo|guardelo|perfecto)\b/.test(t)) return { t: "commit" };
@@ -1152,8 +1338,16 @@ export function routeMessage(s: CopilotState, message: string, c: CopilotContext
     const g = glossary(message);
     if (g) return { t: "glossary", text: g };
     const qi = quickIntent(message);
+    // "Me di cuenta de que…" ya es el insight: se anota la frase y se pregunta lo que falta.
+    if (qi && "mode" in qi && qi.mode === "insight" && /^(me di cuenta|vi que|note que|descubri que)\b/.test(t)) {
+      const withTitle = applyValue({ ...emptyCopilotState(), mode: "insight", last: state.last }, "title", message.trim(), c);
+      if (withTitle) return { t: "local", state: withTitle };
+    }
     if (qi && "mode" in qi) return { t: "mode", mode: qi.mode };
-    if (qi && "advice" in qi) return { t: "advice", question: message, state };
+    if (qi && "summary" in qi) return { t: "summary", period: qi.summary };
+    if (qi && "insightSearch" in qi) return { t: "insights", query: qi.insightSearch };
+    if (qi && "brainstorm" in qi) return { t: "brainstorm" };
+    if (qi && "advice" in qi && onTopic) return { t: "advice", question: message, state };
   }
   return { t: "extract", state };
 }
@@ -1161,7 +1355,7 @@ export function routeMessage(s: CopilotState, message: string, c: CopilotContext
 // ---------------------------------------------------------------------------
 // Utilidades para el servidor
 
-const REF_LETTER: Record<RefKind, string> = { program: "R", experiment: "E", metric: "M", pilot: "P" };
+const REF_LETTER: Record<RefKind, string> = { program: "R", experiment: "E", metric: "M", pilot: "P", session: "S" };
 
 /** Referencia corta y estable (no cambia entre turnos aunque cambie el orden de la lista). */
 export function refFor(kind: RefKind, id: string): string {
@@ -1181,6 +1375,8 @@ export function sanitizeState(raw: unknown): CopilotState {
     project: obj(r.project) as ProjectDraft,
     pilot: obj(r.pilot) as PilotDraft,
     update: obj(r.update) as UpdateDraft,
+    insight: obj(r.insight) as InsightDraft,
+    session: obj(r.session) as SessionDraft,
     asked: typeof r.asked === "string" ? r.asked.slice(0, 40) : null,
     skipped: Array.isArray(r.skipped) ? r.skipped.filter((k): k is string => typeof k === "string").slice(0, 30) : [],
     confirming: r.confirming === true,
@@ -1190,7 +1386,7 @@ export function sanitizeState(raw: unknown): CopilotState {
       last.href.startsWith("/") &&
       !last.href.startsWith("//") &&
       typeof last.label === "string" &&
-      ["program", "pilot", "experiment", "problem"].includes(String(last.kind))
+      ["program", "pilot", "experiment", "problem", "insight", "session"].includes(String(last.kind))
         ? {
             kind: last.kind as CreatedRef["kind"],
             id: last.id,
