@@ -481,8 +481,8 @@ Migración `014_matriz_hallazgos` e informe en el artefacto "Auditoría integral
 - **Avisos proactivos al abrir** (`copilotNudges`, sin Claude): pilotos aprobados con fecha de arranque vencida, pilotos en prueba con fin vencido y ejercicios en prueba que ya cumplieron la duración mínima.
 - **Estado:** viaja con el navegador (`sessionStorage`, `arriero:tia:copiloto`), no en la base; el servidor lo revisa en cada turno (`sanitizeState`). El servidor solo lee lo que el turno necesita (armando un proyecto no consulta ejercicios ni pilotos).
 - **Costos** (`src/domain/tia-cost.ts` y `tia-copilot-cost.ts`, con los prompts reales; USD 1 ≈ COP 4.000; Sonnet asumido a USD 3 / 15 por millón):
-  - Crear un proyecto ≈ COP 4 (una llamada a Haiku); con consejo de Sonnet al final ≈ COP 34; escribiendo todo a mano ≈ COP 46.
-  - Crear un piloto ≈ COP 8; con revisión del diseño ≈ COP 37; a mano ≈ COP 53.
+  - Simulación del 28 sep 2026 (conversación completa por `routeMessage`, con Claude Code haciendo de modelo): proyecto = 1 llamada a Haiku (586 tokens de entrada, 31 de salida) ≈ COP 3; piloto = 1 llamada a Haiku (617 / 87) ≈ COP 4; el «¿Qué opina?» final con Sonnet suma ≈ COP 22 (≈ 900 / 210). El resto de turnos, con botones o respuestas cortas, no usa Claude.
+  - Escribiendo todo a mano: proyecto ≈ COP 46, piloto ≈ COP 53.
   - Anotar un avance ≈ COP 8. Una pregunta de opinión ≈ COP 30 (más si el programa tiene muchos ejercicios).
   - Cada llamada queda en `tia_usage` (`copilot` y `copilot_advice`) y cuenta para `TIA_DAILY_LIMIT`; los botones no cuentan. Un admin ve en el panel cuánto va costando la charla.
 - **Tests:** `src/domain/tia-copilot.test.ts`.

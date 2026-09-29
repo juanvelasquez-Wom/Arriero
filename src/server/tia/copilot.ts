@@ -24,11 +24,10 @@ import {
   firstSentence,
   introFor,
   isHowTo,
-  localAnswer,
   nextStep,
-  quickIntent,
   recommendTestType,
   refFor,
+  routeMessage,
   sanitizeState,
   startChips,
   type Chip,
@@ -231,51 +230,32 @@ export async function copilotTurn(input: { state: unknown; message?: string; chi
   const message = (input.message ?? "").trim().slice(0, 2000);
   if (!message) return { state, out: [nextStep(state, loaded.ctx).out], spend };
 
-  if (/^(cancelar|cancele|olvidelo|empecemos de nuevo|empezar de nuevo|reiniciar)\b/.test(normalizeText(message))) {
-    const reset = { ...emptyCopilotState(), last: state.last };
-    return { state: reset, out: [nextStep(reset, loaded.ctx, "Listo, borrón y cuenta nueva.").out], spend };
-  }
-
-  // Espera una pregunta para opinar.
-  if (state.asked === ADVICE_FIELD) return advise(message, { ...state, asked: null }, loaded, spend);
-
-  // Confirmando: sí crea, no pregunta qué cambiar; lo demás es un cambio.
-  if (state.confirming) {
-    const t = normalizeText(message);
-    if (/^(si|claro|de una|hagale|listo|ok|dale|confirmo|creelo|guardelo|perfecto)\b/.test(t)) return commit(state, loaded, spend);
-    if (/^(no|nel|mejor no)\b/.test(t) && t.split(/\s+/).length <= 3) return { state: { ...state, confirming: false, asked: EDIT_FIELD }, out: [{ text: "¿Qué le cambio? Dígamelo como le salga, por ejemplo «que sean 12 meses»." }], spend };
-    state = { ...state, confirming: false, asked: EDIT_FIELD };
-  }
-
-  // Respuesta a la pregunta que se hizo: primero sin Claude.
-  if (state.mode && state.asked && state.asked !== EDIT_FIELD) {
-    const spec = fieldSpec(state, state.asked);
-    const local = spec ? localAnswer(spec, message, state, loaded.ctx) : null;
-    if (local && spec) {
-      if (local.ok) {
-        const next = applyValue(state, spec.key, local.value, loaded.ctx);
-        if (next) {
-          await loadLinesFor(loaded.ctx, next, loaded.scope);
-          const step = nextStep(next, loaded.ctx);
-          return { state: step.state, out: [step.out], spend };
-        }
-      } else if (local.reason === "skip") {
-        const next = { ...state, skipped: [...state.skipped, spec.key] };
-        const step = nextStep(next, loaded.ctx);
-        return { state: step.state, out: [step.out], spend };
-      } else {
-        return { state, out: [{ text: local.message, chips: spec.chips?.(state, loaded.ctx) }], spend };
-      }
+  // Primero todo lo que se resuelve sin Claude (routeMessage, en el dominio).
+  const route = routeMessage(state, message, loaded.ctx, glossaryAnswer);
+  switch (route.t) {
+    case "reset": {
+      const reset = { ...emptyCopilotState(), last: state.last };
+      return { state: reset, out: [nextStep(reset, loaded.ctx, "Listo, borrón y cuenta nueva.").out], spend };
     }
-  }
-
-  // Sin modo: intenciones obvias sin Claude.
-  if (!state.mode) {
-    const glossary = glossaryAnswer(message);
-    if (glossary) return { state, out: [{ text: glossary, chips: startChips(loaded.ctx) }], spend };
-    const qi = quickIntent(message);
-    if (qi && "mode" in qi) return startMode(state, qi.mode, loaded, spend);
-    if (qi && "advice" in qi) return advise(message, state, loaded, spend);
+    case "advice":
+      return advise(route.question, route.state, loaded, spend);
+    case "commit":
+      return commit(state, loaded, spend);
+    case "edit":
+      return { state: route.state, out: [{ text: "¿Qué le cambio? Dígamelo como le salga, por ejemplo «que sean 12 meses»." }], spend };
+    case "local": {
+      await loadLinesFor(loaded.ctx, route.state, loaded.scope);
+      const step = nextStep(route.state, loaded.ctx);
+      return { state: step.state, out: [step.out], spend };
+    }
+    case "short":
+      return { state, out: [{ text: route.text, chips: route.chips }], spend };
+    case "glossary":
+      return { state, out: [{ text: route.text, chips: startChips(loaded.ctx) }], spend };
+    case "mode":
+      return startMode(state, route.mode, loaded, spend);
+    case "extract":
+      state = route.state;
   }
 
   // Claude (Haiku) interpreta el mensaje.

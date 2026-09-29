@@ -290,6 +290,7 @@ describe("intención y modelo", () => {
     expect(needsRefs(mode("pilot"), "arrancó")).toBe(false);
     expect(needsRefs(emptyCopilotState(), "El piloto arrancó ayer")).toBe(true);
     expect(needsRefs(emptyCopilotState(), "Quiero armar un proyecto de pospago")).toBe(false);
+    expect(needsRefs(emptyCopilotState(), "Quiero probar clic a WhatsApp, arrancamos el lunes")).toBe(false);
   });
 });
 

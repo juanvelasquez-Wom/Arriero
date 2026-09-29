@@ -36,6 +36,8 @@ export function refLine(r: RefItem): string {
 export function needsRefs(state: CopilotState, message: string): boolean {
   if (state.mode === "project" || state.mode === "pilot") return false;
   if (state.mode === "update") return true;
+  // Quien pide crear algo no está contando un avance ("quiero probar… arrancamos el lunes").
+  if (/\b(quiero|queremos|crear|cree|armar|arme|armemos|montar|nuevo|nueva|probar|probemos)\b/i.test(message)) return false;
   return /\b(arranc|termin|avance|novedad|ejercicio|piloto|semana|dio|lleg|carg|mover|pas[oó]|ya est|se cay|oportunidad)/i.test(message);
 }
 

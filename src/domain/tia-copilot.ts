@@ -1058,6 +1058,57 @@ export function experimentStatusLabel(status: string | null | undefined): string
 }
 
 // ---------------------------------------------------------------------------
+// Qué hacer con un mensaje escrito (la misma decisión la usan el servidor y la simulación de costos)
+
+export type MessageRoute =
+  | { t: "reset" }
+  | { t: "advice"; question: string; state: CopilotState }
+  | { t: "commit" }
+  | { t: "edit"; state: CopilotState }
+  | { t: "local"; state: CopilotState }
+  | { t: "short"; text: string; chips?: Chip[] }
+  | { t: "glossary"; text: string }
+  | { t: "mode"; mode: CopilotMode }
+  | { t: "extract"; state: CopilotState };
+
+/** Tipos de respuesta que, si vienen con más palabras de las necesarias, seguramente traen más datos. */
+const TERSE_KINDS: FieldKind[] = ["date", "week", "number", "percent", "months", "yesno", "lines", "channels", "enum", "ref", "line"];
+
+export function routeMessage(s: CopilotState, message: string, c: CopilotContext, glossary: (m: string) => string | null = () => null): MessageRoute {
+  const t = normalizeText(message);
+  if (/^(cancelar|cancele|olvidelo|empecemos de nuevo|empezar de nuevo|reiniciar)\b/.test(t)) return { t: "reset" };
+  if (s.asked === ADVICE_FIELD) return { t: "advice", question: message, state: { ...s, asked: null } };
+  let state = s;
+  if (state.confirming) {
+    if (/^(si|claro|de una|hagale|listo|ok|dale|confirmo|creelo|guardelo|perfecto)\b/.test(t)) return { t: "commit" };
+    if (/^(no|nel|mejor no)\b/.test(t) && t.split(/\s+/).length <= 3) return { t: "edit", state: { ...state, confirming: false, asked: EDIT_FIELD } };
+    state = { ...state, confirming: false, asked: EDIT_FIELD };
+  }
+  if (state.mode && state.asked && state.asked !== EDIT_FIELD) {
+    const spec = fieldSpec(state, state.asked);
+    // Una respuesta larga a una pregunta corta ("pospago y recargas, seis meses, desde el lunes")
+    // trae varios datos de una: mejor que Claude los lea todos a preguntar uno por uno.
+    const rich = !!spec && TERSE_KINDS.includes(spec.kind) && message.trim().split(/\s+/).length > 5;
+    const local = spec && !rich ? localAnswer(spec, message, state, c) : null;
+    if (local && spec) {
+      if (local.ok) {
+        const next = applyValue(state, spec.key, local.value, c);
+        if (next) return { t: "local", state: next };
+      } else if (local.reason === "skip") return { t: "local", state: { ...state, skipped: [...state.skipped, spec.key] } };
+      else return { t: "short", text: local.message, chips: spec.chips?.(state, c) };
+    }
+  }
+  if (!state.mode) {
+    const g = glossary(message);
+    if (g) return { t: "glossary", text: g };
+    const qi = quickIntent(message);
+    if (qi && "mode" in qi) return { t: "mode", mode: qi.mode };
+    if (qi && "advice" in qi) return { t: "advice", question: message, state };
+  }
+  return { t: "extract", state };
+}
+
+// ---------------------------------------------------------------------------
 // Utilidades para el servidor
 
 const REF_LETTER: Record<RefKind, string> = { program: "R", experiment: "E", metric: "M", pilot: "P" };
